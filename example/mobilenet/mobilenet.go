@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	rknnlite "go-rknnlite"
+	"github.com/swdee/go-rknnlite"
 	"gocv.io/x/gocv"
 	"image"
 	"log"
