@@ -39,7 +39,20 @@ apt install ./rknpu2-rk3588_1.6.0-2_arm64.deb
 
 ## Examples
 
-See the [example](example/) directory.
+See the [example](example) directory.
+
+* [MobileNet Demo](example/mobilenet)
+* [Pooled Runtime Usage](example/pool)
+
+
+## Pooled Runtimes
+
+Running multiple Runtimes in a Pool allows you to take advantage of all three
+NPU cores.  For our usage of an EfficentNet-Lite0 model, a single runtime has
+an inference speed of 7.9ms per image, however running a Pool of 9 runtimes brings
+the average inference speed down to 1.65ms per image.
+
+See the [Pool example](example/pool).
 
 
 ## Reference Material
