@@ -33,12 +33,14 @@ cd example/data/
 
 Command line Usage.
 ```
-go run pool.go -h
-Usage of /tmp/go-build688284491/b001/exe/pool:
+$ go run pool.go -h
+
+Usage of /tmp/go-build3261134608/b001/exe/pool:
   -d string
-        A directory of images to run inference on (default "../data/")
+        A directory of images to run inference on (default "../data/imagenet/")
   -m string
         RKNN compiled model file (default "../data/mobilenet_v1-rk3588.rknn")
+  -q    Run in quiet mode, don't display individual inference results
   -r int
         Repeat processing image directory the specified number of times, use this if you don't have enough images (default 1)
   -s int

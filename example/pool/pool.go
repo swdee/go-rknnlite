@@ -20,6 +20,7 @@ func main() {
 	imgDir := flag.String("d", "../data/imagenet/", "A directory of images to run inference on")
 	poolSize := flag.Int("s", 1, "Size of RKNN runtime pool, choose 1, 2, 3, or multiples of 3")
 	repeat := flag.Int("r", 1, "Repeat processing image directory the specified number of times, use this if you don't have enough images")
+	quiet := flag.Bool("q", false, "Run in quiet mode, don't display individual inference results")
 
 	flag.Parse()
 
@@ -50,6 +51,8 @@ func main() {
 
 	start := time.Now()
 
+	log.Println("Running...")
+
 	// repeat processing the specified number of times to increase the number
 	// of images processed
 	for i := 0; i < *repeat; i++ {
@@ -64,18 +67,24 @@ func main() {
 			rt := pool.Get()
 
 			go func(pool *rknnlite.Pool, rt *rknnlite.Runtime, file os.DirEntry) {
-				processFile(rt, filepath.Join(*imgDir, file.Name()))
+				processFile(rt, filepath.Join(*imgDir, file.Name()), *quiet)
 				pool.Return(rt)
 			}(pool, rt, file)
 		}
 	}
 
-	log.Printf("Completed in %s\n", time.Since(start).String())
+	// calculate average inference
+	numFiles := (*repeat * len(files))
+	end := time.Since(start)
+	avg := (end.Seconds() / float64(numFiles)) * 1000
+
+	log.Printf("Processed %d images in %s, average inference per image is %.2fms\n",
+		numFiles, end.String(), avg)
 
 	pool.Close()
 }
 
-func processFile(rt *rknnlite.Runtime, file string) {
+func processFile(rt *rknnlite.Runtime, file string, quiet bool) {
 
 	// load image
 	img := gocv.IMRead(file, gocv.IMReadColor)
@@ -99,17 +108,15 @@ func processFile(rt *rknnlite.Runtime, file string) {
 	defer cropImg.Close()
 
 	// perform inference on image file
-	outputs, err := rt.Inference([]gocv.Mat{cropImg})
+	_, err := rt.Inference([]gocv.Mat{cropImg})
 
-	exe := time.Since(start)
+	end := time.Since(start)
 
 	if err != nil {
 		log.Printf("Runtime inferencing failed with error: ", err)
 	}
 
-	for _, next := range rknnlite.GetTop5(outputs) {
-		log.Printf("%dms - File[%s] is %3d: %8.6f\n", exe.Milliseconds(),
-			file, next.LabelIndex, next.Probability)
-		break
+	if !quiet {
+		log.Printf("File %s, inference time %dms\n", file, end.Milliseconds())
 	}
 }
