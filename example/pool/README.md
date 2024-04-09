@@ -50,7 +50,13 @@ Usage of /tmp/go-build3261134608/b001/exe/pool:
 To run the example pool using 3 Runtimes in the pool and downloaded data.
 ```
 cd example/pool/
-go run pool.go -s 3
+go run pool.go -q -s 3
+```
+
+Example summary.
+```
+Running...
+Processed 4000 images in 9.534736507s, average inference per image is 2.38ms
 ```
 
 When selecting the number of Runtimes to initialize the pool with select 1, 2, 3, or
