@@ -18,6 +18,17 @@ func main() {
 	imgFile := flag.String("i", "../data/cat_224x224.jpg", "Image file to run inference on")
 	flag.Parse()
 
+	// create rknn runtime instance
+	rt, err := rknnlite.NewRuntime(*modelFile, rknnlite.NPUCoreAuto)
+
+	if err != nil {
+		log.Fatal("Error initializing RKNN runtime: ", err)
+	}
+
+	// optional querying of model file tensors and SDK version.  not necessary
+	// for production inference code
+	inputAttrs := optionalQueries(rt)
+
 	// load image
 	img := gocv.IMRead(*imgFile, gocv.IMReadColor)
 
@@ -30,22 +41,12 @@ func main() {
 	gocv.CvtColor(img, &rgbImg, gocv.ColorBGRToRGB)
 
 	cropImg := rgbImg.Clone()
-	gocv.Resize(rgbImg, &cropImg, image.Pt(224, 224), 0, 0, gocv.InterpolationArea)
+	scaleSize := image.Pt(int(inputAttrs[0].Dims[1]), int(inputAttrs[0].Dims[2]))
+	gocv.Resize(rgbImg, &cropImg, scaleSize, 0, 0, gocv.InterpolationArea)
 
 	defer img.Close()
 	defer rgbImg.Close()
 	defer cropImg.Close()
-
-	// create rknn runtime instance
-	rt, err := rknnlite.NewRuntime(*modelFile, rknnlite.NPUCoreAuto)
-
-	if err != nil {
-		log.Fatal("Error initialing RKNN runtime: ", err)
-	}
-
-	// optional querying of model file tensors and SDK version.  not necessary
-	// for production inference code
-	optionalQueries(rt)
 
 	// perform inference on image file
 	outputs, err := rt.Inference([]gocv.Mat{cropImg})
@@ -71,13 +72,13 @@ func main() {
 	log.Println("done")
 }
 
-func optionalQueries(rt *rknnlite.Runtime) {
+func optionalQueries(rt *rknnlite.Runtime) []rknnlite.TensorAttr {
 
 	// get SDK version
 	ver, err := rt.SDKVersion()
 
 	if err != nil {
-		log.Fatal("Error initialing RKNN runtime: ", err)
+		log.Fatal("Error initializing RKNN runtime: ", err)
 	}
 
 	fmt.Printf("Driver Version: %s, API Version: %s\n", ver.DriverVersion, ver.APIVersion)
@@ -116,4 +117,6 @@ func optionalQueries(rt *rknnlite.Runtime) {
 	for _, attr := range outputAttrs {
 		log.Printf("  %s\n", attr.String())
 	}
+
+	return inputAttrs
 }

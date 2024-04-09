@@ -11,3 +11,8 @@ These bindings have only been tested on the [RK3588](https://www.rock-chips.com/
 It should also work with other models in the RK35** series supported by the RKNN Toolkit2.
 
 
+# Usage
+
+```
+go get github.com/swdee/go-rknnlite
+```
