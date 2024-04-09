@@ -11,8 +11,19 @@ These bindings have only been tested on the [RK3588](https://www.rock-chips.com/
 It should also work with other models in the RK35** series supported by the RKNN Toolkit2.
 
 
-# Usage
+## Usage
 
 ```
 go get github.com/swdee/go-rknnlite
 ```
+
+## Examples
+
+See the [example](example/) directory.
+
+
+## Reference Material
+
+* [rknn-toolkit2](https://github.com/airockchip/rknn-toolkit2) - RKNN software stack
+tools and C API.
+* [C API Reference Documentation](https://github.com/airockchip/rknn-toolkit2/blob/master/doc/04_Rockchip_RKNPU_API_Reference_RKNNRT_V2.0.0beta0_EN.pdf)
