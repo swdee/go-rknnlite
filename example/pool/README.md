@@ -5,7 +5,7 @@
 
 The RK3588 has three NPU cores, by default when selecting `rknnlite.NPUCoreAuto` it will
 run your RKNN Model on a single idle core.  Through the other options you can
-specify which core to run on or used combined cores 0 & 1 with `rknnlite.NPUCore01` or
+specify which core to run on or to use combined cores 0 & 1 with `rknnlite.NPUCore01` or
 all three cores with `rknnlite.NPUCore012`.
 
 You can monitor the NPU usage by running:
@@ -86,3 +86,7 @@ has diminishing returns.
 
 Note that the more Runtimes created the more memory is needed for each instance
 of the Model loaded.
+
+Achieving a 100% core saturation is not possible (~60% at best), the reason for
+this is unknown and unsolvable due to the nature of the underlying closed 
+source RKNN software stack.

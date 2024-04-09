@@ -25,9 +25,9 @@ your system with C header files available in the system path, eg: `/usr/include/
 Refer to the official documentation on how to install this on your system as it
 will vary based on OS and SBC vendor.
 
-### Rock Pi 5b
+### Rock Pi 5B
 
-My usage was on the Radxa Rock Pi 5b running the official Debian 11 OS image. 
+My usage was on the Radxa Rock Pi 5B running the official Debian 11 OS image. 
 
 I used the prebuilt RKNN libraries built [here](https://github.com/radxa-pkg/rknn2/releases).
 
