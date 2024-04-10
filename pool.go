@@ -1,12 +1,17 @@
 package rknnlite
 
+import (
+	"sync"
+)
+
 // Pool is a simple runtime pool to open multiple of the same Model across
 // all NPU cores
 type Pool struct {
 	// pool of runtimes
 	runtimes chan *Runtime
 	// size of pool
-	size int
+	size  int
+	close sync.Once
 }
 
 // NewPool creates a new runtime pool
@@ -20,6 +25,9 @@ func NewPool(size int, modelFile string) (*Pool, error) {
 		rt, err := NewRuntime(modelFile, getRuntimeCore(i))
 
 		if err != nil {
+			// close any instances that may have been created before receiving
+			// the error
+			p.Close()
 			return nil, err
 		}
 
@@ -32,24 +40,29 @@ func NewPool(size int, modelFile string) (*Pool, error) {
 
 // Gets a runtime from the pool
 func (p *Pool) Get() *Runtime {
-	runtime := <-p.runtimes
-	return runtime
+	return <-p.runtimes
 }
 
 // Return a runtime to the pool
 func (p *Pool) Return(runtime *Runtime) {
-	p.runtimes <- runtime
+	select {
+	case p.runtimes <- runtime:
+	default:
+		// pool is full or closed
+	}
 }
 
 // Close the pool and all runtimes in it
 func (p *Pool) Close() {
-	// close channel
-	close(p.runtimes)
+	p.close.Do(func() {
+		// close channel
+		close(p.runtimes)
 
-	// close all runtimes
-	for next := range p.runtimes {
-		_ = next.Close()
-	}
+		// close all runtimes
+		for next := range p.runtimes {
+			_ = next.Close()
+		}
+	})
 }
 
 // getRuntimeCore takes an integer and returns the core mask value to use
