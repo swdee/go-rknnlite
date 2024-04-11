@@ -1,3 +1,7 @@
+/*
+Running multiple Runtimes in a Pool allows you to take advantage of all three
+NPU cores to significantly reduce average inferencing time.
+*/
 package main
 
 import (

@@ -1,3 +1,6 @@
+/*
+Example code showing how to perform inferencing using a MobileNetv1 model.
+*/
 package main
 
 import (
