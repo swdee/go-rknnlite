@@ -92,13 +92,22 @@ type Runtime struct {
 	ctx C.rknn_context
 	// ioNum caches the IONumber of Model Input/Output tensors
 	ioNum IONumber
+	// inputAttrs caches the Input Tensor Attributes of the Model
+	inputAttrs []TensorAttr
+	// inputAttrs caches the Output Tensor Attributes of the Model
+	outputAttrs []TensorAttr
+	// wantFloat indicates if Outputs are converted to float32 or left as int8.
+	// default option is True
+	wantFloat bool
 }
 
 // NewRuntime returns a RKNN run time instance.  Provide the full path and
 // filename of the RKNN compiled model file to run.
 func NewRuntime(modelFile string, core CoreMask) (*Runtime, error) {
 
-	r := &Runtime{}
+	r := &Runtime{
+		wantFloat: true,
+	}
 
 	err := r.init(modelFile)
 
@@ -114,6 +123,20 @@ func NewRuntime(modelFile string, core CoreMask) (*Runtime, error) {
 
 	// cache IONumber
 	r.ioNum, err = r.QueryModelIONumber()
+
+	if err != nil {
+		return nil, err
+	}
+
+	// query Input tensors
+	r.inputAttrs, err = r.QueryInputTensors()
+
+	if err != nil {
+		return nil, err
+	}
+
+	// query Output tensors
+	r.outputAttrs, err = r.QueryOutputTensors()
 
 	if err != nil {
 		return nil, err
@@ -180,6 +203,12 @@ func (r *Runtime) Close() error {
 	}
 
 	return nil
+}
+
+// SetWantFloat defines if the Model load requires Output tensors to be converted
+// to float32 for post processing, or left as quantitized int8
+func (r *Runtime) SetWantFloat(val bool) {
+	r.wantFloat = val
 }
 
 // SDKVersion represents the C.rknn_sdk_version struct

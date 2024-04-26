@@ -1,6 +1,3 @@
-/*
-Example code showing how to perform inferencing using a MobileNetv1 model.
-*/
 package main
 
 import (
@@ -9,6 +6,7 @@ import (
 	"github.com/swdee/go-rknnlite"
 	"gocv.io/x/gocv"
 	"image"
+	"image/color"
 	"log"
 )
 
@@ -17,8 +15,9 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	modelFile := flag.String("m", "../data/mobilenet_v1-rk3588.rknn", "RKNN compiled model file")
-	imgFile := flag.String("i", "../data/cat_224x224.jpg", "Image file to run inference on")
+	modelFile := flag.String("m", "../data/yolov5s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
+	imgFile := flag.String("i", "../data/bus.jpg", "Image file to run object detection on")
+
 	flag.Parse()
 
 	// create rknn runtime instance
@@ -27,6 +26,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Error initializing RKNN runtime: ", err)
 	}
+
+	// set runtime to leave output tensors as int8
+	rt.SetWantFloat(false)
 
 	// optional querying of model file tensors and SDK version.  not necessary
 	// for production inference code
@@ -58,24 +60,32 @@ func main() {
 		log.Fatal("Runtime inferencing failed with error: ", err)
 	}
 
-	// post process outputs and show top5 matches
-	log.Println(" --- Top5 ---")
+	log.Println("outputs=", len(outputs.Output))
 
-	for _, next := range rknnlite.GetTop5(outputs.Output) {
-		log.Printf("%3d: %8.6f\n", next.LabelIndex, next.Probability)
+	detectResGrp := rt.DetectObjects(outputs.Output, 1.0, 1.0)
+
+	for _, detResult := range detectResGrp.Results {
+		text := fmt.Sprintf("%s %.1f%%", detResult.Name, detResult.Prop*100)
+		fmt.Printf("%s @ (%d %d %d %d) %f\n", detResult.Name, detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Prop)
+
+		// Draw rectangle around detected object
+		//rect := image.Rect(detResult.Box.Left, detResult.Box.Top, detResult.Box.Right-detResult.Box.Left, detResult.Box.Bottom-detResult.Box.Top)
+		rect := image.Rect(detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom)
+		gocv.Rectangle(&img, rect, color.RGBA{R: 0, G: 0, B: 255, A: 0}, 2)
+
+		// Put text
+		gocv.PutText(&img, text, image.Pt(detResult.Box.Left, detResult.Box.Top+12), gocv.FontHersheyPlain, 0.8, color.RGBA{R: 255, G: 255, B: 255, A: 0}, 1)
+	}
+
+	// Save the result
+	if ok := gocv.IMWrite("./bus-go-out.jpg", img); !ok {
+		log.Println("Failed to save the image")
 	}
 
 	err = outputs.Free()
 
 	if err != nil {
 		log.Fatal("Error freeing Outputs: ", err)
-	}
-
-	// close runtime and release resources
-	err = rt.Close()
-
-	if err != nil {
-		log.Fatal("Error closing RKNN runtime: ", err)
 	}
 
 	log.Println("done")
