@@ -219,6 +219,56 @@ func (o *Outputs) Free() error {
 	return o.rt.releaseOutputs(o.cOutputs)
 }
 
+// InputAttribute of trained model input tensor
+type InputAttribute struct {
+	Width   uint32
+	Height  uint32
+	Channel uint32
+}
+
+// InputAttributes queries the Model and returns Input image dimensions
+func (o *Outputs) InputAttributes() InputAttribute {
+
+	// set default vars where inputAttr is NCHW
+	channel := o.rt.inputAttrs[0].Dims[1]
+	height := o.rt.inputAttrs[0].Dims[2]
+	width := o.rt.inputAttrs[0].Dims[3]
+
+	if o.rt.inputAttrs[0].Fmt == TensorNHWC {
+		height = o.rt.inputAttrs[0].Dims[1]
+		width = o.rt.inputAttrs[0].Dims[2]
+		channel = o.rt.inputAttrs[0].Dims[3]
+	}
+
+	return InputAttribute{
+		Width:   width,
+		Height:  height,
+		Channel: channel,
+	}
+}
+
+// ScaleAndZP are the scales and zero points of the Model outputs
+type ScaleAndZP struct {
+	Scales []float32
+	ZPs    []int32
+}
+
+// ScalesAndZPs returns the Model output attribute scales and zero points
+func (o *Outputs) ScalesAndZPs() ScaleAndZP {
+
+	data := ScaleAndZP{
+		Scales: make([]float32, 0),
+		ZPs:    make([]int32, 0),
+	}
+
+	for i := 0; i < int(o.rt.ioNum.NumberOutput); i++ {
+		data.Scales = append(data.Scales, o.rt.outputAttrs[i].Scale)
+		data.ZPs = append(data.ZPs, o.rt.outputAttrs[i].ZP)
+	}
+
+	return data
+}
+
 // releaseOutputs releases the memory allocated for the outputs by the RKNN
 // toolkit directly using C rknn_output structs
 func (r *Runtime) releaseOutputs(cOutputs []C.rknn_output) error {

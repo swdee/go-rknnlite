@@ -4,10 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/postprocess"
 	"gocv.io/x/gocv"
 	"image"
 	"image/color"
 	"log"
+	"time"
 )
 
 func main() {
@@ -17,6 +19,8 @@ func main() {
 	// read in cli flags
 	modelFile := flag.String("m", "../data/yolov5s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
 	imgFile := flag.String("i", "../data/bus.jpg", "Image file to run object detection on")
+	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
+	saveFile := flag.String("o", "../data/bus-out.jpg", "The output JPG file with object detection markers")
 
 	flag.Parse()
 
@@ -33,6 +37,16 @@ func main() {
 	// optional querying of model file tensors and SDK version.  not necessary
 	// for production inference code
 	inputAttrs := optionalQueries(rt)
+
+	// create YOLOv5 post processor
+	yoloProcesser := postprocess.NewYOLOv5(postprocess.YOLOv5COCOParams())
+
+	// load in Model class names
+	classNames, err := rknnlite.LoadLabels(*labelFile)
+
+	if err != nil {
+		log.Fatal("Error loading model labels: ", err)
+	}
 
 	// load image
 	img := gocv.IMRead(*imgFile, gocv.IMReadColor)
@@ -53,6 +67,8 @@ func main() {
 	defer rgbImg.Close()
 	defer cropImg.Close()
 
+	start := time.Now()
+
 	// perform inference on image file
 	outputs, err := rt.Inference([]gocv.Mat{cropImg})
 
@@ -60,35 +76,91 @@ func main() {
 		log.Fatal("Runtime inferencing failed with error: ", err)
 	}
 
+	endInference := time.Now()
+
 	log.Println("outputs=", len(outputs.Output))
 
-	detectResGrp := rt.DetectObjects(outputs.Output, 1.0, 1.0)
+	detectResults := yoloProcesser.DetectObjects(outputs)
 
-	for _, detResult := range detectResGrp.Results {
-		text := fmt.Sprintf("%s %.1f%%", detResult.Name, detResult.Prop*100)
-		fmt.Printf("%s @ (%d %d %d %d) %f\n", detResult.Name, detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Prop)
+	endDetect := time.Now()
+
+	log.Printf("Model first run speed: inference=%s, post processing=%s, total time=%s\n",
+		endInference.Sub(start).String(),
+		endDetect.Sub(endInference).String(),
+		endDetect.Sub(start).String(),
+	)
+
+	for _, detResult := range detectResults {
+
+		text := fmt.Sprintf("%s %.1f%%", classNames[detResult.Class], detResult.Probability*100)
+		fmt.Printf("%s @ (%d %d %d %d) %f\n", classNames[detResult.Class], detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Probability)
 
 		// Draw rectangle around detected object
-		//rect := image.Rect(detResult.Box.Left, detResult.Box.Top, detResult.Box.Right-detResult.Box.Left, detResult.Box.Bottom-detResult.Box.Top)
 		rect := image.Rect(detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom)
 		gocv.Rectangle(&img, rect, color.RGBA{R: 0, G: 0, B: 255, A: 0}, 2)
 
 		// Put text
-		gocv.PutText(&img, text, image.Pt(detResult.Box.Left, detResult.Box.Top+12), gocv.FontHersheyPlain, 0.8, color.RGBA{R: 255, G: 255, B: 255, A: 0}, 1)
+		gocv.PutText(&img, text, image.Pt(detResult.Box.Left, detResult.Box.Top+12), gocv.FontHersheyDuplex, 0.4, color.RGBA{R: 255, G: 255, B: 255, A: 0}, 1)
 	}
 
 	// Save the result
-	if ok := gocv.IMWrite("./bus-go-out.jpg", img); !ok {
-		log.Println("Failed to save the image")
+	if ok := gocv.IMWrite(*saveFile, img); !ok {
+		log.Fatal("Failed to save the image")
 	}
 
+	log.Printf("Saved object detection result to %s\n", *saveFile)
+
+	// free outputs allocated in C memory after you have finished post processing
 	err = outputs.Free()
 
 	if err != nil {
 		log.Fatal("Error freeing Outputs: ", err)
 	}
 
+	// optional code.  run benchmark to get average time of 10 runs
+	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg})
+
+	// close runtime and release resources
+	err = rt.Close()
+
+	if err != nil {
+		log.Fatal("Error closing RKNN runtime: ", err)
+	}
+
 	log.Println("done")
+}
+
+func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv5,
+	mats []gocv.Mat) {
+
+	count := 10
+	start := time.Now()
+
+	for i := 0; i < count; i++ {
+		// perform inference on image file
+		outputs, err := rt.Inference(mats)
+
+		if err != nil {
+			log.Fatal("Runtime inferencing failed with error: ", err)
+		}
+
+		// post process
+		_ = yoloProcesser.DetectObjects(outputs)
+
+		err = outputs.Free()
+
+		if err != nil {
+			log.Fatal("Error freeing Outputs: ", err)
+		}
+	}
+
+	end := time.Now()
+	total := end.Sub(start)
+	avg := total / time.Duration(count)
+
+	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
+		total.String(), count, avg.String(),
+	)
 }
 
 func optionalQueries(rt *rknnlite.Runtime) []rknnlite.TensorAttr {
