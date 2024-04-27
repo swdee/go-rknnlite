@@ -1,3 +1,6 @@
+/*
+Example code showing how to perform object detection using a YOLOv5 model.
+*/
 package main
 
 import (
