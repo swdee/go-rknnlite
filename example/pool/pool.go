@@ -112,12 +112,19 @@ func processFile(rt *rknnlite.Runtime, file string, quiet bool) {
 	defer cropImg.Close()
 
 	// perform inference on image file
-	_, err := rt.Inference([]gocv.Mat{cropImg})
+	outputs, err := rt.Inference([]gocv.Mat{cropImg})
 
 	end := time.Since(start)
 
 	if err != nil {
 		log.Printf("Runtime inferencing failed with error: ", err)
+	}
+
+	// free outputs allocated in C memory after you have finished post processing
+	err = outputs.Free()
+
+	if err != nil {
+		log.Printf("Error freeing Outputs: ", err)
 	}
 
 	if !quiet {
