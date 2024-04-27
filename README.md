@@ -84,3 +84,4 @@ YOLOv5 code has been created.
 * [rknn-toolkit2](https://github.com/airockchip/rknn-toolkit2) - RKNN software stack
 tools and C API.
 * [C API Reference Documentation](https://github.com/airockchip/rknn-toolkit2/blob/master/doc/04_Rockchip_RKNPU_API_Reference_RKNNRT_V2.0.0beta0_EN.pdf)
+* [RKNN Model Zoo](https://github.com/airockchip/rknn_model_zoo/tree/main/examples) - RKNN maintained Model Zoo with example code
