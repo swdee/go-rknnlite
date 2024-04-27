@@ -65,6 +65,7 @@ func main() {
 		log.Printf("%3d: %8.6f\n", next.LabelIndex, next.Probability)
 	}
 
+	// free outputs allocated in C memory after you have finished post processing
 	err = outputs.Free()
 
 	if err != nil {
