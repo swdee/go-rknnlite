@@ -25,9 +25,11 @@ Model allows us to use all NPU cores.
 
 
 First make sure you have downloaded the data files first.
+You only need to do this once for all examples.
+
 ```
-cd example/data/
-./download.sh
+cd example/
+git clone https://github.com/swdee/go-rknnlite-data.git data
 ```
 
 
