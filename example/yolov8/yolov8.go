@@ -41,7 +41,7 @@ func main() {
 	// for production inference code
 	inputAttrs := optionalQueries(rt)
 
-	// create YOLOv5 post processor
+	// create YOLOv8 post processor
 	yoloProcesser := postprocess.NewYOLOv8(postprocess.YOLOv8COCOParams())
 
 	// load in Model class names
