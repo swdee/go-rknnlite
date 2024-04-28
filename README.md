@@ -47,6 +47,13 @@ wget https://github.com/radxa-pkg/rknn2/releases/download/1.6.0-2/rknpu2-rk3588_
 apt install ./rknpu2-rk3588_1.6.0-2_arm64.deb 
 ```
 
+### GoCV
+
+The examples make use of [GoCV](https://gocv.io/) for image processing.  Make sure
+you have a working installation of GoCV first, see the instructions in the link
+for installation on your system.
+
+
 
 ## Examples
 
