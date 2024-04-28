@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -57,6 +58,10 @@ func main() {
 
 	log.Println("Running...")
 
+	// waitgroup used to wait for all go-routines to complete before closing
+	// the pool
+	var wg sync.WaitGroup
+
 	// repeat processing the specified number of times to increase the number
 	// of images processed
 	for i := 0; i < *repeat; i++ {
@@ -70,12 +75,16 @@ func main() {
 			// pool.Get() blocks if no runtimes are available in the pool
 			rt := pool.Get()
 
+			wg.Add(1)
 			go func(pool *rknnlite.Pool, rt *rknnlite.Runtime, file os.DirEntry) {
 				processFile(rt, filepath.Join(*imgDir, file.Name()), *quiet)
 				pool.Return(rt)
+				wg.Done()
 			}(pool, rt, file)
 		}
 	}
+
+	wg.Wait()
 
 	// calculate average inference
 	numFiles := (*repeat * len(files))
