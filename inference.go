@@ -8,6 +8,7 @@ import "C"
 import (
 	"fmt"
 	"gocv.io/x/gocv"
+	"sync"
 	"unsafe"
 )
 
@@ -34,7 +35,7 @@ type Input struct {
 }
 
 // Inference runs the model inference on the given inputs
-func (r *Runtime) Inference(mats []gocv.Mat) ([]Output, error) {
+func (r *Runtime) Inference(mats []gocv.Mat) (*Outputs, error) {
 
 	// convert the cv Mat's into RKNN inputs
 	inputs := make([]Input, len(mats))
@@ -47,12 +48,12 @@ func (r *Runtime) Inference(mats []gocv.Mat) ([]Output, error) {
 		}
 
 		// cast to float32, as PassThrough below is set to false then RKNN
-		// we convert the input values to that of the tensor inputs in the model,
+		// will convert the input values to that of the tensor inputs in the model,
 		// eg: INT8
 		data, err := mat.DataPtrUint8()
 
 		if err != nil {
-			return nil, fmt.Errorf("error converting image to float32: %w", err)
+			return &Outputs{}, fmt.Errorf("error converting image to float32: %w", err)
 		}
 
 		inputs[idx] = Input{
@@ -69,18 +70,18 @@ func (r *Runtime) Inference(mats []gocv.Mat) ([]Output, error) {
 	err := r.SetInputs(inputs)
 
 	if err != nil {
-		return nil, fmt.Errorf("error setting inputs: %w", err)
+		return &Outputs{}, fmt.Errorf("error setting inputs: %w", err)
 	}
 
 	// run the model
 	err = r.RunModel()
 
 	if err != nil {
-		return nil, fmt.Errorf("error running model: %w", err)
+		return &Outputs{}, fmt.Errorf("error running model: %w", err)
 	}
 
 	// get Outputs
-	return r.GetOutputs(r.ioNum.NumberOutput)
+	return r.GetOutputs(r.ioNum.NumberOutput, r.wantFloat)
 }
 
 // setInputs wraps C.rknn_inputs_set
@@ -127,52 +128,155 @@ func (r *Runtime) RunModel() error {
 
 // Output wraps C.rknn_output
 type Output struct {
-	WantFloat  uint8     // want transfer output data to float
-	IsPrealloc uint8     // whether buf is pre-allocated
-	Index      uint32    // the output index
-	Buf        []float32 // the output buf
-	Size       uint32    // the size of output buf
+	WantFloat  uint8  // want transfer output data to float
+	IsPrealloc uint8  // whether buf is pre-allocated
+	Index      uint32 // the output index
+	// the output buf cast to float32, when WantFloat = 1
+	// this is a slice header that points to C memory
+	BufFloat []float32
+	// the output buf cast to int8, when WantFloat = 0
+	// this is a slice header that points to C memory
+	BufInt []int8
+	Size   uint32 // the size of output buf
+}
+
+// Outputs is a struct containing Go and C output data
+type Outputs struct {
+	Output   []Output
+	cOutputs []C.rknn_output
+	// freed is a flag to indicate if the cOutputs have been released from
+	// memory or not
+	freed bool
+	// mutex to lock access to freed variable
+	sync.Mutex
+	// rknn runtime instance
+	rt *Runtime
 }
 
 // GetOutputs returns the Output results
-func (r *Runtime) GetOutputs(nOutputs uint32) ([]Output, error) {
+func (r *Runtime) GetOutputs(nOutputs uint32, wantFloat bool) (*Outputs, error) {
 
-	outputs := make([]Output, nOutputs)
-
-	// prepare the outputs array in C
-	cOutputs := make([]C.rknn_output, nOutputs)
-	// release cOutputs from memory
-	defer r.releaseOutputs(cOutputs)
+	outputs := &Outputs{
+		Output:   make([]Output, nOutputs),
+		cOutputs: make([]C.rknn_output, nOutputs),
+		rt:       r,
+	}
 
 	// set want float for all outputs
-	for idx := range cOutputs {
-		cOutputs[idx].want_float = 1
+	useWantFloat := uint8(1)
+
+	if !wantFloat {
+		useWantFloat = 0
+	}
+
+	for idx := range outputs.cOutputs {
+		outputs.cOutputs[idx].index = C.uint32_t(idx)
+		outputs.cOutputs[idx].want_float = C.uint8_t(useWantFloat)
 	}
 
 	// call C function
 	ret := C.rknn_outputs_get(r.ctx, C.uint32_t(nOutputs),
-		(*C.rknn_output)(unsafe.Pointer(&cOutputs[0])), nil)
+		(*C.rknn_output)(unsafe.Pointer(&outputs.cOutputs[0])), nil)
 
 	if ret < 0 {
-		return nil, fmt.Errorf("C.rknn_outputs_get failed with code %d, error: %s",
+		return &Outputs{}, fmt.Errorf("C.rknn_outputs_get failed with code %d, error: %s",
 			int(ret), ErrorCodes(ret).String())
 	}
 
 	// convert C.rknn_output array back to Go Output array
-	for i, cOutput := range cOutputs {
-		// convert buffer to []float32
-		buffer := (*[1 << 30]float32)(cOutputs[i].buf)[:cOutputs[i].size/4]
-
-		outputs[i] = Output{
+	for i, cOutput := range outputs.cOutputs {
+		outputs.Output[i] = Output{
 			WantFloat:  uint8(cOutput.want_float),
 			IsPrealloc: uint8(cOutput.is_prealloc),
 			Index:      uint32(cOutput.index),
-			Buf:        buffer,
 			Size:       uint32(cOutput.size),
+		}
+
+		if outputs.Output[i].WantFloat == 1 {
+			// convert buffer to []float32
+			outputs.Output[i].BufFloat = (*[1 << 30]float32)(outputs.cOutputs[i].buf)[:outputs.cOutputs[i].size/4]
+
+		} else if outputs.Output[i].WantFloat == 0 {
+			// convert buffer to []int8
+			outputs.Output[i].BufInt = (*[1 << 30]int8)(outputs.cOutputs[i].buf)[:outputs.cOutputs[i].size]
 		}
 	}
 
 	return outputs, nil
+}
+
+// Free C memory buffer holding RKNN inference outputs
+func (o *Outputs) Free() error {
+	o.Lock()
+	defer o.Unlock()
+
+	if o.freed {
+		// C memory already released
+		return nil
+	}
+
+	o.freed = true
+	return o.rt.releaseOutputs(o.cOutputs)
+}
+
+// InputAttribute of trained model input tensor
+type InputAttribute struct {
+	Width   uint32
+	Height  uint32
+	Channel uint32
+}
+
+// InputAttributes queries the Model and returns Input image dimensions
+func (o *Outputs) InputAttributes() InputAttribute {
+
+	// set default vars where inputAttr is NCHW
+	channel := o.rt.inputAttrs[0].Dims[1]
+	height := o.rt.inputAttrs[0].Dims[2]
+	width := o.rt.inputAttrs[0].Dims[3]
+
+	if o.rt.inputAttrs[0].Fmt == TensorNHWC {
+		height = o.rt.inputAttrs[0].Dims[1]
+		width = o.rt.inputAttrs[0].Dims[2]
+		channel = o.rt.inputAttrs[0].Dims[3]
+	}
+
+	return InputAttribute{
+		Width:   width,
+		Height:  height,
+		Channel: channel,
+	}
+}
+
+// OutputAttribute of trained model output tensor
+type OutputAttribute struct {
+	DimForDFL  uint32
+	Scales     []float32
+	ZPs        []int32
+	DimHeights []uint32
+	DimWidths  []uint32
+	IONumber   uint32
+}
+
+// OutputAttributes returns the Model output attribute scales and zero points
+func (o *Outputs) OutputAttributes() OutputAttribute {
+
+	data := OutputAttribute{
+		DimForDFL:  o.rt.outputAttrs[0].Dims[1],
+		Scales:     make([]float32, 0),
+		ZPs:        make([]int32, 0),
+		DimHeights: make([]uint32, 0),
+		DimWidths:  make([]uint32, 0),
+		IONumber:   o.rt.ioNum.NumberOutput,
+	}
+
+	for i := 0; i < int(o.rt.ioNum.NumberOutput); i++ {
+		data.Scales = append(data.Scales, o.rt.outputAttrs[i].Scale)
+		data.ZPs = append(data.ZPs, o.rt.outputAttrs[i].ZP)
+		data.DimHeights = append(data.DimHeights, o.rt.outputAttrs[i].Dims[2])
+		data.DimWidths = append(data.DimWidths, o.rt.outputAttrs[i].Dims[3])
+	}
+
+	return data
 }
 
 // releaseOutputs releases the memory allocated for the outputs by the RKNN
@@ -209,7 +313,7 @@ func GetTop5(outputs []Output) []Probability {
 		var MaxClass [5]int32
 		var fMaxProb [5]float32
 
-		GetTop(outputs[i].Buf, fMaxProb[:], MaxClass[:], int32(len(outputs[i].Buf)), 5)
+		GetTop(outputs[i].BufFloat, fMaxProb[:], MaxClass[:], int32(len(outputs[i].BufFloat)), 5)
 
 		for i := 0; i < 5; i++ {
 			probs[i] = Probability{

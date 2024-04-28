@@ -3,10 +3,11 @@
 ## Usage
 
 To run the MobileNet example make sure you have downloaded the data files first.
+You only need to do this once for all examples.
 
 ```
-cd example/data/
-./download.sh
+cd example/
+git clone https://github.com/swdee/go-rknnlite-data.git data
 ```
 
 Run the MobileNet example.

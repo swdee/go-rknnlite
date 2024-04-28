@@ -61,8 +61,15 @@ func main() {
 	// post process outputs and show top5 matches
 	log.Println(" --- Top5 ---")
 
-	for _, next := range rknnlite.GetTop5(outputs) {
+	for _, next := range rknnlite.GetTop5(outputs.Output) {
 		log.Printf("%3d: %8.6f\n", next.LabelIndex, next.Probability)
+	}
+
+	// free outputs allocated in C memory after you have finished post processing
+	err = outputs.Free()
+
+	if err != nil {
+		log.Fatal("Error freeing Outputs: ", err)
 	}
 
 	// close runtime and release resources
