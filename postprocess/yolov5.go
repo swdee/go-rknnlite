@@ -116,7 +116,7 @@ type strideData struct {
 func newStrideData(outputs *rknnlite.Outputs) *strideData {
 
 	in := outputs.InputAttributes()
-	out := outputs.ScalesAndZPs()
+	out := outputs.OutputAttributes()
 
 	s := &strideData{
 		filterBoxes: make([]float32, 0),

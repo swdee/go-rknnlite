@@ -46,7 +46,7 @@ See the [example](example) directory.
   * [Pooled Runtime Usage](example/pool)
 * Object Detection
   * [YOLOv5 Demo](example/yolov5)  
-  * YOLOv8 - This is next for development
+  * [YOLOv8 Demo](example/yolov8)
 
 
 ## Pooled Runtimes

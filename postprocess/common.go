@@ -153,3 +153,29 @@ func calculateOverlap(xmin0, ymin0, xmax0, ymax0, xmin1, ymin1,
 	// Return Intersection of Union (IoU)
 	return float32(intersection) / union
 }
+
+// computeDFL calculates the Distribution Focal Loss (DFL)
+func computeDFL(tensor []float32, dflLen int) []float32 {
+
+	box := make([]float32, 4)
+
+	for b := 0; b < 4; b++ {
+
+		expT := make([]float32, dflLen)
+		expSum := float32(0)
+		accSum := float32(0)
+
+		for i := 0; i < dflLen; i++ {
+			expT[i] = float32(math.Exp(float64(tensor[i+b*dflLen])))
+			expSum += expT[i]
+		}
+
+		for i := 0; i < dflLen; i++ {
+			accSum += expT[i] / expSum * float32(i)
+		}
+
+		box[b] = accSum
+	}
+
+	return box
+}

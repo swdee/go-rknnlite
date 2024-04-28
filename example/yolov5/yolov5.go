@@ -23,7 +23,7 @@ func main() {
 	modelFile := flag.String("m", "../data/yolov5s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
 	imgFile := flag.String("i", "../data/bus.jpg", "Image file to run object detection on")
 	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
-	saveFile := flag.String("o", "../data/bus-out.jpg", "The output JPG file with object detection markers")
+	saveFile := flag.String("o", "../data/bus-yolov5-out.jpg", "The output JPG file with object detection markers")
 
 	flag.Parse()
 

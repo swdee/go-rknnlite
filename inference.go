@@ -247,23 +247,33 @@ func (o *Outputs) InputAttributes() InputAttribute {
 	}
 }
 
-// ScaleAndZP are the scales and zero points of the Model outputs
-type ScaleAndZP struct {
-	Scales []float32
-	ZPs    []int32
+// OutputAttribute of trained model output tensor
+type OutputAttribute struct {
+	DimForDFL  uint32
+	Scales     []float32
+	ZPs        []int32
+	DimHeights []uint32
+	DimWidths  []uint32
+	IONumber   uint32
 }
 
-// ScalesAndZPs returns the Model output attribute scales and zero points
-func (o *Outputs) ScalesAndZPs() ScaleAndZP {
+// OutputAttributes returns the Model output attribute scales and zero points
+func (o *Outputs) OutputAttributes() OutputAttribute {
 
-	data := ScaleAndZP{
-		Scales: make([]float32, 0),
-		ZPs:    make([]int32, 0),
+	data := OutputAttribute{
+		DimForDFL:  o.rt.outputAttrs[0].Dims[1],
+		Scales:     make([]float32, 0),
+		ZPs:        make([]int32, 0),
+		DimHeights: make([]uint32, 0),
+		DimWidths:  make([]uint32, 0),
+		IONumber:   o.rt.ioNum.NumberOutput,
 	}
 
 	for i := 0; i < int(o.rt.ioNum.NumberOutput); i++ {
 		data.Scales = append(data.Scales, o.rt.outputAttrs[i].Scale)
 		data.ZPs = append(data.ZPs, o.rt.outputAttrs[i].ZP)
+		data.DimHeights = append(data.DimHeights, o.rt.outputAttrs[i].Dims[2])
+		data.DimWidths = append(data.DimWidths, o.rt.outputAttrs[i].Dims[3])
 	}
 
 	return data
