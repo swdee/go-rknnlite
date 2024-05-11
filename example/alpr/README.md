@@ -46,9 +46,9 @@ go run alpr.go
 
 This will result in the output of:
 ```
-plate @ (231 427 388 509) 0.794528
-Model first run speed: YOLO inference=24.898564ms, YOLO post processing=186.37µs, Plate recognition=8.218927ms, Plate post processing=24.350247ms, Total time=57.654399ms
+Model first run speed: YOLO inference=25.921715ms, YOLO post processing=130.955µs, Plate recognition=7.875941ms, Plate post processing=22.813513ms, Total time=56.742124ms
 Saved object detection result to ../data/car-cn-alpr-out.jpg
+Benchmark time=403.149074ms, count=10, average total time=40.314907ms
 done
 ```
 
@@ -91,9 +91,9 @@ If only supporting Latin characters then `Plate post processing` rendering is fa
 ```
 $ go run alpr.go -t en
 
-plate @ (231 427 388 509) 0.794528
-Model first run speed: YOLO inference=25.614585ms, YOLO post processing=130.663µs, Plate recognition=8.357756ms, Plate post processing=301.283µs, Total time=34.404287ms
+Model first run speed: YOLO inference=25.051698ms, YOLO post processing=126.289µs, Plate recognition=7.882065ms, Plate post processing=280.867µs, Total time=33.340919ms
 Saved object detection result to ../data/car-cn-alpr-out.jpg
+Benchmark time=311.081879ms, count=10, average total time=31.108187ms
 done
 ```
 

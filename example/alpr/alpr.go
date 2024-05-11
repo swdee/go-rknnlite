@@ -187,7 +187,7 @@ func (a *ALPR) Detect(img gocv.Mat, resImg *gocv.Mat) (DetectTiming, error) {
 
 	for _, detResult := range detectResults {
 
-		fmt.Printf("plate @ (%d %d %d %d) %f\n", detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Probability)
+		//fmt.Printf("plate @ (%d %d %d %d) %f\n", detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Probability)
 
 		// Draw rectangle around detected object
 		// we must scale the yolo bounding box so it overlays the original image correcly.
@@ -414,6 +414,9 @@ func main() {
 
 	log.Printf("Saved object detection result to %s\n", *saveFile)
 
+	// optional code.  run benchmark to get average time of 10 runs
+	runBenchmark(alpr, img)
+
 	err = alpr.Close()
 
 	if err != nil {
@@ -421,4 +424,32 @@ func main() {
 	}
 
 	log.Println("done")
+}
+
+func runBenchmark(alpr *ALPR, img gocv.Mat) {
+
+	count := 10
+	start := time.Now()
+
+	// create Mat for annotated image
+	resImg := gocv.NewMat()
+	defer resImg.Close()
+
+	for i := 0; i < count; i++ {
+
+		// run image through ALPR detection
+		_, err := alpr.Detect(img, &resImg)
+
+		if err != nil {
+			log.Fatal("Error occurred on ALPR Detect: ", err)
+		}
+	}
+
+	end := time.Now()
+	total := end.Sub(start)
+	avg := total / time.Duration(count)
+
+	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
+		total.String(), count, avg.String(),
+	)
 }
