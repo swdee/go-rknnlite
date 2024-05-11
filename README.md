@@ -65,6 +65,8 @@ See the [example](example) directory.
 * Object Detection
   * [YOLOv5 Demo](example/yolov5)  
   * [YOLOv8 Demo](example/yolov8)
+* License Plate Recognition
+  * [LPRNet Demo](example/lprnet) 
 
 
 ## Pooled Runtimes
