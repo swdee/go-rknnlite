@@ -67,6 +67,7 @@ See the [example](example) directory.
   * [YOLOv8 Demo](example/yolov8)
 * License Plate Recognition
   * [LPRNet Demo](example/lprnet) 
+  * [ALPR Demo](example/alpr) - Automatic License Plate Recognition combining Yolov8 and LPRNet Models
 
 
 ## Pooled Runtimes
