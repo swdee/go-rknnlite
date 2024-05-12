@@ -46,9 +46,9 @@ go run alpr.go
 
 This will result in the output of:
 ```
-Model first run speed: YOLO inference=25.921715ms, YOLO post processing=130.955µs, Plate recognition=7.875941ms, Plate post processing=22.813513ms, Total time=56.742124ms
+Model first run speed: YOLO inference=25.336366ms, YOLO post processing=137.371µs, Plate recognition=7.908609ms, Plate post processing=456.737µs, Total time=33.839083ms
 Saved object detection result to ../data/car-cn-alpr-out.jpg
-Benchmark time=403.149074ms, count=10, average total time=40.314907ms
+Benchmark time=1.629993653s, count=50, average total time=32.599873ms
 done
 ```
 
@@ -76,24 +76,4 @@ Usage of /tmp/go-build506851743/b001/exe/alpr:
         The text drawing mode [cn|en] (default "cn")
 ```
 
-
-## Limitation
-
-As the LPRNet model used is trained for Chinese License Plates we have to support
-Chinese characters in the text.   Unfortunately OpenCV's font support is limited
-and to my knowledge does not support non Latin characters so I have made a 
-work around but rendering speed is very slow.
-
-If there is another solution then let me know?
-
-If only supporting Latin characters then `Plate post processing` rendering is fast.
-
-```
-$ go run alpr.go -t en
-
-Model first run speed: YOLO inference=25.051698ms, YOLO post processing=126.289µs, Plate recognition=7.882065ms, Plate post processing=280.867µs, Total time=33.340919ms
-Saved object detection result to ../data/car-cn-alpr-out.jpg
-Benchmark time=311.081879ms, count=10, average total time=31.108187ms
-done
-```
 
