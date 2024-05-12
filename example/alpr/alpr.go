@@ -33,6 +33,10 @@ const (
 	TTFFontSize = 20
 	// Flag for specifying text mode
 	Chinese = "cn"
+	// the amount of pixels to pad the left side of the license plate text
+	CnTextLeftPad = 4
+	// the height in pixels of the license plate text label
+	LPLabelHeight = 24
 )
 
 // ALPR defines the Automatic License Plate Recognition struct
@@ -216,15 +220,15 @@ func (a *ALPR) Detect(img gocv.Mat, resImg *gocv.Mat) (DetectTiming, error) {
 		gocv.Rectangle(resImg, rect, color.RGBA{R: 0, G: 0, B: 255, A: 0}, 2)
 
 		// blank picture area to overlay text on
-		textRect := image.Rect(newLeft-1, newTop-24, newRight+1, newTop)
+		textRect := image.Rect(newLeft-1, newTop-LPLabelHeight, newRight+1, newTop)
 		gocv.Rectangle(resImg, textRect, color.RGBA{R: 0, G: 0, B: 255, A: 0}, -1)
 
 		if a.textMode == Chinese {
-			// Put text - Chinese character support, unfortunately this code is slow
-			// at ~52ms processing time, so find a faster method
-			a.putChineseText(resImg, text, newLeft+4, newTop-5)
+			// Put text - Chinese character support
+			a.putChineseText(resImg, text, newLeft-1, newTop-LPLabelHeight, LPLabelHeight,
+				color.RGBA{R: 0, G: 0, B: 255, A: 255})
 		} else {
-			// Put text - Latin characters only, its fast and takes ~200us processing time
+			// Put text - Latin characters only
 			gocv.PutText(resImg, strings.ToUpper(text), image.Pt(newLeft+4, newTop-6),
 				gocv.FontHersheyDuplex, 0.6, color.RGBA{R: 255, G: 255, B: 255, A: 0}, 1)
 		}
@@ -311,36 +315,99 @@ func (a *ALPR) SetTextMode(mode string) {
 	}
 }
 
-// putChineseText is a function creates and image and writes on it supporting
-// chinese characters
-func (a *ALPR) putChineseText(img *gocv.Mat, text string, x, y int) error {
+// TextBoundary defines the text boundaries calculated for some text in a
+// specific font face
+type TextBoundary struct {
+	TotalWidth int
+	Height     int
+}
 
-	// create image with text writing
-	rgba := image.NewRGBA(image.Rect(0, 0, img.Cols(), img.Rows()))
-	draw.Draw(rgba, rgba.Bounds(), image.NewUniform(color.RGBA{0, 0, 0, 0}), image.Point{}, draw.Src)
+// textBoundary takes the license plate text and works out the total width
+// and height of largest character
+func (a *ALPR) textBoundary(text []rune) TextBoundary {
+
+	tb := TextBoundary{}
+
+	if len(text) == 0 {
+		// text is empty
+		return tb
+	}
+
+	// for each character measure it to get text font sizing
+	for i := range text {
+		bounds, advance, ok := a.fontFace.GlyphBounds(text[i])
+
+		if !ok {
+			// failed to get glyph bounds
+			continue
+		}
+
+		textWidth := advance.Round()
+		textHeight := (bounds.Max.Y - bounds.Min.Y).Round()
+
+		// we record the character with largest height
+		if textHeight > tb.Height {
+			tb.Height = textHeight
+		}
+
+		tb.TotalWidth += textWidth
+	}
+
+	return tb
+}
+
+// putChineseText draws the license plate number on source Mat image using TTF
+// chinese font.  x & y parameters are the coordinates on the image where the
+// text region is to be drawn.  height is the height of the text label region
+// to be drawn upon.
+func (a *ALPR) putChineseText(img *gocv.Mat, text string, x, y, height int,
+	bgColor color.RGBA) error {
+
+	// convert text to rune
+	runes := []rune(text)
+
+	if len(runes) == 0 {
+		return fmt.Errorf("text string is empty")
+	}
+
+	txtBounds := a.textBoundary(runes)
+	textWidth := txtBounds.TotalWidth + CnTextLeftPad
+
+	// create an image for the text
+	rgba := image.NewRGBA(image.Rect(0, 0, textWidth, height))
+	draw.Draw(rgba, rgba.Bounds(), &image.Uniform{C: bgColor}, image.Point{}, draw.Src)
 
 	dr := &font.Drawer{
 		Dst:  rgba,
 		Src:  image.NewUniform(color.RGBA{255, 255, 255, 255}),
 		Face: a.fontFace,
 		Dot: fixed.Point26_6{
-			X: fixed.Int26_6(x * 64),
-			Y: fixed.Int26_6(y * 64),
+			// the multiply by 64 converts pixel sizing to fixed-point sizing
+			X: CnTextLeftPad * 64,
+			Y: fixed.Int26_6(txtBounds.Height * 64),
 		},
 	}
 	dr.DrawString(text)
 
-	// Convert image.RGBA to gocv.Mat
-	imgRGBA, err := gocv.NewMatFromBytes(rgba.Bounds().Dy(), rgba.Bounds().Dx(), gocv.MatTypeCV8UC4, rgba.Pix)
+	// convert image.RGBA to gocv.Mat
+	imgRGBA, err := gocv.NewMatFromBytes(rgba.Bounds().Dy(), rgba.Bounds().Dx(),
+		gocv.MatTypeCV8UC4, rgba.Pix)
 
-	if imgRGBA.Empty() || err != nil {
-		return fmt.Errorf("error creating Mat from RGBA")
+	if err != nil {
+		return fmt.Errorf("error creating Mat from RGBA: %v", err)
 	}
 
 	defer imgRGBA.Close()
 
+	// convert RGBA to BGR for overlay
 	gocv.CvtColor(imgRGBA, &imgRGBA, gocv.ColorRGBAToBGR)
-	gocv.AddWeighted(*img, 1.0, imgRGBA, 1.0, 0, img)
+
+	// create a ROI from the destination image where to overlay
+	roi := img.Region(image.Rect(x, y, x+textWidth, y+height))
+	defer roi.Close()
+
+	// Overlay text image onto the designated region of the main image
+	imgRGBA.CopyTo(&roi)
 
 	return nil
 }
@@ -428,7 +495,7 @@ func main() {
 
 func runBenchmark(alpr *ALPR, img gocv.Mat) {
 
-	count := 10
+	count := 50
 	start := time.Now()
 
 	// create Mat for annotated image
