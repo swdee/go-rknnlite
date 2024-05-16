@@ -80,6 +80,41 @@ the average inference speed down to 1.65ms per image.
 See the [Pool example](example/pool).
 
 
+## CPU Affinity
+
+The performance of the NPU is effected by which CPU cores your program runs on, so
+to achieve maximum performance we need to set the CPU Affinity.
+
+The RK3588 for example has 4 fast Cortex-A76 cores at 2.4Ghz and 4 efficient
+Cortex-A55 cores at 1.8Ghz.  By default your Go program will run across all cores
+which effects performance, instead set the CPU Affinity to run on the fast Cortex-A76
+cores only.
+
+```
+// set CPU affinity
+err = rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
+	
+if err != nil {
+	log.Printf("Failed to set CPU Affinity: %w", err)
+}
+```
+
+Constants have been set for RK3588 and RK3582 processors, for other CPU's you
+can define the core mask.
+
+
+
+### Core Mask
+
+To create the core mask value we will use the RK3588 as an example which has 
+CPU cores 0-3 as the slow A55 cores and cores 4-7 being the fast A76 cores.
+
+You can use the provided convenience function to calculate the mask for cores 4-7.
+
+```
+mask := rknnlite.CPUCoreMask([]int{4,5,6,7})
+```
+
 ## Notice
 
 This code is being used in production for Image Classification.  Over time it will be expanded
@@ -91,6 +126,7 @@ Ensure you use Go Modules so your code is not effected, but be aware any updates
 require minor changes to your code to support the latest version.
 
 Versioning of the library will be added at a later date once the feature set stablises.
+
 
 
 ## Post Processing

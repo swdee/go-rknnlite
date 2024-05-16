@@ -27,6 +27,12 @@ func main() {
 
 	flag.Parse()
 
+	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
+
+	if err != nil {
+		log.Printf("Failed to set CPU Affinity: %w", err)
+	}
+
 	// create rknn runtime instance
 	rt, err := rknnlite.NewRuntime(*modelFile, rknnlite.NPUCoreAuto)
 
@@ -136,7 +142,7 @@ func main() {
 func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv5,
 	mats []gocv.Mat) {
 
-	count := 10
+	count := 100
 	start := time.Now()
 
 	for i := 0; i < count; i++ {
