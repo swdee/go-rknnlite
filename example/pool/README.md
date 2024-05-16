@@ -39,7 +39,7 @@ $ go run pool.go -h
 
 Usage of /tmp/go-build3261134608/b001/exe/pool:
   -c string
-        CPU Affinity, run on [fast|slow] CPU cores, default 'fast' (default "fast")
+        CPU Affinity, run on [fast|slow] CPU cores (default "fast")
   -d string
         A directory of images to run inference on (default "../data/imagenet/")
   -m string
