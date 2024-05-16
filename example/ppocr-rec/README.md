@@ -46,8 +46,6 @@ Sample images input and text detected.
 
 
 
-
-
 ## Background
 
 This PPOCR example is a Go conversion of the [C API example](https://github.com/airockchip/rknn_model_zoo/blob/main/examples/PPOCR/PPOCR-Rec/cpp/main.cc).
