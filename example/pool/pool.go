@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -26,8 +27,22 @@ func main() {
 	poolSize := flag.Int("s", 1, "Size of RKNN runtime pool, choose 1, 2, 3, or multiples of 3")
 	repeat := flag.Int("r", 1, "Repeat processing image directory the specified number of times, use this if you don't have enough images")
 	quiet := flag.Bool("q", false, "Run in quiet mode, don't display individual inference results")
+	cpuaff := flag.String("c", "fast", "CPU Affinity, run on [fast|slow] CPU cores, default 'fast'")
 
 	flag.Parse()
+
+	// set cpu affinity to run on specific CPU cores
+	cpumask := rknnlite.RK3588FastCores
+
+	if strings.ToLower(*cpuaff) == "slow" {
+		cpumask = rknnlite.RK3588SlowCores
+	}
+
+	err := rknnlite.SetCPUAffinity(cpumask)
+
+	if err != nil {
+		log.Printf("Failed to set CPU Affinity: %w", err)
+	}
 
 	// check dir exists
 	info, err := os.Stat(*imgDir)

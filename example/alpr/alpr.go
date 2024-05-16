@@ -442,6 +442,12 @@ func main() {
 
 	flag.Parse()
 
+	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
+
+	if err != nil {
+		log.Printf("Failed to set CPU Affinity: %w", err)
+	}
+
 	alpr, err := NewALPR(*yoloModelFile, *lprModelFile, *ttfFont)
 
 	if err != nil {

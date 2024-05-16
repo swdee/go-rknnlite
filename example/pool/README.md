@@ -38,6 +38,8 @@ Command line Usage.
 $ go run pool.go -h
 
 Usage of /tmp/go-build3261134608/b001/exe/pool:
+  -c string
+        CPU Affinity, run on [fast|slow] CPU cores, default 'fast' (default "fast")
   -d string
         A directory of images to run inference on (default "../data/imagenet/")
   -m string
@@ -52,13 +54,13 @@ Usage of /tmp/go-build3261134608/b001/exe/pool:
 To run the example pool using 3 Runtimes in the pool and downloaded data.
 ```
 cd example/pool/
-go run pool.go -q -s 3
+go run pool.go -q -s 3 -r 4
 ```
 
 Example summary.
 ```
 Running...
-Processed 4000 images in 9.534736507s, average inference per image is 2.38ms
+Processed 4000 images in 9.36881374s, average inference per image is 2.34ms
 ```
 
 When selecting the number of Runtimes to initialize the pool with select 1, 2, 3, or
@@ -69,26 +71,26 @@ a multiple of 3 to spread them across all three NPU cores.
 ## Benchmarks
 
 For an EfficentNet-Lite0 Model we achieve the following average inference times
-for the number of Runtimes in the Pool.
+for the number of Runtimes in the Pool processing 8000 images.
 
 
-| Number of Runtimes | Execution Time | Core Saturation | Average Inference Time Per Image |
-| ---- | ---- | ---- | --- |
-| 1 | 59.97s | ~30% core saturation | 7.91ms |
-| 2 | 34.56s | ~30% core saturation | 4.55ms |
-| 3 | 22.94s | ~30% core saturation | 3.02ms |
-| 6 | 13.89s | ~48% core saturation | 1.83ms |
-| 9 | 12.54s | ~54% core saturation | 1.65ms |
-| 12 | 11.97s | ~57% core saturation | 1.57ms |
-| 15 | 12.03s | ~58% core saturation | 1.58ms |
+| Number of Runtimes | Execution Time | Core Saturation      | Average Inference Time Per Image |
+| ---- |----------------|----------------------|----------------------------------|
+| 1 | 57.21s         | ~35% core saturation | 7.15ms                            |
+| 2 | 29.59s         | ~35% core saturation | 3.70ms                           |
+| 3 | 20.46s         | ~35% core saturation | 2.56ms                           |
+| 6 | 12.12s         | ~60% core saturation | 1.52ms                           |
+| 9 | 10.01s         | ~74% core saturation | 1.25ms                           |
+| 12 | 9.55s          | ~80% core saturation | 1.19ms                           |
+| 15 | 9.36s          | ~80% core saturation | 1.17ms                           |
 
 
-Core saturation peaks around 60% across all three cores so going beyond 9 Runtimes
+Core saturation peaks around 80% across all three cores so going beyond 9 Runtimes
 has diminishing returns.   
 
 Note that the more Runtimes created the more memory is needed for each instance
 of the Model loaded.
 
-Achieving a 100% core saturation is not possible (~60% at best), the reason for
-this is unknown and unsolvable due to the nature of the underlying closed 
-source RKNN software stack.
+Previously we achieved ~60% core saturation but through the use of CPU Affinity
+and running this program on the fast Cortex-A76 cores only we can further
+saturate the NPU cores to ~80%.
