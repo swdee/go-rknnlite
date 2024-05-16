@@ -27,7 +27,7 @@ func main() {
 	poolSize := flag.Int("s", 1, "Size of RKNN runtime pool, choose 1, 2, 3, or multiples of 3")
 	repeat := flag.Int("r", 1, "Repeat processing image directory the specified number of times, use this if you don't have enough images")
 	quiet := flag.Bool("q", false, "Run in quiet mode, don't display individual inference results")
-	cpuaff := flag.String("c", "fast", "CPU Affinity, run on [fast|slow] CPU cores, default 'fast'")
+	cpuaff := flag.String("c", "fast", "CPU Affinity, run on [fast|slow] CPU cores")
 
 	flag.Parse()
 
