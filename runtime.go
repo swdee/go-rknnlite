@@ -99,6 +99,9 @@ type Runtime struct {
 	// wantFloat indicates if Outputs are converted to float32 or left as int8.
 	// default option is True
 	wantFloat bool
+	// inputTypeFloat32 indicates if we pass the input gocv.Mat's data as float32
+	// to the RKNN backend
+	inputTypeFloat32 bool
 }
 
 // NewRuntime returns a RKNN run time instance.  Provide the full path and
@@ -209,6 +212,13 @@ func (r *Runtime) Close() error {
 // to float32 for post processing, or left as quantitized int8
 func (r *Runtime) SetWantFloat(val bool) {
 	r.wantFloat = val
+}
+
+// SetInputTypeFloat32 defines if the Model requires the Inference() function to
+// pass the gocv.Mat's as float32 data to RKNN backend.  Setting this overrides
+// the default behaviour to pass gocv.Mat data as Uint8
+func (r *Runtime) SetInputTypeFloat32(val bool) {
+	r.inputTypeFloat32 = val
 }
 
 // SDKVersion represents the C.rknn_sdk_version struct
