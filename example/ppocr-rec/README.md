@@ -129,7 +129,7 @@ go run ppocr-rec.go -k japan_dict.txt -m japanv3-rec_rk3588_unquantized.rknn -i 
 |-----------------------------------|-----------------|------------------|
 | ![jptext.jpg](jptext.jpg)           | つま味のある           | 0.76      |
 
-Whilst the text on the image above is accurate I found the Japanese version to be
+Whilst the text on the image above is accurate'ish I found the Japanese version to be
 rather poor.  It does not do well with Horizontally written text or hand written
 kana. Some others also found this [here](https://qiita.com/sakamoto1209/items/59288cd88133852d2e9e)
 and [here](https://zenn.dev/shimat/articles/6ac851fbba2e0bae05c8).
