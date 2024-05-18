@@ -54,7 +54,7 @@ func main() {
 	}
 
 	// create PPOCR post processor
-	ppocrProcessor := postprocess.NewPPOCR(postprocess.PPOCRParams{
+	ppocrProcessor := postprocess.NewPPOCRRecognise(postprocess.PPOCRRecogniseParams{
 		ModelChars:   modelChars,
 		OutputSeqLen: int(inputAttrs[0].Dims[2]) / 8, // modelWidth (320/8)
 	})
@@ -125,7 +125,7 @@ func main() {
 	log.Println("done")
 }
 
-func runBenchmark(rt *rknnlite.Runtime, ppocrProcessor *postprocess.PPOCR,
+func runBenchmark(rt *rknnlite.Runtime, ppocrProcessor *postprocess.PPOCRRecognise,
 	mats []gocv.Mat) {
 
 	count := 100

@@ -6,14 +6,14 @@ import (
 	"math"
 )
 
-// PPOCR defines the struct for the PPOCR model inference post processing
-type PPOCR struct {
-	Params PPOCRParams
+// PPOCRRecognise defines the struct for the PPOCR model inference post processing
+type PPOCRRecognise struct {
+	Params PPOCRRecogniseParams
 }
 
 // PPOCRParams defines the struct containing the PPOCR parameters to use for
 // post processing operations
-type PPOCRParams struct {
+type PPOCRRecogniseParams struct {
 	// ModelChars is the list of characters used to train the PPOCR model
 	ModelChars []string
 	// numChars is the number of characters in ModelChars
@@ -22,17 +22,17 @@ type PPOCRParams struct {
 	OutputSeqLen int
 }
 
-// RecogniseResult is a text result recognised by OCR
-type RecogniseResult struct {
+// PPOCRRecogniseResult is a text result recognised by OCR
+type PPOCRRecogniseResult struct {
 	// Text is the recognised text
 	Text string
 	// Score is the confidence score of the text recognised
 	Score float32
 }
 
-// NewPPOCR returns an instance of the PPOCR post processor
-func NewPPOCR(param PPOCRParams) *PPOCR {
-	p := &PPOCR{
+// NewPPOCRRecognise returns an instance of the PPOCR post processor
+func NewPPOCRRecognise(param PPOCRRecogniseParams) *PPOCRRecognise {
+	p := &PPOCRRecognise{
 		Params: param,
 	}
 
@@ -42,15 +42,15 @@ func NewPPOCR(param PPOCRParams) *PPOCR {
 }
 
 // Recognise takes the RKNN outputs and converts them to text
-func (p *PPOCR) Recognise(outputs *rknnlite.Outputs) []RecogniseResult {
+func (p *PPOCRRecognise) Recognise(outputs *rknnlite.Outputs) []PPOCRRecogniseResult {
 
-	results := make([]RecogniseResult, len(outputs.Output))
+	results := make([]PPOCRRecogniseResult, len(outputs.Output))
 
 	for idx, output := range outputs.Output {
 		rec, err := p.recogniseText(output)
 
 		if err != nil {
-			results[idx] = RecogniseResult{
+			results[idx] = PPOCRRecogniseResult{
 				Text:  "ERROR ModelChars",
 				Score: 0,
 			}
@@ -63,9 +63,9 @@ func (p *PPOCR) Recognise(outputs *rknnlite.Outputs) []RecogniseResult {
 }
 
 // recogniseText takes a single RKNN Output and returns the OCR'd text as string
-func (p *PPOCR) recogniseText(output rknnlite.Output) (RecogniseResult, error) {
+func (p *PPOCRRecognise) recogniseText(output rknnlite.Output) (PPOCRRecogniseResult, error) {
 
-	res := RecogniseResult{}
+	res := PPOCRRecogniseResult{}
 
 	var argmaxVal float32
 	var argmaxIdx, lastIdx, count int
@@ -81,7 +81,7 @@ func (p *PPOCR) recogniseText(output rknnlite.Output) (RecogniseResult, error) {
 			count++
 
 			if argmaxIdx > p.Params.numChar {
-				return RecogniseResult{}, fmt.Errorf("output index is larger than size of ModelChars list")
+				return PPOCRRecogniseResult{}, fmt.Errorf("output index is larger than size of ModelChars list")
 			}
 
 			res.Text += p.Params.ModelChars[argmaxIdx]
@@ -100,7 +100,7 @@ func (p *PPOCR) recogniseText(output rknnlite.Output) (RecogniseResult, error) {
 }
 
 // argMax returns the index of the maximum element in a slice
-func (p *PPOCR) argMax(slice []float32) (int, float32) {
+func (p *PPOCRRecognise) argMax(slice []float32) (int, float32) {
 
 	if len(slice) == 0 {
 		return 0, 0
