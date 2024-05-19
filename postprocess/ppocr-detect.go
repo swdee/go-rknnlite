@@ -12,7 +12,10 @@ import (
 )
 
 const (
+	// MaxContours is the maximum number of contours to process on an image
 	MaxContours = 1000
+	// ContourMinSize is the minimum number size contour
+	ContourMinSize = 3
 )
 
 // PPOCRDetect defines the struct for the PPOCR Detection model inference
@@ -133,7 +136,6 @@ func (p *PPOCRDetect) detectText(output rknnlite.Output, scaleW float32,
 	}
 
 	// find polygon contours
-	minSize := 3
 	contours := gocv.FindContours(bitMap, gocv.RetrievalList, gocv.ChainApproxSimple)
 
 	numContours := contours.Size()
@@ -153,102 +155,27 @@ func (p *PPOCRDetect) detectText(output rknnlite.Output, scaleW float32,
 		}
 
 		var score float32
+		var intcliparray [][]int
+		var ok bool
 
 		if p.Params.BoxType == "poly" {
+			intcliparray, score, ok = p.processPoly(contour, predMap)
 
-			epsilon := 0.002 * gocv.ArcLength(contour, true)
-			points := gocv.ApproxPolyDP(contour, epsilon, true)
-
-			if points.Size() < 4 {
+			if !ok {
 				continue
-			}
-
-			pointVector := points.ToPoints()
-			score = p.polygonScoreAcc(pointVector, predMap)
-
-			if score < p.Params.BoxThreshold {
-				continue
-			}
-
-			var boxForUnclip [][]float32
-
-			for _, pt := range pointVector {
-				boxForUnclip = append(boxForUnclip, []float32{float32(pt.X), float32(pt.Y)})
-			}
-
-			// start of unclip
-			clipbox := p.unClip(boxForUnclip, p.Params.UnclipRatio)
-
-			if clipbox.Height < 2 && clipbox.Width < 2 {
-				continue
-			}
-			// end unclip
-
-			ssid := int(math.Max(float64(clipbox.Width), float64(clipbox.Height)))
-
-			cliparray := p.getMiniBoxes(clipbox)
-
-			if ssid < minSize+2 {
-				continue
-			}
-
-			var intcliparray [][]int
-
-			for _, pt := range cliparray {
-				intcliparray = append(intcliparray,
-					[]int{int(p.clampf32(pt[0], 0, float32(p.Params.ModelWidth))), int(p.clampf32(pt[1], 0, float32(p.Params.ModelHeight)))})
 			}
 
 			boxes = append(boxes, intcliparray)
 
 		} else {
 			// quad
+			intcliparray, score, ok = p.processQuad(contour, predMap)
 
-			box := gocv.MinAreaRect(contour)
-			boxForUnclip := p.getMiniBoxes(box)
-
-			ssid := int(math.Max(float64(box.Width), float64(box.Height)))
-
-			if ssid < minSize {
+			if !ok {
 				continue
-			}
-
-			if p.Params.ScoreMode == "slow" {
-				pointVector := contour.ToPoints()
-				score = p.polygonScoreAcc(pointVector, predMap)
-			} else {
-				score = p.boxScoreFast(boxForUnclip, predMap)
-			}
-
-			if score < p.Params.BoxThreshold {
-				continue
-			}
-
-			// start of unclip
-			clipbox := p.unClip(boxForUnclip, p.Params.UnclipRatio)
-
-			if clipbox.Height < 2 && clipbox.Width < 2 {
-				continue
-			}
-			// end of unclip
-
-			ssid = int(math.Max(float64(clipbox.Width), float64(clipbox.Height)))
-
-			cliparray := p.getMiniBoxes(clipbox)
-
-			if ssid < minSize+2 {
-				continue
-			}
-
-			var intcliparray [][]int
-
-			for _, pt := range cliparray {
-				intcliparray = append(intcliparray,
-					[]int{int(p.clampf32(pt[0], 0, float32(p.Params.ModelWidth))), int(p.clampf32(pt[1], 0, float32(p.Params.ModelHeight)))})
 			}
 
 			boxes = append(boxes, intcliparray)
-
 		}
 
 		scores = append(scores, score)
@@ -305,6 +232,110 @@ func (p *PPOCRDetect) detectText(output rknnlite.Output, scaleW float32,
 	}
 
 	return results, nil
+}
+
+// processPoly processes contours as polygons
+func (p *PPOCRDetect) processPoly(contour gocv.PointVector,
+	predMap gocv.Mat) ([][]int, float32, bool) {
+
+	var score float32
+
+	epsilon := 0.002 * gocv.ArcLength(contour, true)
+	points := gocv.ApproxPolyDP(contour, epsilon, true)
+
+	if points.Size() < 4 {
+		return nil, 0.0, false
+	}
+
+	pointVector := points.ToPoints()
+	score = p.polygonScoreAcc(pointVector, predMap)
+
+	if score < p.Params.BoxThreshold {
+		return nil, 0.0, false
+	}
+
+	var boxForUnclip [][]float32
+
+	for _, pt := range pointVector {
+		boxForUnclip = append(boxForUnclip, []float32{float32(pt.X), float32(pt.Y)})
+	}
+
+	// start of unclip
+	clipbox := p.unClip(boxForUnclip, p.Params.UnclipRatio)
+
+	if clipbox.Height < 2 && clipbox.Width < 2 {
+		return nil, 0.0, false
+	}
+	// end unclip
+
+	ssid := int(math.Max(float64(clipbox.Width), float64(clipbox.Height)))
+
+	cliparray := p.getMiniBoxes(clipbox)
+
+	if ssid < ContourMinSize+2 {
+		return nil, 0.0, false
+	}
+
+	var intcliparray [][]int
+
+	for _, pt := range cliparray {
+		intcliparray = append(intcliparray,
+			[]int{int(p.clampf32(pt[0], 0, float32(p.Params.ModelWidth))), int(p.clampf32(pt[1], 0, float32(p.Params.ModelHeight)))})
+	}
+
+	return intcliparray, score, true
+}
+
+// processPoly processes contours as quadrilaterals
+func (p *PPOCRDetect) processQuad(contour gocv.PointVector,
+	predMap gocv.Mat) ([][]int, float32, bool) {
+
+	var score float32
+
+	box := gocv.MinAreaRect(contour)
+	boxForUnclip := p.getMiniBoxes(box)
+
+	ssid := int(math.Max(float64(box.Width), float64(box.Height)))
+
+	if ssid < ContourMinSize {
+		return nil, 0.0, false
+	}
+
+	if p.Params.ScoreMode == "slow" {
+		pointVector := contour.ToPoints()
+		score = p.polygonScoreAcc(pointVector, predMap)
+	} else {
+		score = p.boxScoreFast(boxForUnclip, predMap)
+	}
+
+	if score < p.Params.BoxThreshold {
+		return nil, 0.0, false
+	}
+
+	// start of unclip
+	clipbox := p.unClip(boxForUnclip, p.Params.UnclipRatio)
+
+	if clipbox.Height < 2 && clipbox.Width < 2 {
+		return nil, 0.0, false
+	}
+	// end of unclip
+
+	ssid = int(math.Max(float64(clipbox.Width), float64(clipbox.Height)))
+
+	cliparray := p.getMiniBoxes(clipbox)
+
+	if ssid < ContourMinSize+2 {
+		return nil, 0.0, false
+	}
+
+	var intcliparray [][]int
+
+	for _, pt := range cliparray {
+		intcliparray = append(intcliparray,
+			[]int{int(p.clampf32(pt[0], 0, float32(p.Params.ModelWidth))), int(p.clampf32(pt[1], 0, float32(p.Params.ModelHeight)))})
+	}
+
+	return intcliparray, score, true
 }
 
 // float32ToUint8 converts a float32 slice to uint8 slice
