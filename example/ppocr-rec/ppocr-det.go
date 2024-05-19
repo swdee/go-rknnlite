@@ -1,6 +1,3 @@
-/*
-Example code showing how to perform OCR on an image using PaddleOCR recognition
-*/
 package main
 
 import (
@@ -10,6 +7,7 @@ import (
 	"github.com/swdee/go-rknnlite/postprocess"
 	"gocv.io/x/gocv"
 	"image"
+	"image/color"
 	"log"
 	"time"
 )
@@ -19,9 +17,9 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	modelFile := flag.String("m", "../data/ppocrv4_rec-rk3588.rknn", "RKNN compiled model file")
-	imgFile := flag.String("i", "../data/ppocr-rec-test.png", "Image file to run inference on")
-	keysFile := flag.String("k", "../data/ppocr_keys_v1.txt", "Text file containing OCR character keys")
+	modelFile := flag.String("m", "../data/ppocrv4_det-rk3588.rknn", "RKNN compiled model file")
+	imgFile := flag.String("i", "../data/ppocr-det-test.png", "Image file to run inference on")
+	saveFile := flag.String("o", "../data/ppocr-det-out.png", "The output PNG file with object detection markers")
 	flag.Parse()
 
 	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
@@ -37,32 +35,20 @@ func main() {
 		log.Fatal("Error initializing RKNN runtime: ", err)
 	}
 
-	// set runtime to pass input gocv.Mat's to Inference() function as float32
-	// to RKNN backend
-	rt.SetInputTypeFloat32(true)
-
 	// optional querying of model file tensors and SDK version.  not necessary
 	// for production inference code
-	inputAttrs, outputAttrs := optionalQueries(rt)
-
-	// load in Model character labels
-	modelChars, err := rknnlite.LoadLabels(*keysFile)
-
-	if err != nil {
-		log.Fatal("Error loading model OCR character keys: ", err)
-	}
-
-	// check that we have as many modelChars as tensor outputs dimension
-	if len(modelChars) != int(outputAttrs[0].Dims[2]) {
-		log.Fatalf("OCR character keys text input has %d characters and does "+
-			"not match the required number in the Model of %d",
-			len(modelChars), outputAttrs[0].Dims[2])
-	}
+	inputAttrs, _ := optionalQueries(rt)
 
 	// create PPOCR post processor
-	ppocrProcessor := postprocess.NewPPOCRRecognise(postprocess.PPOCRRecogniseParams{
-		ModelChars:   modelChars,
-		OutputSeqLen: int(inputAttrs[0].Dims[2]) / 8, // modelWidth (320/8)
+	ppocrProcessor := postprocess.NewPPOCRDetect(postprocess.PPOCRDetectParams{
+		Threshold:    0.3,
+		BoxThreshold: 0.6,
+		Dilation:     false,
+		BoxType:      "poly", //"poly",
+		UnclipRatio:  1.5,
+		ScoreMode:    "slow", // slow
+		ModelWidth:   int(inputAttrs[0].Dims[2]),
+		ModelHeight:  int(inputAttrs[0].Dims[1]),
 	})
 
 	// load image
@@ -72,16 +58,9 @@ func main() {
 		log.Fatal("Error reading image from: ", *imgFile)
 	}
 
-	// resize image to 320x48 and keep aspect ratio, centered with black letterboxing
+	// resize image to 480x480 and keep aspect ratio, centered with black letterboxing
 	resizedImg := gocv.NewMat()
 	resizeKeepAspectRatio(img, &resizedImg, int(inputAttrs[0].Dims[2]), int(inputAttrs[0].Dims[1]))
-
-	// convert image to float32 in 3 channels
-	resizedImg.ConvertTo(&resizedImg, gocv.MatTypeCV32FC3)
-
-	// normalize the image (img - 127.5) / 127.5
-	resizedImg.AddFloat(-127.5)
-	resizedImg.DivideFloat(127.5)
 
 	defer img.Close()
 	defer resizedImg.Close()
@@ -97,19 +76,49 @@ func main() {
 
 	endInference := time.Now()
 
-	results := ppocrProcessor.Recognise(outputs)
+	// work out scale ratio between source imnage and resized image
+	scaleW := float32(img.Cols()) / float32(resizedImg.Cols())
+	scaleH := float32(img.Rows()) / float32(resizedImg.Rows())
 
-	endRecognise := time.Now()
+	results := ppocrProcessor.Detect(outputs, scaleW, scaleH)
+
+	endDetect := time.Now()
 
 	log.Printf("Model first run speed: inference=%s, post processing=%s, total time=%s\n",
 		endInference.Sub(start).String(),
-		endRecognise.Sub(endInference).String(),
-		endRecognise.Sub(start).String(),
+		endDetect.Sub(endInference).String(),
+		endDetect.Sub(start).String(),
 	)
 
+	//
+	lineColor := color.RGBA{R: 255, G: 0, B: 0, A: 255} // Red color
+	thickness := 2
+
 	for _, result := range results {
-		log.Printf("Recognize result: %s, score=%.2f", result.Text, result.Score)
+		for i, box := range result.Box {
+			fmt.Printf("[%d]: [(%d, %d), (%d, %d), (%d, %d), (%d, %d)] %f\n",
+				i,
+				box.LeftTop.X, box.LeftTop.Y,
+				box.RightTop.X, box.RightTop.Y,
+				box.RightBottom.X, box.RightBottom.Y,
+				box.LeftBottom.X, box.LeftBottom.Y,
+				box.Score)
+
+			// draw onto the source image the bounding box lines
+			topLeft := image.Pt(box.LeftTop.X, box.LeftTop.Y)
+			topRight := image.Pt(box.RightTop.X, box.RightTop.Y)
+			bottomRight := image.Pt(box.RightBottom.X, box.RightBottom.Y)
+			bottomLeft := image.Pt(box.LeftBottom.X, box.LeftBottom.Y)
+
+			gocv.Line(&img, topLeft, topRight, lineColor, thickness)
+			gocv.Line(&img, topRight, bottomRight, lineColor, thickness)
+			gocv.Line(&img, bottomRight, bottomLeft, lineColor, thickness)
+			gocv.Line(&img, bottomLeft, topLeft, lineColor, thickness)
+		}
 	}
+
+	log.Printf("Saved image to %s\n", *saveFile)
+	gocv.IMWrite(*saveFile, img)
 
 	// free outputs allocated in C memory after you have finished post processing
 	err = outputs.Free()
@@ -117,9 +126,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Error freeing Outputs: ", err)
 	}
-
-	// optional code.  run benchmark to get average time of 10 runs
-	runBenchmark(rt, ppocrProcessor, []gocv.Mat{resizedImg})
 
 	// close runtime and release resources
 	err = rt.Close()
@@ -129,39 +135,6 @@ func main() {
 	}
 
 	log.Println("done")
-}
-
-func runBenchmark(rt *rknnlite.Runtime, ppocrProcessor *postprocess.PPOCRRecognise,
-	mats []gocv.Mat) {
-
-	count := 100
-	start := time.Now()
-
-	for i := 0; i < count; i++ {
-		// perform inference on image file
-		outputs, err := rt.Inference(mats)
-
-		if err != nil {
-			log.Fatal("Runtime inferencing failed with error: ", err)
-		}
-
-		// post process
-		_ = ppocrProcessor.Recognise(outputs)
-
-		err = outputs.Free()
-
-		if err != nil {
-			log.Fatal("Error freeing Outputs: ", err)
-		}
-	}
-
-	end := time.Now()
-	total := end.Sub(start)
-	avg := total / time.Duration(count)
-
-	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
-		total.String(), count, avg.String(),
-	)
 }
 
 // resizeKeepAspectRatio resizes an image to a desired width and height while
