@@ -4,7 +4,15 @@
 OCR based on the PaddlePaddle lightweight OCR system, supporting recognition of
 80+ languages.
 
-## Usage
+Mutiple examples are provided as the following:
+
+1. [PPOCR Detect](#ppocr-detect) - Takes an image and detects areas of text.
+2. [PPOCR Recognise](#ppocr-recognise) - Takes an area of text and performs OCR on it.
+3. [PPOCR System](#ppocr-system) - Combines both Detect and Recognise.
+
+
+## Example data
+
 
 Make sure you have downloaded the data files first for the examples.
 You only need to do this once for all examples.
@@ -14,10 +22,69 @@ cd example/
 git clone https://github.com/swdee/go-rknnlite-data.git data
 ```
 
+
+
+## PPOCR Detect
+
+
+### Usage
+
 Run the PPOCR Recognition example.
 ```
-cd example/ppocr-rec
-go run ppocr-rec.go
+cd example/ppocr
+go run detect.go common.go
+```
+
+This will result in the output of:
+```
+Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Model Input Number: 1, Ouput Number: 1
+Input tensors:
+  index=0, name=x, n_dims=4, dims=[1, 480, 480, 3], n_elems=691200, size=691200, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=-14, scale=0.018658
+Output tensors:
+  index=0, name=sigmoid_0.tmp_0, n_dims=4, dims=[1, 1, 480, 480], n_elems=230400, size=230400, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
+Model first run speed: inference=27.746374ms, post processing=2.968795ms, total time=30.715169ms
+[0]: [(27, 459), (136, 459), (136, 478), (27, 478)] 0.991298
+[1]: [(27, 428), (371, 427), (371, 444), (27, 445)] 0.912538
+[2]: [(28, 398), (361, 397), (361, 413), (28, 414)] 0.953752
+[3]: [(368, 368), (476, 368), (476, 388), (368, 388)] 0.989887
+[4]: [(27, 365), (282, 365), (282, 384), (27, 384)] 0.975041
+[5]: [(26, 334), (342, 334), (342, 352), (26, 352)] 0.956719
+[6]: [(26, 303), (253, 303), (253, 320), (26, 320)] 0.974053
+[7]: [(25, 270), (179, 270), (179, 289), (25, 289)] 0.990559
+[8]: [(26, 240), (242, 240), (242, 259), (26, 259)] 0.986159
+[9]: [(413, 233), (429, 233), (429, 305), (413, 305)] 0.970001
+[10]: [(26, 209), (235, 209), (235, 227), (26, 227)] 0.995540
+[11]: [(26, 178), (300, 179), (300, 196), (26, 195)] 0.991055
+[12]: [(28, 143), (280, 144), (280, 164), (28, 163)] 0.974824
+[13]: [(27, 112), (333, 113), (333, 135), (27, 134)] 0.899956
+[14]: [(26, 81), (172, 81), (172, 103), (26, 103)] 0.994091
+[15]: [(28, 38), (302, 39), (302, 71), (28, 70)] 0.960498
+Saved image to ../data/ppocr-det-out.png
+Benchmark time=3.540086219s, count=100, average total time=35.400862ms
+done
+```
+
+Bounding boxes have been drawn around detected text areas.
+
+![detect-out.jpg](detect-out.jpg)
+
+
+### Background
+
+This PPOCR Detect example is a Go conversion of the [C API example](https://github.com/airockchip/rknn_model_zoo/blob/main/examples/PPOCR/PPOCR-Det/cpp/main.cc).
+
+
+
+
+## PPOCR Recognise
+
+### Usage
+
+Run the PPOCR Recognition example.
+```
+cd example/ppocr
+go run recognise.go common.go
 ```
 
 This will result in the output of:
@@ -28,9 +95,9 @@ Input tensors:
   index=0, name=x, n_dims=4, dims=[1, 48, 320, 3], n_elems=46080, size=92160, fmt=NHWC, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
 Output tensors:
   index=0, name=softmax_11.tmp_0, n_dims=3, dims=[1, 40, 6625, 0], n_elems=265000, size=530000, fmt=UNDEFINED, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
-Model first run speed: inference=24.707428ms, post processing=478.906µs, total time=25.186334ms
+Model first run speed: inference=26.486118ms, post processing=461.404µs, total time=26.947522ms
 Recognize result: JOINT, score=0.71
-Benchmark time=321.330438ms, count=10, average total time=32.133043ms
+Benchmark time=2.528564774s, count=100, average total time=25.285647ms
 done
 ```
 
@@ -45,7 +112,7 @@ Sample images input and text detected.
 | ![mozzarella.jpg](mozzarella.jpg) |    MOZZARELLA - 188        | 0.67  |
 
 
-## Other Language Models
+### Other Language Models
 
 The Model `ppocrv4_rec-rk3588.rknn` provided in this example has only been trained
 on English alphabet and Chinese characters.  For other languages see the
@@ -122,7 +189,7 @@ same as those trained on the model (for some unknown reason).  Make the followin
 
 You can now use the compiled RKNN and dictionary keys file to perform OCR on an image.
 ```
-go run ppocr-rec.go -k japan_dict.txt -m japanv3-rec_rk3588_unquantized.rknn -i jptext.jpg
+go run recognise.go common.go -k japan_dict.txt -m japanv3-rec_rk3588_unquantized.rknn -i jptext.jpg
 ```
 
 | Input Image                       | Text Recognised | Confidence Score |
@@ -139,9 +206,85 @@ is a [discussion](https://github.com/PaddlePaddle/PaddleOCR/issues/11859) on how
 to improve the situation.  Hopefully the other languages get updates to v4 models
 in the future.
 
+### Background
 
-## Background
+This PPOCR Recognise example is a Go conversion of the [C API example](https://github.com/airockchip/rknn_model_zoo/blob/main/examples/PPOCR/PPOCR-Rec/cpp/main.cc).
 
-This PPOCR example is a Go conversion of the [C API example](https://github.com/airockchip/rknn_model_zoo/blob/main/examples/PPOCR/PPOCR-Rec/cpp/main.cc).
 
+
+
+
+## PPOCR System
+
+
+
+### Usage
+
+Run the PPOCR Recognition example.
+```
+cd example/ppocr
+go run system.go common.go
+```
+
+This will result in the output of:
+```
+Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Model Input Number: 1, Ouput Number: 1
+Input tensors:
+  index=0, name=x, n_dims=4, dims=[1, 48, 320, 3], n_elems=46080, size=92160, fmt=NHWC, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
+Output tensors:
+  index=0, name=softmax_11.tmp_0, n_dims=3, dims=[1, 40, 6625, 0], n_elems=265000, size=530000, fmt=UNDEFINED, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
+Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Model Input Number: 1, Ouput Number: 1
+Input tensors:
+  index=0, name=x, n_dims=4, dims=[1, 480, 480, 3], n_elems=691200, size=691200, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=-14, scale=0.018658
+Output tensors:
+  index=0, name=sigmoid_0.tmp_0, n_dims=4, dims=[1, 1, 480, 480], n_elems=230400, size=230400, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
+[0]: [(28, 38), (302, 39), (302, 71), (28, 70)] 0.960498
+Recognize result: 纯臻营养护发素, score=0.71
+[1]: [(26, 81), (172, 81), (172, 103), (26, 103)] 0.994091
+Recognize result: 产品信息/参数, score=0.71
+[2]: [(27, 112), (333, 113), (333, 135), (27, 134)] 0.899956
+Recognize result: （45元/每公斤，100公斤起订）, score=0.69
+[3]: [(28, 143), (280, 144), (280, 164), (28, 163)] 0.974824
+Recognize result: 每瓶22元，1000瓶起订）, score=0.70
+[4]: [(26, 178), (300, 179), (300, 196), (26, 195)] 0.991055
+Recognize result: （品牌】：代加工方式/OEMODM, score=0.67
+[5]: [(26, 209), (235, 209), (235, 227), (26, 227)] 0.995540
+Recognize result: 【品名】：纯臻营养护发素, score=0.70
+[6]: [(26, 240), (242, 240), (242, 259), (26, 259)] 0.986159
+Recognize result: 【产品编号】：YM-X-3011, score=0.71
+[7]: [(413, 233), (429, 233), (429, 305), (413, 305)] 0.970001
+Recognize result: ODMOEM, score=0.71
+[8]: [(25, 270), (179, 270), (179, 289), (25, 289)] 0.990559
+Recognize result: 【净含量】：220ml, score=0.71
+[9]: [(26, 303), (253, 303), (253, 320), (26, 320)] 0.974053
+Recognize result: 【适用人群】：适合所有肤质, score=0.71
+[10]: [(26, 334), (342, 334), (342, 352), (26, 352)] 0.956719
+Recognize result: （主要成分》:皖蜡硬脂醇、燕麦-葡聚, score=0.59
+[11]: [(27, 365), (282, 365), (282, 384), (27, 384)] 0.975041
+Recognize result: 糖、椰油酰胺丙基甜菜碱、泛酸, score=0.68
+[12]: [(368, 368), (476, 368), (476, 388), (368, 388)] 0.989887
+Recognize result: （成品包材）, score=0.71
+[13]: [(28, 398), (361, 397), (361, 413), (28, 414)] 0.953752
+Recognize result: 干型功能:可降较以发确员，从而大有, score=0.41
+[14]: [(27, 428), (371, 427), (371, 444), (27, 445)] 0.912538
+Recognize result: 即时语久改基发光器的双果，给干强的头, score=0.47
+[15]: [(27, 459), (136, 459), (136, 478), (27, 478)] 0.991298
+Recognize result: 发足够的滋养, score=0.71
+Run speed:
+  Detect processing=32.056505ms
+  Recognise processing=362.731907ms
+  Total time=394.788412ms
+done
+```
+
+As can be seen all of the text area's from the image processed at the 
+PPOCR Detect stage have had OCR applied using PPOCR Recognise.  Displayed
+are the Chinese and English characters read from the OCR process.
+
+
+### Background
+
+This PPOCR System example is a Go conversion of the [C API example](https://github.com/airockchip/rknn_model_zoo/blob/main/examples/PPOCR/PPOCR-System/cpp/main.cc).
 
