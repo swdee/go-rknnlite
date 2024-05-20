@@ -68,6 +68,10 @@ See the [example](example) directory.
 * License Plate Recognition
   * [LPRNet Demo](example/lprnet) 
   * [ALPR Demo](example/alpr) - Automatic License Plate Recognition combining Yolov8 and LPRNet Models
+* Text Identification
+  * [PPOCR Detect](example/ppocr#ppocr-detect) - Takes an image and detects areas of text
+  * [PPOCR Recognise](example/ppocr#ppocr-recognise) - Takes an area of text and performs OCR on it.
+  * [PPOCR System](example/ppocr#ppocr-system) - Combines both Detect and Recognise.
 
 
 ## Pooled Runtimes
