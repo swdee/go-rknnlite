@@ -3,6 +3,7 @@ package rknnlite
 /*
 #include "rknn_api.h"
 #include <stdlib.h>
+#include <string.h>
 */
 import "C"
 import (
@@ -47,22 +48,40 @@ func (r *Runtime) Inference(mats []gocv.Mat) (*Outputs, error) {
 			mat = mat.Clone()
 		}
 
-		// cast to float32, as PassThrough below is set to false then RKNN
-		// will convert the input values to that of the tensor inputs in the model,
-		// eg: INT8
-		data, err := mat.DataPtrUint8()
+		if r.inputTypeFloat32 {
+			// pass data as float32 to RKNN backend
+			data, err := mat.DataPtrFloat32()
 
-		if err != nil {
-			return &Outputs{}, fmt.Errorf("error converting image to float32: %w", err)
-		}
+			if err != nil {
+				return &Outputs{}, fmt.Errorf("error getting data pointer to Mat: %w", err)
+			}
 
-		inputs[idx] = Input{
-			Index:       uint32(idx),
-			Type:        TensorUint8,
-			Size:        uint32(mat.Cols() * mat.Rows() * mat.Channels()),
-			Fmt:         TensorNHWC,
-			Buf:         unsafe.Pointer(&data[0]),
-			PassThrough: false,
+			inputs[idx] = Input{
+				Index: uint32(idx),
+				Type:  TensorFloat32,
+				// multiply by 4 for size of float32
+				Size:        uint32(mat.Cols() * mat.Rows() * mat.Channels() * 4),
+				Fmt:         TensorNHWC,
+				Buf:         unsafe.Pointer(&data[0]),
+				PassThrough: false,
+			}
+
+		} else {
+			// pass data as uint8 to RKNN backend
+			data, err := mat.DataPtrUint8()
+
+			if err != nil {
+				return &Outputs{}, fmt.Errorf("error getting data pointer to Mat: %w", err)
+			}
+
+			inputs[idx] = Input{
+				Index:       uint32(idx),
+				Type:        TensorUint8,
+				Size:        uint32(mat.Cols() * mat.Rows() * mat.Channels()),
+				Fmt:         TensorNHWC,
+				Buf:         unsafe.Pointer(&data[0]),
+				PassThrough: false,
+			}
 		}
 	}
 

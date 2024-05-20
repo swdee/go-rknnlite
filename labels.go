@@ -28,6 +28,12 @@ func LoadLabels(file string) ([]string, error) {
 	// read and trim each line
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
+
+		// handle special keyword to convert to " " this is needed for
+		// PPOCR key list
+		if line == "__space__" {
+			line = " "
+		}
 		labels = append(labels, line)
 	}
 
