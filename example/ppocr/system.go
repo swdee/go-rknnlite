@@ -104,24 +104,20 @@ func main() {
 		log.Fatal("Runtime inferencing failed with error: ", err)
 	}
 
-	endInference := time.Now()
-
 	// work out scale ratio between source image and resized image
 	scaleW := float32(img.Cols()) / float32(resizedImg.Cols())
 	scaleH := float32(img.Rows()) / float32(resizedImg.Rows())
 
 	results := detectProcessor.Detect(outputs, scaleW, scaleH)
 
-	endDetect := time.Now()
-
-	log.Printf("Model first run speed: inference=%s, post processing=%s, total time=%s\n",
-		endInference.Sub(start).String(),
-		endDetect.Sub(endInference).String(),
-		endDetect.Sub(start).String(),
-	)
-
 	// sort results in order from top to bottom and left to right
 	SortBoxes(&results)
+
+	endDetect := time.Now() // also start recognise
+
+	// create Mat for cropped region of text
+	region := gocv.NewMat()
+	defer region.Close()
 
 	for _, result := range results {
 		for i, box := range result.Box {
@@ -133,15 +129,23 @@ func main() {
 				box.LeftBottom.X, box.LeftBottom.Y,
 				box.Score)
 
-			// crop source image to get text area
-			rect := image.Rect(box.LeftTop.X, box.LeftTop.Y, box.RightBottom.X, box.RightBottom.Y)
-			region := img.Region(rect)
+			GetRotateCropImage(img, &region, box)
 
 			// perform text recognition
 			recogniseTextBlock(recogniseRt, recogniseProcessor, region,
 				int(recogniseInputAttrs[0].Dims[2]), int(recogniseInputAttrs[0].Dims[1]))
 		}
 	}
+
+	endRecognise := time.Now()
+
+	log.Printf("Run speed:\n  Detect processing=%s\n"+
+		"  Recognise processing=%s\n"+
+		"  Total time=%s\n",
+		endDetect.Sub(start).String(),
+		endRecognise.Sub(endDetect).String(),
+		endRecognise.Sub(start).String(),
+	)
 
 	// free outputs allocated in C memory after you have finished post processing
 	err = outputs.Free()
@@ -238,4 +242,99 @@ func SortBoxes(detectResults *[]postprocess.PPOCRDetectResult) {
 			}
 		}
 	}
+}
+
+// GetRotateCropImage takes the source image and crops it to the bounding box
+// and rotates if needed.
+func GetRotateCropImage(srcImage gocv.Mat, dstImg *gocv.Mat, box postprocess.PPOCRBox) {
+
+	// Crop the image
+	rect := image.Rect(box.LeftTop.X, box.LeftTop.Y, box.RightBottom.X, box.RightBottom.Y)
+	region := srcImage.Region(rect)
+	imgCrop := region.Clone()
+	defer imgCrop.Close()
+
+	// Convert the box points to a slice of image.Point
+	points := []image.Point{
+		{X: box.LeftTop.X, Y: box.LeftTop.Y},
+		{X: box.RightTop.X, Y: box.RightTop.Y},
+		{X: box.RightBottom.X, Y: box.RightBottom.Y},
+		{X: box.LeftBottom.X, Y: box.LeftBottom.Y},
+	}
+
+	// Adjust the points to the coordinates of the cropped image
+	left := minInt(
+		box.LeftTop.X, box.RightTop.X,
+		box.RightBottom.X, box.LeftBottom.X,
+	)
+	top := minInt(
+		box.LeftTop.Y, box.RightTop.Y,
+		box.RightBottom.Y, box.LeftBottom.Y,
+	)
+
+	// Adjust the points to the cropped region
+	for i := range points {
+		points[i].X -= left
+		points[i].Y -= top
+	}
+
+	imgCropWidth := imgCrop.Cols()
+	imgCropHeight := imgCrop.Rows()
+
+	// Define the destination points for perspective transformation
+	ptsStd := []image.Point{
+		{X: 0, Y: 0},
+		{X: imgCropWidth, Y: 0},
+		{X: imgCropWidth, Y: imgCropHeight},
+		{X: 0, Y: imgCropHeight},
+	}
+
+	// Get the perspective transform matrix
+	srcPoints := gocv.NewPointVectorFromPoints(points)
+	dstPoints := gocv.NewPointVectorFromPoints(ptsStd)
+
+	M := gocv.GetPerspectiveTransform(srcPoints, dstPoints)
+	defer M.Close()
+	srcPoints.Close()
+	dstPoints.Close()
+
+	// Apply the warp perspective transformation
+	gocv.WarpPerspective(imgCrop, dstImg, M, image.Pt(imgCropWidth, imgCropHeight))
+
+	// Check if the image needs to be transposed and flipped
+	if float32(dstImg.Rows()) >= float32(dstImg.Cols())*1.5 {
+		srcCopy := gocv.NewMatWithSize(dstImg.Cols(), dstImg.Rows(), dstImg.Type())
+		gocv.Transpose(*dstImg, &srcCopy)
+		gocv.Flip(srcCopy, &srcCopy, 0)
+		*dstImg = srcCopy.Clone()
+		srcCopy.Close()
+	}
+}
+
+// minInt finds the min value in a slice of integers
+func minInt(nums ...int) int {
+
+	min := nums[0]
+
+	for _, v := range nums {
+		if v < min {
+			min = v
+		}
+	}
+
+	return min
+}
+
+// maxInt finds the max value in a slice of integers
+func maxInt(nums ...int) int {
+
+	max := nums[0]
+
+	for _, v := range nums {
+		if v > max {
+			max = v
+		}
+	}
+
+	return max
 }
