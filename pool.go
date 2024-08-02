@@ -65,6 +65,17 @@ func (p *Pool) Close() {
 	})
 }
 
+// SetWantFloat defines if the Model load requires Output tensors to be converted
+// to float32 for post processing, or left as quantitized int8
+func (p *Pool) SetWantFloat(val bool) {
+	// set value for each runtime in the pool
+	for i := 0; i < p.size; i++ {
+		rt := p.Get()
+		rt.SetWantFloat(val)
+		p.Return(rt)
+	}
+}
+
 // getRuntimeCore takes an integer and returns the core mask value to use
 func getRuntimeCore(i int) CoreMask {
 
