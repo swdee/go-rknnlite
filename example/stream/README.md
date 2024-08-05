@@ -64,6 +64,8 @@ In your browser open a connection to your Rockchip/SBC device to `http://<ip add
 to watch the stream with object tracking using YOLOv5 and ByteTrack.
 
 
+[![Watch the video](https://raw.githubusercontent.com/swdee/go-rknnlite-data/master/docs/palace-thumb.jpg)](https://raw.githubusercontent.com/swdee/go-rknnlite-data/master/docs/palace-tracking.mp4)
+
 
 ### Detailed Usage
 
@@ -115,10 +117,8 @@ Or don't pass an `-x` flag and no object limiting will be done.
 
 There is also another test video provided at `../data/cars.mp4` for object tracking.
 
-<video style="max-width: 100%; height: auto;" controls>
-  <source src="https://github.com/swdee/go-rknnlite-data/raw/master/docs/cars-tracking.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[![Watch the video](https://raw.githubusercontent.com/swdee/go-rknnlite-data/master/docs/cars-thumb.jpg)](https://raw.githubusercontent.com/swdee/go-rknnlite-data/master/docs/cars-tracking.mp4)
+
 
 ## Performance
 
