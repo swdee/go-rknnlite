@@ -7,7 +7,7 @@ assign an ID to each object and track them over time.
 This demo uses a 720p MP4 video file to stream in a loop over HTTP, it could be adjusted
 easily to use a camera instead.
 
-It also makes use of the Pool feature to run multiple of the same YOLO model concurrently
+It also makes use of the [Pool](../pool) feature to run multiple of the same YOLO model concurrently
 for better performance.
 
 ![palace-tracking.jpg](palace-tracking.jpg)
