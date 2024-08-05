@@ -8,6 +8,9 @@ import (
 type YOLOv8 struct {
 	// Params are the Model configuration parameters
 	Params YOLOv8Params
+	// nextID is a counter that increments and provides the next number
+	// for each detection result ID
+	idGen *idGenerator
 }
 
 // YOLOv8Params defines the struct containing the YOLOv8 parameters to use
@@ -47,6 +50,7 @@ func YOLOv8COCOParams() YOLOv8Params {
 func NewYOLOv8(p YOLOv8Params) *YOLOv8 {
 	return &YOLOv8{
 		Params: p,
+		idGen:  NewIDGenerator(),
 	}
 }
 
@@ -151,6 +155,7 @@ func (y *YOLOv8) DetectObjects(outputs *rknnlite.Outputs) []DetectResult {
 			},
 			Probability: objConf,
 			Class:       id,
+			ID:          y.idGen.GetNext(),
 		}
 
 		group = append(group, result)

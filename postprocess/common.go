@@ -2,6 +2,7 @@ package postprocess
 
 import (
 	"math"
+	"sync"
 )
 
 // deqntAffineToF32 converts a quantized int8 value back to a float32 using
@@ -178,4 +179,23 @@ func computeDFL(tensor []float32, dflLen int) []float32 {
 	}
 
 	return box
+}
+
+// idGenerator is a struct to hold a counter for generating the next incremental
+// ID number
+type idGenerator struct {
+	id int64
+	sync.Mutex
+}
+
+func NewIDGenerator() *idGenerator {
+	return &idGenerator{}
+}
+
+// Getnext next incremental number
+func (id *idGenerator) GetNext() int64 {
+	id.Lock()
+	defer id.Unlock()
+	id.id++
+	return id.id
 }
