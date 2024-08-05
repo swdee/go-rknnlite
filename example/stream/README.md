@@ -133,6 +133,9 @@ The YOLOv8s model requires more processing power and takes longer to process
 each frame at around ~60ms versus YOLOv5s's ~28ms.  Naturally the object detection
 results under YOLOv8 are better.
 
+To achieve the three 720p streams you need the SBC networked by a wired
+ethernet connection, a WIFI connection does not have the bandwidth.
+
 
 ## Lag (Parallel vs Serial Processing)
 
