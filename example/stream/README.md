@@ -14,17 +14,17 @@ for better performance.
 
 In the above image the statistics at the top represent the following.
 
-| Field           | Description                                                                                                                                                                          |
-|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Frame           | The current frame number                                                                                                                                                             |
-| FPS             | The frames per second being streamed                                                                                                                                                 |
-| Lag             | A negative lag means the inference and processing time completed in less time than the interval taken to stream at 30 FPS.  A positive number indicates processing time took longer. |
-| Objects         | The number of objects detected in the scene                                                                                                                                          |
-| Inference       | The time it took to perform YOLO inferencing on the RKNN backend                                                                                                                     |
-| Post Processing | Time it took to post process the YOLO detection results from inferencing                                                                                                             |
-| Tracking        | Time it took to perform ByteTrack object tracking                                                                                                                                    |
-| Rendering       | How long it took to draw objects and annotate the image with this statistical data                                                                                                   |
-| Total Time      | Total time it took from receiving the video frame and processing it to be sent to browser                                                                                            |
+| Field           | Description                                                                                                                                                                                                                                        |
+|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Frame           | The current frame number                                                                                                                                                                                                                           |
+| FPS             | The frames per second being streamed                                                                                                                                                                                                               |
+| Lag             | A negative lag means the inference and processing time completed in less time than the interval taken to stream at 30 FPS.  A positive number indicates processing time took longer and there is a playback lag from when the video first started. |
+| Objects         | The number of objects detected in the scene                                                                                                                                                                                                        |
+| Inference       | The time it took to perform YOLO inferencing on the RKNN backend                                                                                                                                                                                   |
+| Post Processing | Time it took to post process the YOLO detection results from inferencing                                                                                                                                                                           |
+| Tracking        | Time it took to perform ByteTrack object tracking                                                                                                                                                                                                  |
+| Rendering       | How long it took to draw objects and annotate the image with this statistical data                                                                                                                                                                 |
+| Total Time      | Total time it took from receiving the video frame and processing it to be sent to browser                                                                                                                                                          |
 
 Each detected object has a bounding box drawn around it with classification label `person` 
 and the number proceeding is the unique tracking id assigned from ByteTrack.   The pink circle
@@ -91,14 +91,16 @@ This outputs options of:
         Comma delimited list of labels (COCO) to restrict object tracking to
 ```
 
-The default mode is to use the YOLOv5 model, however you change to the YOLOv8 model with.
+The default mode is to use the YOLOv5 model, however you can change to the YOLOv8 model with.
 ```
 go run bytetrack.go -a :8080 -s 3 -x person -m ../data/yolov8s-640-640-rk3588.rknn -t v8
 ```
 
 The YOLO models used are the original ones from the RKNN Model Zoo and are not tuned 
 well for the task of tracking.   Your best training your own model to get more accurate
-results.   To help filter the objects tracked you can limit tracking to objects of 
+results.   
+
+To help filter the objects tracked you can limit tracking to objects of 
 a specific class.  Using the COCO labels you can limit as follows.
 
 ```
@@ -172,9 +174,8 @@ to show what lag is experienced.
 The Go ByteTrack code ported outputs the same result as the C++ and Python source
 code.   Personally I don't find object tracking to have the accuracy I would
 desire, the results vary depending on which YOLO model is run and the tracking 
-itself is not 100%.   Whilst this demo shows a complete solution, a lot of work
-would still need to be undertaken with training a better model and testing 
-for your own use case. 
+itself is not 100%.   Whilst this demo shows a complete solution, you would still 
+need to do work to train a better model and testing for your own use case. 
 
 
 ## Background
