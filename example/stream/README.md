@@ -115,6 +115,10 @@ Or don't pass an `-x` flag and no object limiting will be done.
 
 There is also another test video provided at `../data/cars.mp4` for object tracking.
 
+<video style="max-width: 100%; height: auto;" controls>
+  <source src="https://github.com/swdee/go-rknnlite-data/raw/master/docs/cars-tracking.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 ## Performance
 
