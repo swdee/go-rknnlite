@@ -8,6 +8,9 @@ import (
 type YOLOv5 struct {
 	// Params are the Model configuration parameters
 	Params YOLOv5Params
+	// nextID is a counter that increments and provides the next number
+	// for each detection result ID
+	idGen *idGenerator
 }
 
 // YOLOv5Params defines the struct containing the YOLOv5 parameters to use
@@ -89,6 +92,7 @@ func YOLOv5COCOParams() YOLOv5Params {
 func NewYOLOv5(p YOLOv5Params) *YOLOv5 {
 	return &YOLOv5{
 		Params: p,
+		idGen:  NewIDGenerator(),
 	}
 }
 
@@ -148,6 +152,8 @@ type DetectResult struct {
 	Box BoxRect
 	// Probability is the confidence score of the object detected
 	Probability float32
+	// ID is a unique ID assigned to the detection result
+	ID int64
 }
 
 // DetectObjects takes the RKNN outputs and runs the object detection process
@@ -218,6 +224,7 @@ func (y *YOLOv5) DetectObjects(outputs *rknnlite.Outputs) []DetectResult {
 			},
 			Probability: objConf,
 			Class:       id,
+			ID:          y.idGen.GetNext(),
 		}
 
 		group = append(group, result)

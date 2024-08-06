@@ -72,6 +72,8 @@ See the [example](example) directory.
   * [PPOCR Detect](example/ppocr#ppocr-detect) - Takes an image and detects areas of text
   * [PPOCR Recognise](example/ppocr#ppocr-recognise) - Takes an area of text and performs OCR on it.
   * [PPOCR System](example/ppocr#ppocr-system) - Combines both Detect and Recognise.
+* Streaming
+  * [HTTP Stream with ByteTrack Tracking](example/stream) - Demo that streams a video over HTTP with YOLO object detection and ByteTrack object tracking.  
 
 
 ## Pooled Runtimes
