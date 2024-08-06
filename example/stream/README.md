@@ -145,6 +145,9 @@ results under YOLOv8 are better.
 To achieve the three 720p streams you need the SBC networked by a wired
 ethernet connection, a WIFI connection does not have the bandwidth.
 
+[![Watch the video](https://img.youtube.com/vi/M6mvHTNQZqM/0.jpg)](https://www.youtube.com/watch?v=M6mvHTNQZqM)
+
+
 
 ## Lag (Parallel vs Serial Processing)
 
