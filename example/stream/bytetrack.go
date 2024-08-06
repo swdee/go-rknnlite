@@ -53,18 +53,23 @@ type ResultFrame struct {
 	Err error
 }
 
+// YOLOProcessor defines an interface for different versions of YOLO
+// models used for object detection
 type YOLOProcessor interface {
 	DetectObjects(outputs *rknnlite.Outputs) []postprocess.DetectResult
 }
 
+// Processor is a struct that holds a YOLOProcessor.
 type Processor struct {
 	process YOLOProcessor
 }
 
+// NewProcessor creates a new Processor instance with the given YOLOProcessor.
 func NewProcessor(process YOLOProcessor) *Processor {
 	return &Processor{process: process}
 }
 
+// DetectObjects delegates the object detection task to the underlying YOLOProcessor.
 func (p *Processor) DetectObjects(outputs *rknnlite.Outputs) []postprocess.DetectResult {
 	return p.process.DetectObjects(outputs)
 }
@@ -365,6 +370,8 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	retChan <- res
 }
 
+// AnnotateImg draws the detection boxes and processing statistics on the given
+// image Mat
 func (d *Demo) AnnotateImg(img gocv.Mat, trackResults []*tracker.STrack,
 	trail *tracker.Trail, fps float64, frameNum int, timing *Timing) {
 

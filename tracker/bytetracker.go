@@ -7,14 +7,23 @@ import (
 
 // BYTETracker represents the BYTE Tracker
 type BYTETracker struct {
-	trackThresh    float32
-	highThresh     float32
-	matchThresh    float32
-	maxTimeLost    int
-	frameID        int
-	trackIDCount   int
+	// Threshold for tracking objects
+	trackThresh float32
+	// High threshold for tracking objects
+	highThresh float32
+	// Matching threshold for associations
+	matchThresh float32
+	// Maximum time an object can be lost before being remove
+	maxTimeLost int
+	// Current frame ID
+	frameID int
+	// Counter for assigning unique track IDs
+	trackIDCount int
+	// List of currently tracked objects
 	trackedStracks []*STrack
-	lostStracks    []*STrack
+	// List of lost objects
+	lostStracks []*STrack
+	// List of removed objects
 	removedStracks []*STrack
 }
 
@@ -215,7 +224,6 @@ func (bt *BYTETracker) Update(objects []Object) ([]*STrack, error) {
 	return outputStracks, nil
 }
 
-// check
 // jointStracks combines two lists of tracks, avoiding duplicates
 func (bt *BYTETracker) jointStracks(aTlist []*STrack, bTlist []*STrack) []*STrack {
 
@@ -242,6 +250,7 @@ func (bt *BYTETracker) jointStracks(aTlist []*STrack, bTlist []*STrack) []*STrac
 	return res
 }
 
+// subStracks subtracts bTlist from aTlist and returns the result
 func (bt *BYTETracker) subStracks(aTlist []*STrack, bTlist []*STrack) []*STrack {
 	stracks := make(map[int]*STrack)
 	for _, track := range aTlist {
@@ -257,6 +266,7 @@ func (bt *BYTETracker) subStracks(aTlist []*STrack, bTlist []*STrack) []*STrack 
 	return res
 }
 
+// removeDuplicateStracks removes duplicate tracks
 func (bt *BYTETracker) removeDuplicateStracks(aStracks []*STrack, bStracks []*STrack, aRes *[]*STrack, bRes *[]*STrack) {
 	ious := bt.calcIouDistance(aStracks, bStracks)
 	overlappingCombinations := [][2]int{}
@@ -290,7 +300,7 @@ func (bt *BYTETracker) removeDuplicateStracks(aStracks []*STrack, bStracks []*ST
 	}
 }
 
-// check
+// linearAssignment performs linear assignment using the Hungarian algorithm
 func (bt *BYTETracker) linearAssignment(costMatrix [][]float32, costMatrixSize,
 	costMatrixSizeSize int, thresh float32) (matchesIdx [][2]int,
 	unmatchTrackIdx, unmatchDetectionIdx []int, fatalErr error) {
@@ -327,7 +337,7 @@ func (bt *BYTETracker) linearAssignment(costMatrix [][]float32, costMatrixSize,
 	return
 }
 
-// check
+// calcIous calculates the Intersection over Union (IoU) between two sets of rectangles
 func (bt *BYTETracker) calcIous(aRects, bRects []Rect) [][]float32 {
 
 	var ious [][]float32
@@ -348,7 +358,7 @@ func (bt *BYTETracker) calcIous(aRects, bRects []Rect) [][]float32 {
 	return ious
 }
 
-// check
+// calcIouDistance calculates the IoU distance between two sets of tracks
 func (bt *BYTETracker) calcIouDistance(aTracks, bTracks []*STrack) [][]float32 {
 
 	var aRects, bRects []Rect
@@ -377,7 +387,7 @@ func (bt *BYTETracker) calcIouDistance(aTracks, bTracks []*STrack) [][]float32 {
 	return costMatrix
 }
 
-// check
+// execLapjv executes the LAPJV algorithm for linear assignment problem solving
 func (bt *BYTETracker) execLapjv(cost [][]float32, extendCost bool,
 	costLimit float32) (rowsol []int, colsol []int, opt float64, err error) {
 
