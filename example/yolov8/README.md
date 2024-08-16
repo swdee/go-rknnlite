@@ -52,7 +52,7 @@ The saved JPG image with object detection markers.
 
 To use your own RKNN compiled model and images.
 ```
-go run yolov5.go -m <RKNN model file> -i <image file> -l <labels txt file> -o <output jpg file>
+go run yolov8.go -m <RKNN model file> -i <image file> -l <labels txt file> -o <output jpg file>
 ```
 
 The labels file should be a text file containing the labels the Model was trained on.
@@ -62,7 +62,7 @@ It should have one label per line.
 
 ## Proprietary Models
 
-The example YOLOv5 model used has been trained on the COCO dataset so makes use
+The example YOLOv8 model used has been trained on the COCO dataset so makes use
 of the default Post Processor setup.  If you have trained your own Model and have
 set specific Classes or want to use alternative
 Box and NMS Threshold values, then initialize the `postprocess.NewYOLOv8`
