@@ -124,8 +124,10 @@ func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
 		d.process = NewProcessor(postprocess.NewYOLOv8(postprocess.YOLOv8COCOParams()))
 	case "v5":
 		d.process = NewProcessor(postprocess.NewYOLOv5(postprocess.YOLOv5COCOParams()))
+	case "x":
+		d.process = NewProcessor(postprocess.NewYOLOX(postprocess.YOLOXCOCOParams()))
 	default:
-		log.Fatal("Unknown model type, use 'v5' or 'v8'")
+		log.Fatal("Unknown model type, use 'v5', 'v8', or 'x'")
 	}
 
 	// load in Model class names
@@ -502,7 +504,7 @@ func main() {
 
 	// read in cli flags
 	modelFile := flag.String("m", "../data/yolov5s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
-	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8]")
+	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|x]")
 	vidFile := flag.String("v", "../data/palace.mp4", "Video file to run object detection and tracking on")
 	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
 	httpAddr := flag.String("a", "localhost:8080", "HTTP Address to run server on, format address:port")

@@ -65,6 +65,7 @@ See the [example](example) directory.
 * Object Detection
   * [YOLOv5 Demo](example/yolov5)  
   * [YOLOv8 Demo](example/yolov8)
+  * [YOLOX Demo](example/yolox)
 * License Plate Recognition
   * [LPRNet Demo](example/lprnet) 
   * [ALPR Demo](example/alpr) - Automatic License Plate Recognition combining Yolov8 and LPRNet Models
