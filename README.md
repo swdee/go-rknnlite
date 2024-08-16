@@ -65,6 +65,7 @@ See the [example](example) directory.
 * Object Detection
   * [YOLOv5 Demo](example/yolov5)  
   * [YOLOv8 Demo](example/yolov8)
+  * [YOLOv10 Demo](example/yolov10)
   * [YOLOX Demo](example/yolox)
 * License Plate Recognition
   * [LPRNet Demo](example/lprnet) 
