@@ -9,6 +9,7 @@ import (
 	"github.com/swdee/go-rknnlite/postprocess"
 	"gocv.io/x/gocv"
 	"log"
+	"os"
 	"time"
 )
 
@@ -39,9 +40,13 @@ func main() {
 	// to RKNN backend
 	rt.SetInputTypeFloat32(true)
 
-	// optional querying of model file tensors and SDK version.  not necessary
-	// for production inference code
-	inputAttrs, outputAttrs := optionalQueries(rt)
+	// optional querying of model file tensors and SDK version for printing
+	// to stdout.  not necessary for production inference code
+	err = rt.Query(os.Stdout)
+
+	if err != nil {
+		log.Fatal("Error querying runtime: ", err)
+	}
 
 	// load in Model character labels
 	modelChars, err := rknnlite.LoadLabels(*keysFile)
@@ -51,16 +56,16 @@ func main() {
 	}
 
 	// check that we have as many modelChars as tensor outputs dimension
-	if len(modelChars) != int(outputAttrs[0].Dims[2]) {
+	if len(modelChars) != int(rt.OutputAttrs()[0].Dims[2]) {
 		log.Fatalf("OCR character keys text input has %d characters and does "+
 			"not match the required number in the Model of %d",
-			len(modelChars), outputAttrs[0].Dims[2])
+			len(modelChars), rt.OutputAttrs()[0].Dims[2])
 	}
 
 	// create PPOCR post processor
 	ppocrProcessor := postprocess.NewPPOCRRecognise(postprocess.PPOCRRecogniseParams{
 		ModelChars:   modelChars,
-		OutputSeqLen: int(inputAttrs[0].Dims[2]) / 8, // modelWidth (320/8)
+		OutputSeqLen: int(rt.InputAttrs()[0].Dims[2]) / 8, // modelWidth (320/8)
 	})
 
 	// load image
@@ -72,7 +77,7 @@ func main() {
 
 	// resize image to 320x48 and keep aspect ratio, centered with black letterboxing
 	resizedImg := gocv.NewMat()
-	resizeKeepAspectRatio(img, &resizedImg, int(inputAttrs[0].Dims[2]), int(inputAttrs[0].Dims[1]))
+	resizeKeepAspectRatio(img, &resizedImg, int(rt.InputAttrs()[0].Dims[2]), int(rt.InputAttrs()[0].Dims[1]))
 
 	// convert image to float32 in 3 channels
 	resizedImg.ConvertTo(&resizedImg, gocv.MatTypeCV32FC3)

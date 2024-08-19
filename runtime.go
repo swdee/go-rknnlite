@@ -253,3 +253,13 @@ func (r *Runtime) SDKVersion() (SDKVersion, error) {
 
 	return version, nil
 }
+
+// InputAttrs returns the loaded model's input tensor attributes
+func (r *Runtime) InputAttrs() []TensorAttr {
+	return r.inputAttrs
+}
+
+// OutputAttrs returns the loaded model's output tensor attributes
+func (r *Runtime) OutputAttrs() []TensorAttr {
+	return r.outputAttrs
+}

@@ -9,6 +9,7 @@ import (
 	"image"
 	"log"
 	"math"
+	"os"
 	"sort"
 	"time"
 )
@@ -47,8 +48,19 @@ func main() {
 	// to RKNN backend
 	recogniseRt.SetInputTypeFloat32(true)
 
-	recogniseInputAttrs, recogniseOutputAttrs := optionalQueries(recogniseRt)
-	detectInputAttrs, _ := optionalQueries(detectRt)
+	// optional querying of model file tensors and SDK version for printing
+	// to stdout.  not necessary for production inference code
+	err = recogniseRt.Query(os.Stdout)
+
+	if err != nil {
+		log.Fatal("Error querying runtime: ", err)
+	}
+
+	err = detectRt.Query(os.Stdout)
+
+	if err != nil {
+		log.Fatal("Error querying runtime: ", err)
+	}
 
 	// load in Model character labels
 	modelChars, err := rknnlite.LoadLabels(*keysFile)
@@ -58,16 +70,16 @@ func main() {
 	}
 
 	// check that we have as many modelChars as tensor outputs dimension
-	if len(modelChars) != int(recogniseOutputAttrs[0].Dims[2]) {
+	if len(modelChars) != int(recogniseRt.OutputAttrs()[0].Dims[2]) {
 		log.Fatalf("OCR character keys text input has %d characters and does "+
 			"not match the required number in the Model of %d",
-			len(modelChars), recogniseOutputAttrs[0].Dims[2])
+			len(modelChars), recogniseRt.OutputAttrs()[0].Dims[2])
 	}
 
 	// create PPOCR post processor
 	recogniseProcessor := postprocess.NewPPOCRRecognise(postprocess.PPOCRRecogniseParams{
 		ModelChars:   modelChars,
-		OutputSeqLen: int(recogniseInputAttrs[0].Dims[2]) / 8, // modelWidth (320/8)
+		OutputSeqLen: int(recogniseRt.InputAttrs()[0].Dims[2]) / 8, // modelWidth (320/8)
 	})
 
 	detectProcessor := postprocess.NewPPOCRDetect(postprocess.PPOCRDetectParams{
@@ -77,8 +89,8 @@ func main() {
 		BoxType:      "poly",
 		UnclipRatio:  1.5,
 		ScoreMode:    "slow",
-		ModelWidth:   int(detectInputAttrs[0].Dims[2]),
-		ModelHeight:  int(detectInputAttrs[0].Dims[1]),
+		ModelWidth:   int(detectRt.InputAttrs()[0].Dims[2]),
+		ModelHeight:  int(detectRt.InputAttrs()[0].Dims[1]),
 	})
 
 	// load image
@@ -90,7 +102,7 @@ func main() {
 
 	// resize image to 480x480 and keep aspect ratio, centered with black letterboxing
 	resizedImg := gocv.NewMat()
-	resizeKeepAspectRatio(img, &resizedImg, int(detectInputAttrs[0].Dims[2]), int(detectInputAttrs[0].Dims[1]))
+	resizeKeepAspectRatio(img, &resizedImg, int(detectRt.InputAttrs()[0].Dims[2]), int(detectRt.InputAttrs()[0].Dims[1]))
 
 	defer img.Close()
 	defer resizedImg.Close()
@@ -133,7 +145,7 @@ func main() {
 
 			// perform text recognition
 			recogniseTextBlock(recogniseRt, recogniseProcessor, region,
-				int(recogniseInputAttrs[0].Dims[2]), int(recogniseInputAttrs[0].Dims[1]))
+				int(recogniseRt.InputAttrs()[0].Dims[2]), int(recogniseRt.InputAttrs()[0].Dims[1]))
 		}
 	}
 

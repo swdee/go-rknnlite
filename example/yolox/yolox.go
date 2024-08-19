@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"os"
 	"time"
 )
 
@@ -40,9 +41,13 @@ func main() {
 	// set runtime to leave output tensors as int8
 	rt.SetWantFloat(false)
 
-	// optional querying of model file tensors and SDK version.  not necessary
-	// for production inference code
-	inputAttrs := optionalQueries(rt)
+	// optional querying of model file tensors and SDK version for printing
+	// to stdout.  not necessary for production inference code
+	err = rt.Query(os.Stdout)
+
+	if err != nil {
+		log.Fatal("Error querying runtime: ", err)
+	}
 
 	// create YOLOX post processor
 	yoloProcesser := postprocess.NewYOLOX(postprocess.YOLOXCOCOParams())
@@ -66,7 +71,7 @@ func main() {
 	gocv.CvtColor(img, &rgbImg, gocv.ColorBGRToRGB)
 
 	cropImg := rgbImg.Clone()
-	scaleSize := image.Pt(int(inputAttrs[0].Dims[1]), int(inputAttrs[0].Dims[2]))
+	scaleSize := image.Pt(int(rt.InputAttrs()[0].Dims[1]), int(rt.InputAttrs()[0].Dims[2]))
 	gocv.Resize(rgbImg, &cropImg, scaleSize, 0, 0, gocv.InterpolationArea)
 
 	defer img.Close()
@@ -83,8 +88,6 @@ func main() {
 	}
 
 	endInference := time.Now()
-
-	log.Println("outputs=", len(outputs.Output))
 
 	detectResults := yoloProcesser.DetectObjects(outputs)
 
@@ -167,53 +170,4 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOX,
 	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
 		total.String(), count, avg.String(),
 	)
-}
-
-func optionalQueries(rt *rknnlite.Runtime) []rknnlite.TensorAttr {
-
-	// get SDK version
-	ver, err := rt.SDKVersion()
-
-	if err != nil {
-		log.Fatal("Error initializing RKNN runtime: ", err)
-	}
-
-	fmt.Printf("Driver Version: %s, API Version: %s\n", ver.DriverVersion, ver.APIVersion)
-
-	// get model input and output numbers
-	num, err := rt.QueryModelIONumber()
-
-	if err != nil {
-		log.Fatal("Error querying IO Numbers: ", err)
-	}
-
-	log.Printf("Model Input Number: %d, Ouput Number: %d\n", num.NumberInput, num.NumberOutput)
-
-	// query Input tensors
-	inputAttrs, err := rt.QueryInputTensors()
-
-	if err != nil {
-		log.Fatal("Error querying Input Tensors: ", err)
-	}
-
-	log.Println("Input tensors:")
-
-	for _, attr := range inputAttrs {
-		log.Printf("  %s\n", attr.String())
-	}
-
-	// query Output tensors
-	outputAttrs, err := rt.QueryOutputTensors()
-
-	if err != nil {
-		log.Fatal("Error querying Output Tensors: ", err)
-	}
-
-	log.Println("Output tensors:")
-
-	for _, attr := range outputAttrs {
-		log.Printf("  %s\n", attr.String())
-	}
-
-	return inputAttrs
 }

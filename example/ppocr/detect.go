@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"os"
 	"time"
 )
 
@@ -35,9 +36,13 @@ func main() {
 		log.Fatal("Error initializing RKNN runtime: ", err)
 	}
 
-	// optional querying of model file tensors and SDK version.  not necessary
-	// for production inference code
-	inputAttrs, _ := optionalQueries(rt)
+	// optional querying of model file tensors and SDK version for printing
+	// to stdout.  not necessary for production inference code
+	err = rt.Query(os.Stdout)
+
+	if err != nil {
+		log.Fatal("Error querying runtime: ", err)
+	}
 
 	// create PPOCR post processor
 	ppocrProcessor := postprocess.NewPPOCRDetect(postprocess.PPOCRDetectParams{
@@ -47,8 +52,8 @@ func main() {
 		BoxType:      "poly",
 		UnclipRatio:  1.5,
 		ScoreMode:    "slow",
-		ModelWidth:   int(inputAttrs[0].Dims[2]),
-		ModelHeight:  int(inputAttrs[0].Dims[1]),
+		ModelWidth:   int(rt.InputAttrs()[0].Dims[2]),
+		ModelHeight:  int(rt.InputAttrs()[0].Dims[1]),
 	})
 
 	// load image
@@ -60,7 +65,7 @@ func main() {
 
 	// resize image to 480x480 and keep aspect ratio, centered with black letterboxing
 	resizedImg := gocv.NewMat()
-	resizeKeepAspectRatio(img, &resizedImg, int(inputAttrs[0].Dims[2]), int(inputAttrs[0].Dims[1]))
+	resizeKeepAspectRatio(img, &resizedImg, int(rt.InputAttrs()[0].Dims[2]), int(rt.InputAttrs()[0].Dims[1]))
 
 	defer img.Close()
 	defer resizedImg.Close()
