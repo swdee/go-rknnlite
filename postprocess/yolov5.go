@@ -114,6 +114,12 @@ type strideData struct {
 	height uint32
 	// width is the pixel width of input image the Model was trained on
 	width uint32
+	// filterSegments is a slice of all object segment masks
+	filterSegments []float32
+	// filterSegments is a slice of all object segment masks by NMS value
+	filterSegmentsByNMS []float32
+	// proto holds segmentation proto data
+	proto []float32
 }
 
 // newStrideData returns an initialised instance of strideData

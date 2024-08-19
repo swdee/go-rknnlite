@@ -1,6 +1,8 @@
 package postprocess
 
 import (
+	"gocv.io/x/gocv"
+	"image"
 	"math"
 	"sync"
 )
@@ -198,4 +200,109 @@ func (id *idGenerator) GetNext() int64 {
 	defer id.Unlock()
 	id.id++
 	return id.id
+}
+
+// resizeByOpenCVUint8 takes image data in uint8 format and resizes it using GoCV
+func resizeByOpenCVUint8(inputImage []uint8, inputWidth, inputHeight, boxesNum int,
+	outputImage []uint8, targetWidth, targetHeight int) {
+
+	dstImage := gocv.NewMat()
+	defer dstImage.Close()
+
+	for b := 0; b < boxesNum; b++ {
+
+		startIdx := b * inputWidth * inputHeight
+		endIdx := (b + 1) * inputWidth * inputHeight
+
+		if endIdx > len(inputImage) {
+			// index out of range, skipping this box
+			continue
+		}
+
+		// create a new Mat from the input image slice for each box
+		srcImage, err := gocv.NewMatFromBytes(inputHeight, inputWidth,
+			gocv.MatTypeCV8U, inputImage[startIdx:endIdx])
+
+		if err != nil {
+			continue
+		}
+
+		if srcImage.Empty() {
+			// source image matrix is empty, skipping
+			continue
+		}
+
+		// resize image
+		gocv.Resize(srcImage, &dstImage, image.Point{X: targetWidth, Y: targetHeight},
+			0, 0, gocv.InterpolationLinear)
+
+		// copy resized image data back to the output slice
+		copy(outputImage[b*targetWidth*targetHeight:], dstImage.ToBytes())
+
+		srcImage.Close()
+	}
+}
+
+// cropMaskWithIDUint8 for each objects segmentation mask combine it into a single
+// mask with each object assigned a unique ID to distinguish its mask from
+// other objects masks.
+func cropMaskWithIDUint8(segMask, allMaskInOne []uint8, boxes []int, boxesNum int,
+	height, width int) {
+
+	for b := 0; b < boxesNum; b++ {
+		x1 := boxes[b*4+0]
+		y1 := boxes[b*4+1]
+		x2 := boxes[b*4+2]
+		y2 := boxes[b*4+3]
+
+		for i := 0; i < height; i++ {
+			for j := 0; j < width; j++ {
+				if j >= x1 && j < x2 && i >= y1 && i < y2 {
+					if allMaskInOne[i*width+j] == 0 {
+						if segMask[b*height*width+i*width+j] > 0 {
+							// Assign a unique object ID
+							allMaskInOne[i*width+j] = uint8(b + 1)
+						} else {
+							allMaskInOne[i*width+j] = 0
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// boxReverse scales detection box back to box for use on original image dimensions
+func boxReverse(pos int, pad int, scale float32) int {
+	return int(float32(pos-pad) / scale)
+}
+
+func segReverse(segMask, croppedSeg, segMaskReal []uint8,
+	modelInHeight, modelInWidth, croppedHeight, croppedWidth,
+	oriInHeight, oriInWidth, yPad, xPad int) {
+
+	if yPad == 0 && xPad == 0 && oriInHeight == modelInHeight && oriInWidth == modelInWidth {
+		copy(segMaskReal, segMask)
+		return
+	}
+
+	croppedIndex := 0
+
+	for i := 0; i < modelInHeight; i++ {
+		for j := 0; j < modelInWidth; j++ {
+
+			if i >= yPad && i < modelInHeight-yPad && j >= xPad && j < modelInWidth-xPad {
+
+				segIndex := i*modelInWidth + j
+
+				if croppedIndex < len(croppedSeg) {
+					croppedSeg[croppedIndex] = segMask[segIndex]
+					croppedIndex++
+				}
+			}
+		}
+	}
+
+	resizeByOpenCVUint8(croppedSeg, croppedWidth, croppedHeight, 1,
+		segMaskReal, oriInWidth, oriInHeight)
 }
