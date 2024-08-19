@@ -41,14 +41,13 @@ will vary based on OS and SBC vendor.
 
 ### Rock Pi 5B
 
-My usage was on the Radxa Rock Pi 5B running the official Debian 11 OS image. 
+My usage was on the Radxa Rock Pi 5B running the official Debian 11 OS image which
+has the rknpu2 driver already installed.
 
-I used the prebuilt RKNN libraries built [here](https://github.com/radxa-pkg/rknn2/releases).
+To my knowledge [Armbian](https://www.armbian.com/) and 
+[Joshua's Ubuntu](https://github.com/Joshua-Riek/ubuntu-rockchip/) 
+OS images also have the driver installed for the support SBC's.
 
-```
-wget https://github.com/radxa-pkg/rknn2/releases/download/1.6.0-2/rknpu2-rk3588_1.6.0-2_arm64.deb
-apt install ./rknpu2-rk3588_1.6.0-2_arm64.deb 
-```
 
 ### GoCV
 
@@ -71,7 +70,7 @@ See the [example](example) directory.
   * [YOLOv10 Demo](example/yolov10)
   * [YOLOX Demo](example/yolox)
 * Instance Segmentation
-  * [YOLOv5-seg Demo](example/yolov5-seg) - Instance Segmentation using YOLOv5. 
+  * [YOLOv5-seg Demo](example/yolov5-seg) 
 * License Plate Recognition
   * [LPRNet Demo](example/lprnet) 
   * [ALPR Demo](example/alpr) - Automatic License Plate Recognition combining Yolov8 and LPRNet Models.
@@ -128,6 +127,58 @@ You can use the provided convenience function to calculate the mask for cores 4-
 mask := rknnlite.CPUCoreMask([]int{4,5,6,7})
 ```
 
+
+## PreProcessing
+
+Convenience functions exist for handling preprocessing of images to run inference on. 
+
+The `preprocess.Resizer` provides functions for handling resizing and scaling of input
+images to the target size needed for inference input tensors.  It will maintain
+aspect ratio by scaling and applying any needed letterbox padding to the source image.
+
+```
+// load source image file
+img := gocv.IMRead(filename, gocv.IMReadColor)
+
+if img.Empty() {
+		log.Fatal("Error reading image from: ", *imgFile)
+}
+
+// convert colorspace from GoCV's BGR to RGB as most models have been trained
+// using RGB data 
+rgbImg := gocv.NewMat()
+gocv.CvtColor(img, &rgbImg, gocv.ColorBGRToRGB)
+
+// create new resizer setting the source image size and input tensor sizes
+resizer := preprocess.NewResizer(img.Cols(), img.Rows(),
+  int(inputAttrs[0].Dims[1]), int(inputAttrs[0].Dims[2]))
+
+// resize image
+resizedImg := gocv.NewMat()
+resizer.LetterBoxResize(rgbImg, &resizedImg, render.Black)
+```
+
+For Object Detection and Instance Segmentation the Resizer is required so 
+image mask sizes can be correctly calculated and scaled back for applying as 
+an overlay on the source image.
+
+
+## Renderer
+
+The `render` package provides convenience functions for drawing the bounding box
+around objects or segmentation mask/outline.
+
+
+** TODO
+ * write notes on SegmentOutline minArea
+
+## Post Processing
+
+If a Model (ie: specific YOLO version) is not yet supported, a post processor 
+could be written to handle the outputs from the RKNN engine in the same manner the
+YOLOv5 code has been created.   
+
+
 ## Notice
 
 This code is being used in production for Image Classification.  Over time it will be expanded
@@ -139,14 +190,6 @@ Ensure you use Go Modules so your code is not effected, but be aware any updates
 require minor changes to your code to support the latest version.
 
 Versioning of the library will be added at a later date once the feature set stablises.
-
-
-
-## Post Processing
-
-If a Model (ie: specific YOLO version) is not yet supported, a post processor 
-could be written to handle the outputs from the RKNN engine in the same manner the
-YOLOv5 code has been created.   
 
 
 ## Reference Material
