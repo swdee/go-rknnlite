@@ -3,10 +3,8 @@ package postprocess
 import (
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/preprocess"
-	"log"
 	"runtime"
 	"sync"
-	"time"
 )
 
 // YOLOv5Seg defines the struct for YOLOv5Seg model inference post processing
@@ -245,8 +243,6 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 	// greater than 6 boxes. the parallel version has a negative consequence
 	// in that it effects the performance of the resizeByOpenCVUint8() call
 	// afterwards due to the overhead of the goroutines being cleaned up.
-	start := time.Now()
-
 	var matmulOut []uint8
 	if boxesNum > 6 {
 		matmulOut = y.matmulUint8Parallel(data, boxesNum)
@@ -254,27 +250,18 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 		matmulOut = y.matmulUint8(data, boxesNum)
 	}
 
-	log.Printf("DEBUG: matmul use: %dms\n", time.Since(start).Milliseconds())
-
 	// resize to (boxes_num, model_in_width, model_in_height)
-	start = time.Now()
 	segMask := make([]uint8, boxesNum*int(data.height*data.width))
 
 	resizeByOpenCVUint8(matmulOut, protoWeight, protoHeight,
 		boxesNum, segMask, int(data.width), int(data.height))
 
-	log.Printf("DEBUG: resize by opencv use: %dms\n", time.Since(start).Milliseconds())
-
 	// crop mask
-	start = time.Now()
 	allMaskInOne := make([]uint8, data.height*data.width)
 	cropMaskWithIDUint8(segMask, allMaskInOne, filterBoxesByNMS, boxesNum,
 		int(data.height), int(data.width))
 
-	log.Printf("DEBUG: crop mask use: %dms\n", time.Since(start).Milliseconds())
-
 	// get real mask
-	start = time.Now()
 	croppedHeight := int(data.height) - resizer.YPad()*2
 	croppedWidth := int(data.width) - resizer.XPad()*2
 
@@ -285,8 +272,6 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 		int(data.height), int(data.width), croppedHeight, croppedWidth,
 		resizer.SrcHeight(), resizer.SrcWidth(), resizer.YPad(), resizer.XPad(),
 	)
-
-	log.Printf("DEBUG: seg reverse use: %dms\n", time.Since(start).Milliseconds())
 
 	return group, SegMask{realSegMask, boxIDs}
 }

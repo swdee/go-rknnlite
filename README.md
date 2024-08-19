@@ -1,6 +1,9 @@
 
 # go-rknnlite
 
+
+![go-rknnlite-logo.jpg](go-rknnlite-logo.jpg)
+
 go-rknnlite provides Go language bindings for the [RKNN Toolkit2](https://github.com/airockchip/rknn-toolkit2/tree/master)
 C API interface.  It aims to provide lite bindings in the spirit of the closed source
 Python lite bindings used for running AI Inference models on the Rockchip NPU 
@@ -67,11 +70,13 @@ See the [example](example) directory.
   * [YOLOv8 Demo](example/yolov8)
   * [YOLOv10 Demo](example/yolov10)
   * [YOLOX Demo](example/yolox)
+* Instance Segmentation
+  * [YOLOv5-seg Demo](example/yolov5-seg) - Instance Segmentation using YOLOv5. 
 * License Plate Recognition
   * [LPRNet Demo](example/lprnet) 
-  * [ALPR Demo](example/alpr) - Automatic License Plate Recognition combining Yolov8 and LPRNet Models
+  * [ALPR Demo](example/alpr) - Automatic License Plate Recognition combining Yolov8 and LPRNet Models.
 * Text Identification
-  * [PPOCR Detect](example/ppocr#ppocr-detect) - Takes an image and detects areas of text
+  * [PPOCR Detect](example/ppocr#ppocr-detect) - Takes an image and detects areas of text.
   * [PPOCR Recognise](example/ppocr#ppocr-recognise) - Takes an area of text and performs OCR on it.
   * [PPOCR System](example/ppocr#ppocr-system) - Combines both Detect and Recognise.
 * Streaming
