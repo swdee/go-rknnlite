@@ -33,15 +33,14 @@ Output tensors:
   index=6, name=357, n_dims=4, dims=[1, 64, 20, 20], n_elems=25600, size=25600, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-49, scale=0.078837
   index=7, name=onnx::ReduceSum_365, n_dims=4, dims=[1, 80, 20, 20], n_elems=32000, size=32000, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003817
   index=8, name=369, n_dims=4, dims=[1, 1, 20, 20], n_elems=400, size=400, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003835
-outputs= 9
-Model first run speed: inference=41.632254ms, post processing=1.194343ms, total time=42.826597ms
 person @ (109 237 225 535) 0.896928
 bus @ (93 136 548 439) 0.881662
 person @ (475 232 559 521) 0.881662
 person @ (211 241 285 510) 0.832044
 person @ (80 326 123 517) 0.596252
+Model first run speed: inference=49.146842ms, post processing=4.291201ms, rendering=1.419804ms, total time=54.857847ms
 Saved object detection result to ../data/bus-yolov8-out.jpg
-Benchmark time=377.49487ms, count=10, average total time=37.749487ms
+Benchmark time=805.490284ms, count=20, average total time=40.274514ms
 done
 ```
 

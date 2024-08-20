@@ -27,15 +27,14 @@ Output tensors:
   index=0, name=output, n_dims=4, dims=[1, 85, 80, 80], n_elems=544000, size=544000, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-28, scale=0.022949
   index=1, name=788, n_dims=4, dims=[1, 85, 40, 40], n_elems=136000, size=136000, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-26, scale=0.024599
   index=2, name=output.1, n_dims=4, dims=[1, 85, 20, 20], n_elems=34000, size=34000, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-19, scale=0.021201
-outputs= 3
-Model first run speed: inference=46.785964ms, post processing=181.705µs, total time=46.967669ms
 bus @ (87 137 550 428) 0.929565
 person @ (103 237 223 535) 0.895541
 person @ (210 235 286 513) 0.871337
 person @ (474 235 559 519) 0.830675
 person @ (80 328 118 516) 0.499204
+Model first run speed: inference=44.656729ms, post processing=186.954µs, rendering=1.388305ms, total time=46.231988ms
 Saved object detection result to ../data/bus-yolox-out.jpg
-Benchmark time=3.478000278s, count=100, average total time=34.780002ms
+Benchmark time=3.604234203s, count=100, average total time=36.042342ms
 done
 ```
 

@@ -152,6 +152,10 @@ func main() {
 		log.Fatal("Error freeing Outputs: ", err)
 	}
 
+	// optional code.  run benchmark to get average time of 10 runs
+	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg}, classNames,
+		resizer, *renderFormat, img)
+
 	// close runtime and release resources
 	err = rt.Close()
 
@@ -160,4 +164,57 @@ func main() {
 	}
 
 	log.Println("done")
+}
+
+func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv5Seg,
+	mats []gocv.Mat, classNames []string, resizer *preprocess.Resizer,
+	renderFormat string, srcImg gocv.Mat) {
+
+	count := 20
+	start := time.Now()
+
+	for i := 0; i < count; i++ {
+		// perform inference on image file
+		outputs, err := rt.Inference(mats)
+
+		if err != nil {
+			log.Fatal("Runtime inferencing failed with error: ", err)
+		}
+
+		// post process
+		detectResults, segMask := yoloProcesser.DetectObjects(outputs, resizer)
+
+		switch renderFormat {
+		case "mask":
+			// draw segmentation mask
+			render.SegmentMask(&srcImg, segMask.Mask, 0.5)
+
+			render.DetectionBoxes(&srcImg, detectResults, classNames,
+				render.DefaultFont(), 2)
+
+		case "dump":
+			// do nothing
+
+		case "outline":
+			fallthrough
+		default:
+			// default outline
+			render.SegmentOutline(&srcImg, segMask.Mask, detectResults, 1000,
+				classNames, render.DefaultFont(), 2)
+		}
+
+		err = outputs.Free()
+
+		if err != nil {
+			log.Fatal("Error freeing Outputs: ", err)
+		}
+	}
+
+	end := time.Now()
+	total := end.Sub(start)
+	avg := total / time.Duration(count)
+
+	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
+		total.String(), count, avg.String(),
+	)
 }

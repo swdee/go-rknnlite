@@ -39,8 +39,9 @@ cat @ (714 101 900 336) 0.706588
 dog @ (312 93 526 304) 0.693387
 cat @ (28 113 171 292) 0.641764
 cat @ (530 141 712 299) 0.616804
-Model first run speed: inference=54.833654ms, post processing=54.50291ms, rendering=7.934044ms, total time=117.270608ms
+Model first run speed: inference=53.284047ms, post processing=46.035115ms, rendering=7.266431ms, total time=106.585593ms
 Saved object detection result to ../data/catdog-yolov5-seg-out.jpg
+Benchmark time=1.998158455s, count=20, average total time=99.907922ms
 done
 ```
 

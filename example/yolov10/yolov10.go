@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/render"
 	"gocv.io/x/gocv"
 	"image"
-	"image/color"
 	"log"
 	"os"
 	"time"
@@ -96,24 +96,22 @@ func main() {
 
 	endDetect := time.Now()
 
-	log.Printf("Model first run speed: inference=%s, post processing=%s, total time=%s\n",
+	render.DetectionBoxes(&img, detectResults, classNames,
+		render.DefaultFont(), 2)
+
+	endRendering := time.Now()
+
+	// output detection boxes to stdout
+	for _, detResult := range detectResults {
+		fmt.Printf("%s @ (%d %d %d %d) %f\n", classNames[detResult.Class], detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Probability)
+	}
+
+	log.Printf("Model first run speed: inference=%s, post processing=%s, rendering=%s, total time=%s\n",
 		endInference.Sub(start).String(),
 		endDetect.Sub(endInference).String(),
-		endDetect.Sub(start).String(),
+		endRendering.Sub(endDetect).String(),
+		endRendering.Sub(start).String(),
 	)
-
-	for _, detResult := range detectResults {
-		text := fmt.Sprintf("%s %.1f%%", classNames[detResult.Class], detResult.Probability*100)
-		fmt.Printf("%s @ (%d %d %d %d) %f\n", classNames[detResult.Class], detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Probability)
-
-		// Draw rectangle around detected object
-		rect := image.Rect(detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom)
-		gocv.Rectangle(&img, rect, color.RGBA{R: 0, G: 0, B: 255, A: 0}, 2)
-
-		// Put text
-		gocv.PutText(&img, text, image.Pt(detResult.Box.Left, detResult.Box.Top+12), gocv.FontHersheyDuplex, 0.4, color.RGBA{R: 255, G: 255, B: 255, A: 0}, 1)
-
-	}
 
 	// Save the result
 	if ok := gocv.IMWrite(*saveFile, img); !ok {
@@ -129,8 +127,8 @@ func main() {
 		log.Fatal("Error freeing Outputs: ", err)
 	}
 
-	// optional code.  run benchmark to get average time of 10 runs
-	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg})
+	// optional code.  run benchmark to get average time
+	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg}, classNames, img)
 
 	// close runtime and release resources
 	err = rt.Close()
@@ -143,7 +141,7 @@ func main() {
 }
 
 func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv10,
-	mats []gocv.Mat) {
+	mats []gocv.Mat, classNames []string, srcImg gocv.Mat) {
 
 	count := 100
 	start := time.Now()
@@ -157,7 +155,10 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv10,
 		}
 
 		// post process
-		_ = yoloProcesser.DetectObjects(outputs)
+		detectResults := yoloProcesser.DetectObjects(outputs)
+
+		render.DetectionBoxes(&srcImg, detectResults, classNames,
+			render.DefaultFont(), 2)
 
 		err = outputs.Free()
 
