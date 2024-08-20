@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/preprocess"
 	"github.com/swdee/go-rknnlite/render"
 	"gocv.io/x/gocv"
-	"image"
 	"log"
 	"os"
 	"time"
@@ -73,9 +73,11 @@ func main() {
 	rgbImg := gocv.NewMat()
 	gocv.CvtColor(img, &rgbImg, gocv.ColorBGRToRGB)
 
+	resizer := preprocess.NewResizer(img.Cols(), img.Rows(),
+		int(rt.InputAttrs()[0].Dims[1]), int(rt.InputAttrs()[0].Dims[2]))
+
 	cropImg := rgbImg.Clone()
-	scaleSize := image.Pt(int(rt.InputAttrs()[0].Dims[1]), int(rt.InputAttrs()[0].Dims[2]))
-	gocv.Resize(rgbImg, &cropImg, scaleSize, 0, 0, gocv.InterpolationArea)
+	resizer.LetterBoxResize(rgbImg, &cropImg, render.Black)
 
 	defer img.Close()
 	defer rgbImg.Close()
@@ -92,7 +94,7 @@ func main() {
 
 	endInference := time.Now()
 
-	detectResults := yoloProcesser.DetectObjects(outputs)
+	detectResults := yoloProcesser.DetectObjects(outputs, resizer)
 
 	endDetect := time.Now()
 
@@ -128,7 +130,7 @@ func main() {
 	}
 
 	// optional code.  run benchmark to get average time
-	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg}, classNames, img)
+	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg}, classNames, resizer, img)
 
 	// close runtime and release resources
 	err = rt.Close()
@@ -141,7 +143,8 @@ func main() {
 }
 
 func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv5,
-	mats []gocv.Mat, classNames []string, srcImg gocv.Mat) {
+	mats []gocv.Mat, classNames []string, resizer *preprocess.Resizer,
+	srcImg gocv.Mat) {
 
 	count := 100
 	start := time.Now()
@@ -155,7 +158,7 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv5,
 		}
 
 		// post process
-		detectResults := yoloProcesser.DetectObjects(outputs)
+		detectResults := yoloProcesser.DetectObjects(outputs, resizer)
 
 		render.DetectionBoxes(&srcImg, detectResults, classNames,
 			render.DefaultFont(), 2)

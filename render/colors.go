@@ -74,6 +74,8 @@ var (
 		{R: 0, G: 255, B: 64, A: 255},    // #00FF40
 	}
 
-	Black = color.RGBA{R: 0, G: 0, B: 0, A: 255}
-	White = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	Black  = color.RGBA{R: 0, G: 0, B: 0, A: 255}
+	White  = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	Yellow = color.RGBA{R: 255, G: 255, B: 50, A: 255}
+	Pink   = color.RGBA{R: 255, G: 0, B: 255, A: 255}
 )

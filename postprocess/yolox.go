@@ -2,6 +2,7 @@ package postprocess
 
 import (
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/preprocess"
 	"math"
 )
 
@@ -83,7 +84,8 @@ func NewYOLOX(p YOLOXParams) *YOLOX {
 
 // DetectObjects takes the RKNN outputs and runs the object detection process
 // then returns the results
-func (y *YOLOX) DetectObjects(outputs *rknnlite.Outputs) []DetectResult {
+func (y *YOLOX) DetectObjects(outputs *rknnlite.Outputs,
+	resizer *preprocess.Resizer) []DetectResult {
 
 	// strides in protoype code
 	data := newStrideData(outputs)
@@ -133,8 +135,8 @@ func (y *YOLOX) DetectObjects(outputs *rknnlite.Outputs) []DetectResult {
 		}
 		n := indexArray[i]
 
-		x1 := data.filterBoxes[n*4+0]
-		y1 := data.filterBoxes[n*4+1]
+		x1 := data.filterBoxes[n*4+0] - float32(resizer.XPad())
+		y1 := data.filterBoxes[n*4+1] - float32(resizer.YPad())
 		x2 := x1 + data.filterBoxes[n*4+2]
 		y2 := y1 + data.filterBoxes[n*4+3]
 		id := data.classID[n]
@@ -142,10 +144,10 @@ func (y *YOLOX) DetectObjects(outputs *rknnlite.Outputs) []DetectResult {
 
 		result := DetectResult{
 			Box: BoxRect{
-				Left:   int(clamp(x1, 0, data.width)),
-				Top:    int(clamp(y1, 0, data.height)),
-				Right:  int(clamp(x2, 0, data.width)),
-				Bottom: int(clamp(y2, 0, data.height)),
+				Left:   int(clamp(x1, 0, data.width) / resizer.ScaleFactor()),
+				Top:    int(clamp(y1, 0, data.height) / resizer.ScaleFactor()),
+				Right:  int(clamp(x2, 0, data.width) / resizer.ScaleFactor()),
+				Bottom: int(clamp(y2, 0, data.height) / resizer.ScaleFactor()),
 			},
 			Probability: objConf,
 			Class:       id,

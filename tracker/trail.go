@@ -18,10 +18,6 @@ type Track struct {
 type Trail struct {
 	// size is the maximum number of most recent points to keep in history
 	size int
-	// xScale scales the tracked rect/box result by this scale factor
-	// so the points history can be used on the original image size
-	xScale float32
-	yScale float32
 	// history of tracked points
 	history map[int]*Track
 	sync.Mutex
@@ -30,11 +26,9 @@ type Trail struct {
 // NewTrail returns a new trail history track instance.  Size is the number
 // of most recent trails to keep and specifies the maximum length of the trail
 // to maintain
-func NewTrail(size int, xScale float32, yScale float32) *Trail {
+func NewTrail(size int) *Trail {
 	return &Trail{
 		size:    size,
-		xScale:  xScale,
-		yScale:  yScale,
 		history: make(map[int]*Track),
 	}
 }
@@ -60,12 +54,12 @@ func (t *Trail) Add(strack *STrack) {
 	// add bounding box/rect's center point to track history
 	track := t.history[strack.GetTrackID()]
 
-	// find center point and scale to source image size
+	// find center point
 	x := (strack.GetRect().TLX() +
-		(strack.GetRect().Width() / 2)) * t.xScale
+		(strack.GetRect().Width() / 2))
 
 	y := (strack.GetRect().TLY() +
-		(strack.GetRect().Height() / 2)) * t.yScale
+		(strack.GetRect().Height() / 2))
 
 	track.points = append(track.points, Point{
 		X: int(x),

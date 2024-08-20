@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/preprocess"
+	"github.com/swdee/go-rknnlite/render"
 	"gocv.io/x/gocv"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
@@ -166,9 +168,11 @@ func (a *ALPR) Detect(img gocv.Mat, resImg *gocv.Mat) (DetectTiming, error) {
 	rgbImg := gocv.NewMat()
 	gocv.CvtColor(img, &rgbImg, gocv.ColorBGRToRGB)
 
+	resizer := preprocess.NewResizer(img.Cols(), img.Rows(),
+		YoloInputWidth, YoloInputHeight)
+
 	cropImg := rgbImg.Clone()
-	scaleSize := image.Pt(YoloInputWidth, YoloInputHeight)
-	gocv.Resize(rgbImg, &cropImg, scaleSize, 0, 0, gocv.InterpolationArea)
+	resizer.LetterBoxResize(rgbImg, &cropImg, render.Black)
 
 	defer rgbImg.Close()
 	defer cropImg.Close()
@@ -184,24 +188,17 @@ func (a *ALPR) Detect(img gocv.Mat, resImg *gocv.Mat) (DetectTiming, error) {
 
 	timings.EndYoloInference = time.Now()
 
-	detectResults := a.yoloProcesser.DetectObjects(outputs)
+	detectResults := a.yoloProcesser.DetectObjects(outputs, resizer)
 
 	timings.EndYoloDetect = time.Now()
 	timings.StartPlateRecognition = time.Now()
 
 	for _, detResult := range detectResults {
 
-		//fmt.Printf("plate @ (%d %d %d %d) %f\n", detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Probability)
-
-		// Draw rectangle around detected object
-		// we must scale the yolo bounding box so it overlays the original image correcly.
-		widthScale := float32(resImg.Cols()) / float32(YoloInputWidth)
-		heightScale := float32(resImg.Rows()) / float32(YoloInputHeight)
-
-		newLeft := reScale(detResult.Box.Left, widthScale)
-		newTop := reScale(detResult.Box.Top, heightScale)
-		newRight := reScale(detResult.Box.Right, widthScale)
-		newBottom := reScale(detResult.Box.Bottom, heightScale)
+		newLeft := detResult.Box.Left
+		newTop := detResult.Box.Top
+		newRight := detResult.Box.Right
+		newBottom := detResult.Box.Bottom
 
 		// rectangle of the license plate region
 		rect := image.Rect(newLeft, newTop, newRight, newBottom)
@@ -410,11 +407,6 @@ func (a *ALPR) putChineseText(img *gocv.Mat, text string, x, y, height int,
 	imgRGBA.CopyTo(&roi)
 
 	return nil
-}
-
-// reScale takes an int and multiplies it by the scale number
-func reScale(x int, scale float32) int {
-	return int(float32(x) * scale)
 }
 
 // DetectTiming is a struct of Times that occured during Detect() inferencing to be

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/preprocess"
+	"github.com/swdee/go-rknnlite/render"
 	"github.com/swdee/go-rknnlite/tracker"
 	"gocv.io/x/gocv"
 	"image"
@@ -20,19 +22,9 @@ var (
 	FPS         = 30
 	FPSinterval = time.Duration(float64(time.Second) / float64(FPS))
 
-	clrPink   = color.RGBA{R: 255, G: 0, B: 255, A: 255}
-	clrRed    = color.RGBA{R: 255, G: 0, B: 0, A: 255}
-	clrBlack  = color.RGBA{R: 0, G: 0, B: 0, A: 255}
-	clrWhite  = color.RGBA{R: 255, G: 255, B: 255, A: 255}
-	clrYellow = color.RGBA{R: 255, G: 255, B: 50, A: 255}
+	clrBlack = color.RGBA{R: 0, G: 0, B: 0, A: 255}
+	clrWhite = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 )
-
-// ImgScale holds the scale factor for images between their video source size
-// and input tensor size
-type ImgScale struct {
-	Width  float32
-	Height float32
-}
 
 // Timing is a struct to hold timers used for finding execution time
 // for various parts of the process
@@ -56,7 +48,8 @@ type ResultFrame struct {
 // YOLOProcessor defines an interface for different versions of YOLO
 // models used for object detection
 type YOLOProcessor interface {
-	DetectObjects(outputs *rknnlite.Outputs) []postprocess.DetectResult
+	DetectObjects(outputs *rknnlite.Outputs,
+		resizer *preprocess.Resizer) []postprocess.DetectResult
 }
 
 // Processor is a struct that holds a YOLOProcessor.
@@ -70,8 +63,9 @@ func NewProcessor(process YOLOProcessor) *Processor {
 }
 
 // DetectObjects delegates the object detection task to the underlying YOLOProcessor.
-func (p *Processor) DetectObjects(outputs *rknnlite.Outputs) []postprocess.DetectResult {
-	return p.process.DetectObjects(outputs)
+func (p *Processor) DetectObjects(outputs *rknnlite.Outputs,
+	resizer *preprocess.Resizer) []postprocess.DetectResult {
+	return p.process.DetectObjects(outputs, resizer)
 }
 
 // Demo defines the struct for running the object tracking demo
@@ -86,11 +80,10 @@ type Demo struct {
 	labels []string
 	// inputAttrs are the model tensor input attributes
 	inputAttrs []rknnlite.TensorAttr
-	// scale holds the scale factor between video frames resolution and
-	// model tensor input size
-	scale ImgScale
 	// limitObjs restricts object detection results to be only those provided
 	limitObjs []string
+	// resizer handles scaling of source image to input tensors
+	resizer *preprocess.Resizer
 }
 
 // NewDemo returns and instance of Demo, a streaming HTTP server showing
@@ -118,6 +111,15 @@ func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
 	// set runtime to leave output tensors as int8
 	d.pool.SetWantFloat(false)
 
+	// create resizer to handle scaling of input image to inference tensor
+	// input size requirements
+	rt := d.pool.Get()
+
+	d.resizer = preprocess.NewResizer(d.vidBuffer[0].Cols(), d.vidBuffer[0].Rows(),
+		int(rt.InputAttrs()[0].Dims[1]), int(rt.InputAttrs()[0].Dims[2]))
+
+	d.pool.Return(rt)
+
 	// create YOLOv5 post processor
 	switch modelType {
 	case "v8":
@@ -138,20 +140,6 @@ func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
 	if err != nil {
 		return nil, fmt.Errorf("Error loading model labels: %w", err)
 	}
-
-	// query Input tensors to get model  size
-	rt := d.pool.Get()
-	d.inputAttrs, err = rt.QueryInputTensors()
-	d.pool.Return(rt)
-
-	if err != nil {
-		return nil, fmt.Errorf("Error querying Input Tensors: %w", err)
-	}
-
-	log.Printf("Model Input Tensor Dimensions %dx%d", int(d.inputAttrs[0].Dims[1]), int(d.inputAttrs[0].Dims[2]))
-
-	// get image frame size and calculate scale factor
-	d.calcScaleFactor()
 
 	return d, nil
 }
@@ -185,22 +173,6 @@ func containsStr(slice []string, item string) bool {
 	}
 
 	return false
-}
-
-// calcScaleFactor calculates the scale factor between the video image frame
-// size and that of the Model input tensor size
-func (d *Demo) calcScaleFactor() {
-
-	// get size of video image frame
-	width := d.vidBuffer[0].Cols()
-	height := d.vidBuffer[0].Rows()
-
-	d.scale = ImgScale{
-		Width:  float32(width) / float32(d.inputAttrs[0].Dims[1]),
-		Height: float32(height) / float32(d.inputAttrs[0].Dims[2]),
-	}
-
-	log.Printf("Scale factor: Width=%.3f, Height=%.3f\n", d.scale.Width, d.scale.Height)
 }
 
 // bufferVideo reads in the video frames and saves them to a buffer
@@ -254,7 +226,7 @@ func (d *Demo) Stream(w http.ResponseWriter, r *http.Request) {
 	byteTrack := tracker.NewBYTETracker(FPS, FPS*10, 0.5, 0.6, 0.8)
 
 	// create a trails history
-	trail := tracker.NewTrail(90, d.scale.Width, d.scale.Height)
+	trail := tracker.NewTrail(90)
 
 	// create Mat for annotated image
 	resImg := gocv.NewMat()
@@ -351,7 +323,9 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 
 	// track detected objects
 	timing.TrackerStart = time.Now()
-	trackObjs, err := byteTrack.Update(tracker.DetectionsToObjects(detObjs))
+	trackObjs, err := byteTrack.Update(
+		tracker.DetectionsToObjects(detObjs),
+	)
 	timing.TrackerEnd = time.Now()
 
 	// add tracked objects to history trail
@@ -374,13 +348,17 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	retChan <- res
 }
 
-// AnnotateImg draws the detection boxes and processing statistics on the given
-// image Mat
-func (d *Demo) AnnotateImg(img gocv.Mat, trackResults []*tracker.STrack,
-	trail *tracker.Trail, fps float64, frameNum int, timing *Timing) {
+// LimitResults takes the tracked results and strips out any results that
+// we don't want to track
+func (d *Demo) LimitResults(trackResults []*tracker.STrack) []*tracker.STrack {
 
-	objCnt := 0
-	timing.RenderingStart = time.Now()
+	if len(d.limitObjs) == 0 {
+		return trackResults
+
+	}
+
+	// strip out and detected objects we don't want to track
+	var newTrackResults []*tracker.STrack
 
 	for _, tResult := range trackResults {
 
@@ -391,51 +369,28 @@ func (d *Demo) AnnotateImg(img gocv.Mat, trackResults []*tracker.STrack,
 			}
 		}
 
-		objCnt++
-
-		text := fmt.Sprintf("%s %d",
-			d.labels[tResult.GetLabel()], tResult.GetTrackID())
-
-		// calculate the coordinates in the original image
-		originalLeft := int(tResult.GetRect().TLX() * d.scale.Width)
-		originalTop := int(tResult.GetRect().TLY() * d.scale.Height)
-		originalRight := int(tResult.GetRect().BRX() * d.scale.Width)
-		originalBottom := int(tResult.GetRect().BRY() * d.scale.Height)
-
-		// Draw rectangle around detected object
-		rect := image.Rect(originalLeft, originalTop, originalRight, originalBottom)
-		gocv.Rectangle(&img, rect, clrPink, 1)
-
-		// draw trail line showing tracking history
-		points := trail.GetPoints(tResult.GetTrackID())
-
-		if len(points) > 2 {
-			// draw trail
-			for i := 1; i < len(points); i++ {
-				// draw line segment of trail
-				gocv.Line(&img,
-					image.Pt(points[i-1].X, points[i-1].Y),
-					image.Pt(points[i].X, points[i].Y),
-					clrYellow, 1,
-				)
-
-				if i == len(points)-1 {
-					// draw center point circle on current rect/box
-					gocv.Circle(&img, image.Pt(points[i].X, points[i].Y), 3, clrPink, -1)
-				}
-			}
-		}
-
-		// create box for placing text on
-		textSize := gocv.GetTextSize(text, gocv.FontHersheySimplex, 0.4, 1)
-		bRect := image.Rect(originalLeft, originalTop-textSize.Y-8, originalLeft+textSize.X+4, originalTop)
-		gocv.Rectangle(&img, bRect, clrPink, -1)
-
-		// put text with detection class/label and tracking id
-		gocv.PutTextWithParams(&img, text, image.Pt(originalLeft+4, originalTop-5),
-			gocv.FontHersheySimplex, 0.4, clrBlack,
-			1, gocv.LineAA, false)
+		newTrackResults = append(newTrackResults, tResult)
 	}
+
+	return newTrackResults
+}
+
+// AnnotateImg draws the detection boxes and processing statistics on the given
+// image Mat
+func (d *Demo) AnnotateImg(img gocv.Mat, trackResults []*tracker.STrack,
+	trail *tracker.Trail, fps float64, frameNum int, timing *Timing) {
+
+	timing.RenderingStart = time.Now()
+
+	// strip out tracking results for classes of objects we don't want
+	trackResults = d.LimitResults(trackResults)
+	objCnt := len(trackResults)
+
+	// draw detection boxes and trail
+	render.TrackerBoxes(&img, trackResults, d.labels,
+		render.DefaultFont(), 2)
+
+	render.Trail(&img, trackResults, trail, render.DefaultTrailStyle())
 
 	timing.ProcessEnd = time.Now()
 
@@ -448,7 +403,7 @@ func (d *Demo) AnnotateImg(img gocv.Mat, trackResults []*tracker.STrack,
 
 	// add FPS, object count, and frame number to top of image
 	gocv.PutTextWithParams(&img, fmt.Sprintf("Frame: %d, FPS: %.2f, Lag: %dms, Objects: %d", frameNum, fps, lag, objCnt),
-		image.Pt(4, 14), gocv.FontHersheySimplex, 0.5, clrPink, 1,
+		image.Pt(4, 14), gocv.FontHersheySimplex, 0.5, clrWhite, 1,
 		gocv.LineAA, false)
 
 	// add inference stats to top of image
@@ -459,7 +414,7 @@ func (d *Demo) AnnotateImg(img gocv.Mat, trackResults []*tracker.STrack,
 		float32(timing.ProcessEnd.Sub(timing.RenderingStart))/float32(time.Millisecond),
 		float32(timing.ProcessEnd.Sub(timing.ProcessStart))/float32(time.Millisecond),
 	),
-		image.Pt(4, 30), gocv.FontHersheySimplex, 0.5, clrPink, 1,
+		image.Pt(4, 30), gocv.FontHersheySimplex, 0.5, clrWhite, 1,
 		gocv.LineAA, false)
 }
 
@@ -476,8 +431,8 @@ func (d *Demo) DetectObjects(img gocv.Mat, frameNum int, timing *Timing) ([]post
 
 	cropImg := rgbImg.Clone()
 	defer cropImg.Close()
-	scaleSize := image.Pt(int(d.inputAttrs[0].Dims[1]), int(d.inputAttrs[0].Dims[2]))
-	gocv.Resize(rgbImg, &cropImg, scaleSize, 0, 0, gocv.InterpolationArea)
+
+	d.resizer.LetterBoxResize(rgbImg, &cropImg, render.Black)
 
 	// perform inference on image file
 	rt := d.pool.Get()
@@ -490,7 +445,7 @@ func (d *Demo) DetectObjects(img gocv.Mat, frameNum int, timing *Timing) ([]post
 
 	timing.DetObjInferenceEnd = time.Now()
 
-	detectResults := d.process.DetectObjects(outputs)
+	detectResults := d.process.DetectObjects(outputs, d.resizer)
 
 	timing.DetObjEnd = time.Now()
 
