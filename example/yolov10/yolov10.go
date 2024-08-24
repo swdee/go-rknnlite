@@ -95,16 +95,17 @@ func main() {
 	endInference := time.Now()
 
 	detectResults := yoloProcesser.DetectObjects(outputs, resizer)
+	dResults := detectResults.GetDetectResults()
 
 	endDetect := time.Now()
 
-	render.DetectionBoxes(&img, detectResults, classNames,
+	render.DetectionBoxes(&img, dResults, classNames,
 		render.DefaultFont(), 2)
 
 	endRendering := time.Now()
 
 	// output detection boxes to stdout
-	for _, detResult := range detectResults {
+	for _, detResult := range dResults {
 		fmt.Printf("%s @ (%d %d %d %d) %f\n", classNames[detResult.Class], detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Probability)
 	}
 
@@ -159,8 +160,9 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv10,
 
 		// post process
 		detectResults := yoloProcesser.DetectObjects(outputs, resizer)
+		dResults := detectResults.GetDetectResults()
 
-		render.DetectionBoxes(&srcImg, detectResults, classNames,
+		render.DetectionBoxes(&srcImg, dResults, classNames,
 			render.DefaultFont(), 2)
 
 		err = outputs.Free()
