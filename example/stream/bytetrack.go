@@ -126,6 +126,13 @@ func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
 		FPS = 10
 		FPSinterval = time.Duration(float64(time.Second) / float64(FPS))
 		log.Println("***WARNING*** Instance Segmentation requires a lot of CPU, downgraded to 10 FPS")
+	case "v8seg":
+		d.process = postprocess.NewYOLOv8Seg(postprocess.YOLOv8SegCOCOParams())
+		// force FPS to 10, as we don't have enough CPU power to do 30 FPS
+		FPS = 10
+		FPSinterval = time.Duration(float64(time.Second) / float64(FPS))
+		log.Println("***WARNING*** Instance Segmentation requires a lot of CPU, downgraded to 10 FPS")
+
 	default:
 		log.Fatal("Unknown model type, use 'v5', 'v8', 'v10', or 'x'")
 	}
@@ -337,8 +344,13 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	// objects can be different to the object detection results so need to
 	// strip those objects from the mask
 	var segMask postprocess.SegMask
+
 	if d.modelType == "v5seg" {
 		segMask = d.process.(*postprocess.YOLOv5Seg).TrackMask(detectObjs,
+			trackObjs, d.resizer)
+
+	} else if d.modelType == "v8seg" {
+		segMask = d.process.(*postprocess.YOLOv8Seg).TrackMask(detectObjs,
 			trackObjs, d.resizer)
 	}
 
@@ -397,13 +409,13 @@ func (d *Demo) AnnotateImg(img gocv.Mat, detectResults []postprocess.DetectResul
 	trackResults = d.LimitResults(trackResults)
 	objCnt := len(trackResults)
 
-	if d.modelType == "v5seg" {
+	if d.modelType == "v5seg" || d.modelType == "v8seg" {
 
 		if d.renderFormat == "mask" {
 			render.TrackerMask(&img, segMask.Mask, trackResults, detectResults, 0.5)
 
 			render.TrackerBoxes(&img, trackResults, d.labels,
-				render.DefaultFont(), 2)
+				render.DefaultFont(), 1)
 		} else {
 			render.TrackerOutlines(&img, segMask.Mask, trackResults, detectResults,
 				1000, d.labels, render.DefaultFont(), 2, 5)
@@ -488,7 +500,7 @@ func main() {
 
 	// read in cli flags
 	modelFile := flag.String("m", "../data/yolov5s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
-	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|v10|x|v5seg]")
+	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|v10|x|v5seg|v8seg]")
 	vidFile := flag.String("v", "../data/palace.mp4", "Video file to run object detection and tracking on")
 	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
 	httpAddr := flag.String("a", "localhost:8080", "HTTP Address to run server on, format address:port")

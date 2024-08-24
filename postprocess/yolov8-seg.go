@@ -3,6 +3,7 @@ package postprocess
 import (
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/preprocess"
+	"github.com/swdee/go-rknnlite/tracker"
 )
 
 // YOLOv8Seg defines the struct for YOLOv8Seg model inference post processing
@@ -331,6 +332,74 @@ func (y *YOLOv8Seg) SegmentMask(detectObjs DetectionResult,
 	allMaskInOne := make([]uint8, segData.data.height*segData.data.width)
 	cropMaskWithIDUint8(segMask, allMaskInOne, segData.filterBoxesByNMS, boxesNum,
 		int(segData.data.height), int(segData.data.width), []int{})
+
+	// get real mask
+	croppedHeight := int(segData.data.height) - resizer.YPad()*2
+	croppedWidth := int(segData.data.width) - resizer.XPad()*2
+
+	croppedSegMask := make([]uint8, croppedHeight*croppedWidth)
+	realSegMask := make([]uint8, resizer.SrcHeight()*resizer.SrcWidth())
+
+	segReverse(allMaskInOne, croppedSegMask, realSegMask,
+		int(segData.data.height), int(segData.data.width), croppedHeight, croppedWidth,
+		resizer.SrcHeight(), resizer.SrcWidth(), resizer.YPad(), resizer.XPad(),
+	)
+
+	return SegMask{realSegMask}
+}
+
+// TrackMask creates segment mask data for tracked objects
+func (y *YOLOv8Seg) TrackMask(detectObjs DetectionResult,
+	trackObjs []*tracker.STrack, resizer *preprocess.Resizer) SegMask {
+
+	// handle segment masks
+	detectResults := detectObjs.(YOLOv8SegResult).GetDetectResults()
+	segData := detectObjs.(YOLOv8SegResult).GetSegmentData()
+	boxesNum := segData.boxesNum
+
+	// the detection objects and tracked objects can be different, so we need
+	// to adjust the segment mask to only have tracked object masks and strip
+	// out the non-used ones
+	trackObjIDs := make([]int64, 0)
+
+	for _, trackObj := range trackObjs {
+		trackObjIDs = append(trackObjIDs, trackObj.GetDetectionID())
+	}
+
+	// go through the detection results to find the object ID's we need to strip out
+	stripObjs := make([]int, 0)
+
+	for i, detResult := range detectResults {
+		if !int64InSlice(detResult.ID, trackObjIDs) {
+			stripObjs = append(stripObjs, i)
+		}
+	}
+
+	// C code does not use USE_FP_RESIZE as uint8 is faster via CPU calculation
+	// than using NPU
+
+	// compute the mask through Matmul.  we have a parallel version of the code
+	// which uses goroutines, but speed benefits are only gained from about
+	// greater than 6 boxes. the parallel version has a negative consequence
+	// in that it effects the performance of the resizeByOpenCVUint8() call
+	// afterwards due to the overhead of the goroutines being cleaned up.
+	var matmulOut []uint8
+	if boxesNum > 6 {
+		matmulOut = matmulUint8Parallel(segData.data, boxesNum)
+	} else {
+		matmulOut = matmulUint8(segData.data, boxesNum)
+	}
+
+	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
+	segMask := make([]uint8, boxesNum*int(segData.data.height*segData.data.width))
+
+	resizeByOpenCVUint8(matmulOut, protoWeight, protoHeight,
+		boxesNum, segMask, int(segData.data.width), int(segData.data.height))
+
+	// crop mask takes all segment makes from inference and combines them into a single mask
+	allMaskInOne := make([]uint8, segData.data.height*segData.data.width)
+	cropMaskWithIDUint8(segMask, allMaskInOne, segData.filterBoxesByNMS, boxesNum,
+		int(segData.data.height), int(segData.data.width), stripObjs)
 
 	// get real mask
 	croppedHeight := int(segData.data.height) - resizer.YPad()*2
