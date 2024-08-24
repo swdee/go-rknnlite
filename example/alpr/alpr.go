@@ -188,13 +188,13 @@ func (a *ALPR) Detect(img gocv.Mat, resImg *gocv.Mat) (DetectTiming, error) {
 
 	timings.EndYoloInference = time.Now()
 
-	detectResults := a.yoloProcesser.DetectObjects(outputs, resizer)
-	dResults := detectResults.GetDetectResults()
+	detectObjs := a.yoloProcesser.DetectObjects(outputs, resizer)
+	detectResults := detectObjs.GetDetectResults()
 
 	timings.EndYoloDetect = time.Now()
 	timings.StartPlateRecognition = time.Now()
 
-	for _, detResult := range dResults {
+	for _, detResult := range detectResults {
 
 		newLeft := detResult.Box.Left
 		newTop := detResult.Box.Top
