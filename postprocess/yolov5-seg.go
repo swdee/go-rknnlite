@@ -1,8 +1,12 @@
 package postprocess
 
 import (
+	"fmt"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/preprocess"
+	"github.com/swdee/go-rknnlite/tracker"
+	"gocv.io/x/gocv"
+	"log"
 	"runtime"
 	"sync"
 )
@@ -44,9 +48,6 @@ type YOLOv5SegParams struct {
 type SegMask struct {
 	// Mask is the segment mask data
 	Mask []uint8
-	// BoxIDs is the list of object detection Box ID's, whose position in the
-	// array maps to the ID assigned to that in the segment mask
-	BoxIDs []int64
 }
 
 // YOLOv5SegDefaultParams returns an instance of YOLOv5SegParams configured with
@@ -128,10 +129,38 @@ func newStrideDataSeg(outputs *rknnlite.Outputs) *strideData {
 	return s
 }
 
+// YOLOv5SegResult defines a struct used for the results of YOLO segmentation
+// models
+type YOLOv5SegResult struct {
+	DetectResults []DetectResult
+	SegmentData   SegmentData
+}
+
+// SegmentData defines a struct for storing segment data that was created
+// during the object detection phase so we can process segment masks afterwards
+type SegmentData struct {
+	// filterBoxesByNMS stores boxes used to filer crop mask
+	filterBoxesByNMS []int
+	// data stores stride data
+	data *strideData
+	// number of boxes
+	boxesNum int
+}
+
+// GetDetectResults returns the object detection results containing bounding
+// boxes
+func (r YOLOv5SegResult) GetDetectResults() []DetectResult {
+	return r.DetectResults
+}
+
+func (r YOLOv5SegResult) GetSegmentData() SegmentData {
+	return r.SegmentData
+}
+
 // DetectObjects takes the RKNN outputs and runs the object detection process
 // then returns the results
 func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
-	resizer *preprocess.Resizer) ([]DetectResult, SegMask) {
+	resizer *preprocess.Resizer) DetectionResult {
 
 	// strides in protoype code
 	data := newStrideDataSeg(outputs)
@@ -151,7 +180,7 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 
 	if validCount <= 0 {
 		// no object detected
-		return nil, SegMask{}
+		return nil
 	}
 
 	// indexArray is used to keep and index of detect objects contained in
@@ -215,24 +244,119 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 		lastCount++
 	}
 
-	// handle segment masks
 	boxesNum := len(group)
-	filterBoxesByNMS := make([]int, boxesNum*4) // C code is float32
-	boxIDs := make([]int64, boxesNum)
+	segData := SegmentData{
+		filterBoxesByNMS: make([]int, boxesNum*4),
+		data:             data,
+		boxesNum:         boxesNum,
+	}
 
 	for i := 0; i < boxesNum; i++ {
-		// for crop mask
-		filterBoxesByNMS[i*4+0] = group[i].Box.Left
-		filterBoxesByNMS[i*4+1] = group[i].Box.Top
-		filterBoxesByNMS[i*4+2] = group[i].Box.Right
-		filterBoxesByNMS[i*4+3] = group[i].Box.Bottom
-		boxIDs[i] = group[i].ID
+		// store filter boxes at their original size for segment mask calculations
+		segData.filterBoxesByNMS[i*4+0] = group[i].Box.Left
+		segData.filterBoxesByNMS[i*4+1] = group[i].Box.Top
+		segData.filterBoxesByNMS[i*4+2] = group[i].Box.Right
+		segData.filterBoxesByNMS[i*4+3] = group[i].Box.Bottom
 
-		// get real box
+		// resize detection boxes back to that of original image
 		group[i].Box.Left = boxReverse(group[i].Box.Left, resizer.XPad(), resizer.ScaleFactor())
 		group[i].Box.Top = boxReverse(group[i].Box.Top, resizer.YPad(), resizer.ScaleFactor())
 		group[i].Box.Right = boxReverse(group[i].Box.Right, resizer.XPad(), resizer.ScaleFactor())
 		group[i].Box.Bottom = boxReverse(group[i].Box.Bottom, resizer.YPad(), resizer.ScaleFactor())
+	}
+
+	res := YOLOv5SegResult{
+		DetectResults: group,
+		SegmentData:   segData,
+	}
+
+	return res
+}
+
+func int64InSlice(i int64, arr []int64) bool {
+	for _, next := range arr {
+		if i == next {
+			return true
+		}
+	}
+
+	return false
+}
+
+// SegmentMask creates segment mask data for object detection results
+func (y *YOLOv5Seg) SegmentMask(detectObjs DetectionResult,
+	resizer *preprocess.Resizer) SegMask {
+
+	// handle segment masks
+	segData := detectObjs.(YOLOv5SegResult).GetSegmentData()
+	boxesNum := segData.boxesNum
+
+	// C code does not use USE_FP_RESIZE as uint8 is faster via CPU calculation
+	// than using NPU
+
+	// compute the mask through Matmul.  we have a parallel version of the code
+	// which uses goroutines, but speed benefits are only gained from about
+	// greater than 6 boxes. the parallel version has a negative consequence
+	// in that it effects the performance of the resizeByOpenCVUint8() call
+	// afterwards due to the overhead of the goroutines being cleaned up.
+	var matmulOut []uint8
+	if boxesNum > 6 {
+		matmulOut = y.matmulUint8Parallel(segData.data, boxesNum)
+	} else {
+		matmulOut = y.matmulUint8(segData.data, boxesNum)
+	}
+
+	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
+	segMask := make([]uint8, boxesNum*int(segData.data.height*segData.data.width))
+
+	resizeByOpenCVUint8(matmulOut, protoWeight, protoHeight,
+		boxesNum, segMask, int(segData.data.width), int(segData.data.height))
+
+	// crop mask takes all segment makes from inference and combines them into a single mask
+	allMaskInOne := make([]uint8, segData.data.height*segData.data.width)
+	cropMaskWithIDUint8(segMask, allMaskInOne, segData.filterBoxesByNMS, boxesNum,
+		int(segData.data.height), int(segData.data.width), []int{})
+
+	// get real mask
+	croppedHeight := int(segData.data.height) - resizer.YPad()*2
+	croppedWidth := int(segData.data.width) - resizer.XPad()*2
+
+	croppedSegMask := make([]uint8, croppedHeight*croppedWidth)
+	realSegMask := make([]uint8, resizer.SrcHeight()*resizer.SrcWidth())
+
+	segReverse(allMaskInOne, croppedSegMask, realSegMask,
+		int(segData.data.height), int(segData.data.width), croppedHeight, croppedWidth,
+		resizer.SrcHeight(), resizer.SrcWidth(), resizer.YPad(), resizer.XPad(),
+	)
+
+	return SegMask{realSegMask}
+}
+
+// TrackMask creates segment mask data for tracked objects
+func (y *YOLOv5Seg) TrackMask(detectObjs DetectionResult,
+	trackObjs []*tracker.STrack, resizer *preprocess.Resizer) SegMask {
+
+	// handle segment masks
+	detectResults := detectObjs.(YOLOv5SegResult).GetDetectResults()
+	segData := detectObjs.(YOLOv5SegResult).GetSegmentData()
+	boxesNum := segData.boxesNum
+
+	// the detection objects and tracked objects can be different, so we need
+	// to adjust the segment mask to only have tracked object masks and strip
+	// out the non-used ones
+	trackObjIDs := make([]int64, 0)
+
+	for _, trackObj := range trackObjs {
+		trackObjIDs = append(trackObjIDs, trackObj.GetDetectionID())
+	}
+
+	// go through the detection results to find the object ID's we need to strip out
+	stripObjs := make([]int, 0)
+
+	for i, detResult := range detectResults {
+		if !int64InSlice(detResult.ID, trackObjIDs) {
+			stripObjs = append(stripObjs, i)
+		}
 	}
 
 	// C code does not use USE_FP_RESIZE as uint8 is faster via CPU calculation
@@ -245,35 +369,35 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 	// afterwards due to the overhead of the goroutines being cleaned up.
 	var matmulOut []uint8
 	if boxesNum > 6 {
-		matmulOut = y.matmulUint8Parallel(data, boxesNum)
+		matmulOut = y.matmulUint8Parallel(segData.data, boxesNum)
 	} else {
-		matmulOut = y.matmulUint8(data, boxesNum)
+		matmulOut = y.matmulUint8(segData.data, boxesNum)
 	}
 
-	// resize to (boxes_num, model_in_width, model_in_height)
-	segMask := make([]uint8, boxesNum*int(data.height*data.width))
+	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
+	segMask := make([]uint8, boxesNum*int(segData.data.height*segData.data.width))
 
 	resizeByOpenCVUint8(matmulOut, protoWeight, protoHeight,
-		boxesNum, segMask, int(data.width), int(data.height))
+		boxesNum, segMask, int(segData.data.width), int(segData.data.height))
 
-	// crop mask
-	allMaskInOne := make([]uint8, data.height*data.width)
-	cropMaskWithIDUint8(segMask, allMaskInOne, filterBoxesByNMS, boxesNum,
-		int(data.height), int(data.width))
+	// crop mask takes all segment makes from inference and combines them into a single mask
+	allMaskInOne := make([]uint8, segData.data.height*segData.data.width)
+	cropMaskWithIDUint8(segMask, allMaskInOne, segData.filterBoxesByNMS, boxesNum,
+		int(segData.data.height), int(segData.data.width), stripObjs)
 
 	// get real mask
-	croppedHeight := int(data.height) - resizer.YPad()*2
-	croppedWidth := int(data.width) - resizer.XPad()*2
+	croppedHeight := int(segData.data.height) - resizer.YPad()*2
+	croppedWidth := int(segData.data.width) - resizer.XPad()*2
 
 	croppedSegMask := make([]uint8, croppedHeight*croppedWidth)
 	realSegMask := make([]uint8, resizer.SrcHeight()*resizer.SrcWidth())
 
 	segReverse(allMaskInOne, croppedSegMask, realSegMask,
-		int(data.height), int(data.width), croppedHeight, croppedWidth,
+		int(segData.data.height), int(segData.data.width), croppedHeight, croppedWidth,
 		resizer.SrcHeight(), resizer.SrcWidth(), resizer.YPad(), resizer.XPad(),
 	)
 
-	return group, SegMask{realSegMask, boxIDs}
+	return SegMask{realSegMask}
 }
 
 // matmulUint8 performs matrix multiplication using the CPU
@@ -297,14 +421,101 @@ func (y *YOLOv5Seg) matmulUint8(data *strideData, boxesNum int) []uint8 {
 				temp += A[i*colsA+k] * B[k*colsB+j]
 			}
 			if temp > 0 {
-				C[i*colsB+j] = 4
+				C[i*colsB+j] = 4 // an object
 			} else {
-				C[i*colsB+j] = 0
+				C[i*colsB+j] = 0 // background
 			}
 		}
 	}
 
+	// dump mask
+	maskMat, _ := gocv.NewMatFromBytes(160, 160, gocv.MatTypeCV8U, C)
+	defer maskMat.Close()
+	gocv.IMWrite("/tmp/indiv-maskORG.jpg", maskMat)
+
 	return C
+}
+
+// BoundingBox holds the position and size of an object in the source image
+type BoundingBox struct {
+	X      int
+	Y      int
+	Width  int
+	Height int
+}
+
+// ObjectMask holds the mask and its corresponding bounding box
+type ObjectMask struct {
+	Mask        []uint8     // Segmentation mask for the object
+	BoundingBox BoundingBox // Bounding box of the object in the source image
+}
+
+// matmulUint8 returns a list of masks for individual objects along with their bounding boxes
+func (y *YOLOv5Seg) matmulObjectsUint8(data *strideData, boxesNum int) []ObjectMask {
+
+	A := data.filterSegmentsByNMS
+	B := data.proto
+	// Output masks: one per object
+	var objectMasks []ObjectMask
+
+	rowsA := boxesNum
+	colsA := protoChannel
+	colsB := protoHeight * protoWeight
+
+	// Log for debugging purposes
+	fmt.Printf("Dimensions: A (%d x %d), B (%d x %d)\n", rowsA, colsA, protoChannel, colsB)
+
+	// Ensure proto has correct dimensions
+	if len(B) != protoChannel*colsB {
+		fmt.Println("Error: Proto dimensions mismatch")
+		return nil
+	}
+
+	for i := 0; i < rowsA; i++ {
+
+		// Create a mask for each individual object
+		objectMask := make([]uint8, protoHeight*protoWeight)
+
+		// Perform matrix multiplication for this object
+		for j := 0; j < colsB; j++ {
+			var temp float32 = 0
+			for k := 0; k < colsA; k++ {
+				temp += A[i*colsA+k] * B[k*colsB+j]
+			}
+			if temp > 0 {
+				objectMask[j] = 4 // object region
+			} else {
+				objectMask[j] = 0 // background
+			}
+		}
+
+		// Calculate bounding box coordinates (x, y, width, height) from filterBoxes
+		x1 := data.filterBoxes[i*4+0]      // x-coordinate (top-left corner)
+		y1 := data.filterBoxes[i*4+1]      // y-coordinate (top-left corner)
+		x2 := x1 + data.filterBoxes[i*4+2] // x1 + width
+		y2 := y1 + data.filterBoxes[i*4+3] // y1 + height
+
+		log.Printf("MASK BOX: x,y=%d,%d  x2,y2=%d,%d  width=%d, height=%d\n",
+			int(x1), int(y1), int(x2), int(y2),
+			int(x2-x1), int(y2-y1),
+		)
+
+		// Create a BoundingBox for this object (x, y, width, height)
+		bbox := BoundingBox{
+			X:      int(x1),
+			Y:      int(y1),
+			Width:  int(x2 - x1), // width
+			Height: int(y2 - y1), // height
+		}
+
+		// Append the mask and bounding box to the result
+		objectMasks = append(objectMasks, ObjectMask{
+			Mask:        objectMask,
+			BoundingBox: bbox,
+		})
+	}
+
+	return objectMasks
 }
 
 func (y *YOLOv5Seg) matmulUint8Parallel(data *strideData, boxesNum int) []uint8 {
@@ -330,9 +541,9 @@ func (y *YOLOv5Seg) matmulUint8Parallel(data *strideData, boxesNum int) []uint8 
 					temp += A[i*colsA+k] * B[k*colsB+j]
 				}
 				if temp > 0 {
-					C[i*colsB+j] = 4
+					C[i*colsB+j] = 4 // an object
 				} else {
-					C[i*colsB+j] = 0
+					C[i*colsB+j] = 0 // background
 				}
 			}
 		}

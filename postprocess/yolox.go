@@ -82,10 +82,21 @@ func NewYOLOX(p YOLOXParams) *YOLOX {
 	}
 }
 
+// YOLOXResult defines a struct used for object detection results
+type YOLOXResult struct {
+	DetectResults []DetectResult
+}
+
+// GetDetectResults returns the object detection results containing bounding
+// boxes
+func (r YOLOXResult) GetDetectResults() []DetectResult {
+	return r.DetectResults
+}
+
 // DetectObjects takes the RKNN outputs and runs the object detection process
 // then returns the results
 func (y *YOLOX) DetectObjects(outputs *rknnlite.Outputs,
-	resizer *preprocess.Resizer) []DetectResult {
+	resizer *preprocess.Resizer) DetectionResult {
 
 	// strides in protoype code
 	data := newStrideData(outputs)
@@ -158,7 +169,9 @@ func (y *YOLOX) DetectObjects(outputs *rknnlite.Outputs,
 		lastCount++
 	}
 
-	return group
+	return YOLOXResult{
+		DetectResults: group,
+	}
 }
 
 // processStride processes the given stride

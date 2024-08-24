@@ -243,11 +243,21 @@ func resizeByOpenCVUint8(inputImage []uint8, inputWidth, inputHeight, boxesNum i
 	}
 }
 
+func intInSlice(i int, arr []int) bool {
+	for _, next := range arr {
+		if i == next {
+			return true
+		}
+	}
+
+	return false
+}
+
 // cropMaskWithIDUint8 for each objects segmentation mask combine it into a single
 // mask with each object assigned a unique ID to distinguish its mask from
 // other objects masks.
 func cropMaskWithIDUint8(segMask, allMaskInOne []uint8, boxes []int, boxesNum int,
-	height, width int) {
+	height, width int, stripObjs []int) {
 
 	for b := 0; b < boxesNum; b++ {
 		x1 := boxes[b*4+0]
@@ -260,10 +270,17 @@ func cropMaskWithIDUint8(segMask, allMaskInOne []uint8, boxes []int, boxesNum in
 				if j >= x1 && j < x2 && i >= y1 && i < y2 {
 					if allMaskInOne[i*width+j] == 0 {
 						if segMask[b*height*width+i*width+j] > 0 {
-							// Assign a unique object ID
-							allMaskInOne[i*width+j] = uint8(b + 1)
+							// check if we strip this object out
+							if intInSlice(b, stripObjs) {
+
+								// strip out by marking as background
+								allMaskInOne[i*width+j] = 0
+							} else {
+								// Assign a unique object ID
+								allMaskInOne[i*width+j] = uint8(b + 1) // mark as object region
+							}
 						} else {
-							allMaskInOne[i*width+j] = 0
+							allMaskInOne[i*width+j] = 0 // mark as background
 						}
 					}
 				}
@@ -277,6 +294,7 @@ func boxReverse(pos int, pad int, scale float32) int {
 	return int(float32(pos-pad) / scale)
 }
 
+// segReverse scales the segment mask back to the size of the original image dimensions
 func segReverse(segMask, croppedSeg, segMaskReal []uint8,
 	modelInHeight, modelInWidth, croppedHeight, croppedWidth,
 	oriInHeight, oriInWidth, yPad, xPad int) {

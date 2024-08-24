@@ -142,31 +142,21 @@ func newStrideData(outputs *rknnlite.Outputs) *strideData {
 	return s
 }
 
-// BoxRect are the dimensions of the bounding box of a detect object
-type BoxRect struct {
-	Left   int
-	Right  int
-	Top    int
-	Bottom int
+// YOLOv5Result defines a struct used for object detection results
+type YOLOv5Result struct {
+	DetectResults []DetectResult
 }
 
-// DetectResult defines the attributes of a single object detected
-type DetectResult struct {
-	// Class is the line number in the labels file the Model was trained on
-	// defining the Class of the detected object
-	Class int
-	// Box are the bounding box dimensions of the object location
-	Box BoxRect
-	// Probability is the confidence score of the object detected
-	Probability float32
-	// ID is a unique ID assigned to the detection result
-	ID int64
+// GetDetectResults returns the object detection results containing bounding
+// boxes
+func (r YOLOv5Result) GetDetectResults() []DetectResult {
+	return r.DetectResults
 }
 
 // DetectObjects takes the RKNN outputs and runs the object detection process
 // then returns the results
 func (y *YOLOv5) DetectObjects(outputs *rknnlite.Outputs,
-	resizer *preprocess.Resizer) []DetectResult {
+	resizer *preprocess.Resizer) DetectionResult {
 
 	// strides in protoype code
 	data := newStrideData(outputs)
@@ -239,7 +229,9 @@ func (y *YOLOv5) DetectObjects(outputs *rknnlite.Outputs,
 		lastCount++
 	}
 
-	return group
+	return YOLOv5Result{
+		DetectResults: group,
+	}
 }
 
 // processStride processes the given stride

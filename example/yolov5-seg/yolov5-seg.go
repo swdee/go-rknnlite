@@ -50,7 +50,7 @@ func main() {
 		log.Fatal("Error querying runtime: ", err)
 	}
 
-	// create YOLOv5 post processor
+	// create YOLOv5seg post processor
 	yoloProcesser := postprocess.NewYOLOv5Seg(postprocess.YOLOv5SegCOCOParams())
 
 	// load in Model class names
@@ -93,7 +93,9 @@ func main() {
 	endInference := time.Now()
 
 	// detect objects
-	detectResults, segMask := yoloProcesser.DetectObjects(outputs, resizer)
+	detectObjs := yoloProcesser.DetectObjects(outputs, resizer)
+	detectResults := detectObjs.GetDetectResults()
+	segMask := yoloProcesser.SegmentMask(detectObjs, resizer)
 
 	endDetect := time.Now()
 
@@ -182,7 +184,9 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv5Seg,
 		}
 
 		// post process
-		detectResults, segMask := yoloProcesser.DetectObjects(outputs, resizer)
+		detectObjs := yoloProcesser.DetectObjects(outputs, resizer)
+		detectResults := detectObjs.GetDetectResults()
+		segMask := yoloProcesser.SegmentMask(detectObjs, resizer)
 
 		switch renderFormat {
 		case "mask":

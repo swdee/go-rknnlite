@@ -55,10 +55,21 @@ func NewYOLOv8(p YOLOv8Params) *YOLOv8 {
 	}
 }
 
+// YOLOv8Result defines a struct used for object detection results
+type YOLOv8Result struct {
+	DetectResults []DetectResult
+}
+
+// GetDetectResults returns the object detection results containing bounding
+// boxes
+func (r YOLOv8Result) GetDetectResults() []DetectResult {
+	return r.DetectResults
+}
+
 // DetectObjects takes the RKNN outputs and runs the object detection process
 // then returns the results
 func (y *YOLOv8) DetectObjects(outputs *rknnlite.Outputs,
-	resizer *preprocess.Resizer) []DetectResult {
+	resizer *preprocess.Resizer) DetectionResult {
 
 	data := newStrideData(outputs)
 
@@ -164,7 +175,9 @@ func (y *YOLOv8) DetectObjects(outputs *rknnlite.Outputs,
 		lastCount++
 	}
 
-	return group
+	return YOLOv8Result{
+		DetectResults: group,
+	}
 }
 
 // processStride processes the given stride

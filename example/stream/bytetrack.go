@@ -49,23 +49,7 @@ type ResultFrame struct {
 // models used for object detection
 type YOLOProcessor interface {
 	DetectObjects(outputs *rknnlite.Outputs,
-		resizer *preprocess.Resizer) []postprocess.DetectResult
-}
-
-// Processor is a struct that holds a YOLOProcessor.
-type Processor struct {
-	process YOLOProcessor
-}
-
-// NewProcessor creates a new Processor instance with the given YOLOProcessor.
-func NewProcessor(process YOLOProcessor) *Processor {
-	return &Processor{process: process}
-}
-
-// DetectObjects delegates the object detection task to the underlying YOLOProcessor.
-func (p *Processor) DetectObjects(outputs *rknnlite.Outputs,
-	resizer *preprocess.Resizer) []postprocess.DetectResult {
-	return p.process.DetectObjects(outputs, resizer)
+		resizer *preprocess.Resizer) postprocess.DetectionResult
 }
 
 // Demo defines the struct for running the object tracking demo
@@ -75,7 +59,7 @@ type Demo struct {
 	// pool of rknnlite runtimes to perform inference in parallel
 	pool *rknnlite.Pool
 	// process is a YOLO object detection processor
-	process *Processor
+	process YOLOProcessor
 	// labels are the COCO labels the YOLO model was trained on
 	labels []string
 	// inputAttrs are the model tensor input attributes
@@ -84,12 +68,18 @@ type Demo struct {
 	limitObjs []string
 	// resizer handles scaling of source image to input tensors
 	resizer *preprocess.Resizer
+	// modelType is the type of YOLO model to use as processor that was passed
+	// as a command line flag
+	modelType string
+	// renderFormat indicates which rendering type to use with instance
+	// segmentation, outline or mask
+	renderFormat string
 }
 
 // NewDemo returns and instance of Demo, a streaming HTTP server showing
 // video with object detection
 func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
-	modelType string) (*Demo, error) {
+	modelType string, renderFormat string) (*Demo, error) {
 
 	d := &Demo{
 		limitObjs: make([]string, 0),
@@ -123,16 +113,24 @@ func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
 	// create YOLOv5 post processor
 	switch modelType {
 	case "v8":
-		d.process = NewProcessor(postprocess.NewYOLOv8(postprocess.YOLOv8COCOParams()))
+		d.process = postprocess.NewYOLOv8(postprocess.YOLOv8COCOParams())
 	case "v5":
-		d.process = NewProcessor(postprocess.NewYOLOv5(postprocess.YOLOv5COCOParams()))
+		d.process = postprocess.NewYOLOv5(postprocess.YOLOv5COCOParams())
 	case "v10":
-		d.process = NewProcessor(postprocess.NewYOLOv10(postprocess.YOLOv10COCOParams()))
+		d.process = postprocess.NewYOLOv10(postprocess.YOLOv10COCOParams())
 	case "x":
-		d.process = NewProcessor(postprocess.NewYOLOX(postprocess.YOLOXCOCOParams()))
+		d.process = postprocess.NewYOLOX(postprocess.YOLOXCOCOParams())
+	case "v5seg":
+		d.process = postprocess.NewYOLOv5Seg(postprocess.YOLOv5SegCOCOParams())
+		// force FPS to 10, as we don't have enough CPU power to do 30 FPS
+		FPS = 10
+		FPSinterval = time.Duration(float64(time.Second) / float64(FPS))
 	default:
 		log.Fatal("Unknown model type, use 'v5', 'v8', 'v10', or 'x'")
 	}
+
+	d.modelType = modelType
+	d.renderFormat = renderFormat
 
 	// load in Model class names
 	d.labels, err = rknnlite.LoadLabels(labelFile)
@@ -315,7 +313,8 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	defer resImg.Close()
 
 	// run object detection on frame
-	detObjs, err := d.DetectObjects(img, frameNum, timing)
+	detectObjs, err := d.DetectObjects(img, frameNum, timing)
+	detectResults := detectObjs.GetDetectResults()
 
 	if err != nil {
 		log.Printf("Error detecting objects: %v", err)
@@ -324,7 +323,7 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	// track detected objects
 	timing.TrackerStart = time.Now()
 	trackObjs, err := byteTrack.Update(
-		tracker.DetectionsToObjects(detObjs),
+		postprocess.DetectionsToObjects(detectResults),
 	)
 	timing.TrackerEnd = time.Now()
 
@@ -333,9 +332,18 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 		trail.Add(trackObj)
 	}
 
+	// segment mask creation must be done after object tracking, as the tracked
+	// objects can be different to the object detection results so need to
+	// strip those objects from the mask
+	var segMask postprocess.SegMask
+	if d.modelType == "v5seg" {
+		segMask = d.process.(*postprocess.YOLOv5Seg).TrackMask(detectObjs,
+			trackObjs, d.resizer)
+	}
+
 	// copy the source image and annotate the copy
 	img.CopyTo(&resImg)
-	d.AnnotateImg(resImg, trackObjs, trail, fps, frameNum, timing)
+	d.AnnotateImg(resImg, detectResults, trackObjs, segMask, trail, fps, frameNum, timing)
 
 	// Encode the image to JPEG format
 	buf, err := gocv.IMEncode(".jpg", resImg)
@@ -377,8 +385,10 @@ func (d *Demo) LimitResults(trackResults []*tracker.STrack) []*tracker.STrack {
 
 // AnnotateImg draws the detection boxes and processing statistics on the given
 // image Mat
-func (d *Demo) AnnotateImg(img gocv.Mat, trackResults []*tracker.STrack,
-	trail *tracker.Trail, fps float64, frameNum int, timing *Timing) {
+func (d *Demo) AnnotateImg(img gocv.Mat, detectResults []postprocess.DetectResult,
+	trackResults []*tracker.STrack,
+	segMask postprocess.SegMask, trail *tracker.Trail, fps float64,
+	frameNum int, timing *Timing) {
 
 	timing.RenderingStart = time.Now()
 
@@ -386,10 +396,25 @@ func (d *Demo) AnnotateImg(img gocv.Mat, trackResults []*tracker.STrack,
 	trackResults = d.LimitResults(trackResults)
 	objCnt := len(trackResults)
 
-	// draw detection boxes and trail
-	render.TrackerBoxes(&img, trackResults, d.labels,
-		render.DefaultFont(), 2)
+	if d.modelType == "v5seg" {
 
+		if d.renderFormat == "mask" {
+			render.TrackerMask(&img, segMask.Mask, trackResults, detectResults, 0.5)
+
+			render.TrackerBoxes(&img, trackResults, d.labels,
+				render.DefaultFont(), 2)
+		} else {
+			render.TrackerOutlines(&img, segMask.Mask, trackResults, detectResults,
+				1000, d.labels, render.DefaultFont(), 2, 5)
+		}
+
+	} else {
+		// draw detection boxes
+		render.TrackerBoxes(&img, trackResults, d.labels,
+			render.DefaultFont(), 1)
+	}
+
+	// draw object trail lines
 	render.Trail(&img, trackResults, trail, render.DefaultTrailStyle())
 
 	timing.ProcessEnd = time.Now()
@@ -420,7 +445,8 @@ func (d *Demo) AnnotateImg(img gocv.Mat, trackResults []*tracker.STrack,
 
 // DetectObjects takes a raw video frame and runs YOLO inference on it to detect
 // objects
-func (d *Demo) DetectObjects(img gocv.Mat, frameNum int, timing *Timing) ([]postprocess.DetectResult, error) {
+func (d *Demo) DetectObjects(img gocv.Mat, frameNum int,
+	timing *Timing) (postprocess.DetectionResult, error) {
 
 	timing.DetObjStart = time.Now()
 
@@ -445,14 +471,14 @@ func (d *Demo) DetectObjects(img gocv.Mat, frameNum int, timing *Timing) ([]post
 
 	timing.DetObjInferenceEnd = time.Now()
 
-	detectResults := d.process.DetectObjects(outputs, d.resizer)
+	detectObjs := d.process.DetectObjects(outputs, d.resizer)
 
 	timing.DetObjEnd = time.Now()
 
 	// free outputs allocated in C memory after you have finished post processing
 	err = outputs.Free()
 
-	return detectResults, nil
+	return detectObjs, nil
 }
 
 func main() {
@@ -461,12 +487,13 @@ func main() {
 
 	// read in cli flags
 	modelFile := flag.String("m", "../data/yolov5s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
-	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|v10|x]")
+	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|v10|x|v5seg]")
 	vidFile := flag.String("v", "../data/palace.mp4", "Video file to run object detection and tracking on")
 	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
 	httpAddr := flag.String("a", "localhost:8080", "HTTP Address to run server on, format address:port")
 	poolSize := flag.Int("s", 3, "Size of RKNN runtime pool, choose 1, 2, 3, or multiples of 3")
 	limitLabels := flag.String("x", "", "Comma delimited list of labels (COCO) to restrict object tracking to")
+	renderFormat := flag.String("r", "outline", "The rendering format used for instance segmentation [outline|mask]")
 
 	flag.Parse()
 
@@ -476,7 +503,8 @@ func main() {
 		log.Printf("Failed to set CPU Affinity: %w", err)
 	}
 
-	demo, err := NewDemo(*vidFile, *modelFile, *labelFile, *poolSize, *modelType)
+	demo, err := NewDemo(*vidFile, *modelFile, *labelFile, *poolSize,
+		*modelType, *renderFormat)
 
 	if err != nil {
 		log.Fatalf("Error creating demo: %v", err)
