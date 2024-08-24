@@ -170,9 +170,6 @@ The `render` package provides convenience functions for drawing the bounding box
 around objects or segmentation mask/outline.
 
 
-** TODO
- * write notes on SegmentOutline minArea
-
 ## Post Processing
 
 If a Model (ie: specific YOLO version) is not yet supported, a post processor 

@@ -35,6 +35,7 @@ func DefaultTrailStyle() TrailStyle {
 	}
 }
 
+// Trail draws the tracker trail lines on the source image.
 func Trail(img *gocv.Mat, trackResults []*tracker.STrack,
 	trail *tracker.Trail, style TrailStyle) {
 

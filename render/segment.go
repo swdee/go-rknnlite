@@ -97,7 +97,9 @@ func isContourInsideTrackerRect(contourRect image.Rectangle,
 }
 
 // SegmentOutline renders the provided segment masks object outline for all
-// objects
+// objects.  The minArea is the value required for the masks minimum area for
+// it to be used, this is needed to filter out small amounts of noise/artifacts
+// contained in the mask from inferencing.
 func SegmentOutline(img *gocv.Mat, segMask []uint8,
 	detectResults []postprocess.DetectResult, minArea float64,
 	classNames []string, font Font, lineThickness int) error {
@@ -246,7 +248,11 @@ func getSegMaskIDFromDetectionID(detectID int64,
 	return 0
 }
 
-// TrackerOutlines draws the object segmentation outlines around tracker objects
+// TrackerOutlines draws the object segmentation outlines around tracker objects.
+// The minArea is the value required for the masks minimum area for
+// it to be used, this is needed to filter out small amounts of noise/artifacts
+// contained in the mask from inferencing.  The epsilon value effects the shape
+// of the polygon outline.   The higher the value the more round it becomes.
 func TrackerOutlines(img *gocv.Mat, segMask []uint8,
 	trackResults []*tracker.STrack, detectResults []postprocess.DetectResult,
 	minArea float64, classNames []string, font Font, lineThickness int,
@@ -377,7 +383,8 @@ func TrackerOutlines(img *gocv.Mat, segMask []uint8,
 }
 
 // TrackerMask renders the provided segment masks as a transparent overlay on
-// top of the whole image
+// top of the whole image.  alpha is the amount of opacity to apply to the mask
+// overlay.
 func TrackerMask(img *gocv.Mat, segMask []uint8,
 	trackResults []*tracker.STrack, detectResults []postprocess.DetectResult,
 	alpha float32) {
