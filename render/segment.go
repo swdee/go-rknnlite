@@ -294,8 +294,6 @@ func TrackerOutlines(img *gocv.Mat, segMask []uint8,
 		boundingBox := tResult.GetRect()
 		centerX := int((boundingBox.TLX() + boundingBox.BRX()) / 2)
 
-		//centerY := int((boundingBox.TLY() + boundingBox.BRY()) / 2)
-
 		usedContours := 0
 
 		// Draw contours
