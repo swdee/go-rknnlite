@@ -1,14 +1,9 @@
 package postprocess
 
 import (
-	"fmt"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/preprocess"
 	"github.com/swdee/go-rknnlite/tracker"
-	"gocv.io/x/gocv"
-	"log"
-	"runtime"
-	"sync"
 )
 
 // YOLOv5Seg defines the struct for YOLOv5Seg model inference post processing
@@ -301,9 +296,9 @@ func (y *YOLOv5Seg) SegmentMask(detectObjs DetectionResult,
 	// afterwards due to the overhead of the goroutines being cleaned up.
 	var matmulOut []uint8
 	if boxesNum > 6 {
-		matmulOut = y.matmulUint8Parallel(segData.data, boxesNum)
+		matmulOut = matmulUint8Parallel(segData.data, boxesNum)
 	} else {
-		matmulOut = y.matmulUint8(segData.data, boxesNum)
+		matmulOut = matmulUint8(segData.data, boxesNum)
 	}
 
 	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
@@ -369,9 +364,9 @@ func (y *YOLOv5Seg) TrackMask(detectObjs DetectionResult,
 	// afterwards due to the overhead of the goroutines being cleaned up.
 	var matmulOut []uint8
 	if boxesNum > 6 {
-		matmulOut = y.matmulUint8Parallel(segData.data, boxesNum)
+		matmulOut = matmulUint8Parallel(segData.data, boxesNum)
 	} else {
-		matmulOut = y.matmulUint8(segData.data, boxesNum)
+		matmulOut = matmulUint8(segData.data, boxesNum)
 	}
 
 	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
@@ -398,177 +393,6 @@ func (y *YOLOv5Seg) TrackMask(detectObjs DetectionResult,
 	)
 
 	return SegMask{realSegMask}
-}
-
-// matmulUint8 performs matrix multiplication using the CPU
-func (y *YOLOv5Seg) matmulUint8(data *strideData, boxesNum int) []uint8 {
-
-	A := data.filterSegmentsByNMS
-	B := data.proto
-	// C is matmulOut
-	C := make([]uint8, boxesNum*protoHeight*protoWeight)
-
-	rowsA := boxesNum
-	colsA := protoChannel
-	colsB := protoHeight * protoWeight
-
-	var temp float32
-
-	for i := 0; i < rowsA; i++ {
-		for j := 0; j < colsB; j++ {
-			temp = 0
-			for k := 0; k < colsA; k++ {
-				temp += A[i*colsA+k] * B[k*colsB+j]
-			}
-			if temp > 0 {
-				C[i*colsB+j] = 4 // an object
-			} else {
-				C[i*colsB+j] = 0 // background
-			}
-		}
-	}
-
-	// dump mask
-	maskMat, _ := gocv.NewMatFromBytes(160, 160, gocv.MatTypeCV8U, C)
-	defer maskMat.Close()
-	gocv.IMWrite("/tmp/indiv-maskORG.jpg", maskMat)
-
-	return C
-}
-
-// BoundingBox holds the position and size of an object in the source image
-type BoundingBox struct {
-	X      int
-	Y      int
-	Width  int
-	Height int
-}
-
-// ObjectMask holds the mask and its corresponding bounding box
-type ObjectMask struct {
-	Mask        []uint8     // Segmentation mask for the object
-	BoundingBox BoundingBox // Bounding box of the object in the source image
-}
-
-// matmulUint8 returns a list of masks for individual objects along with their bounding boxes
-func (y *YOLOv5Seg) matmulObjectsUint8(data *strideData, boxesNum int) []ObjectMask {
-
-	A := data.filterSegmentsByNMS
-	B := data.proto
-	// Output masks: one per object
-	var objectMasks []ObjectMask
-
-	rowsA := boxesNum
-	colsA := protoChannel
-	colsB := protoHeight * protoWeight
-
-	// Log for debugging purposes
-	fmt.Printf("Dimensions: A (%d x %d), B (%d x %d)\n", rowsA, colsA, protoChannel, colsB)
-
-	// Ensure proto has correct dimensions
-	if len(B) != protoChannel*colsB {
-		fmt.Println("Error: Proto dimensions mismatch")
-		return nil
-	}
-
-	for i := 0; i < rowsA; i++ {
-
-		// Create a mask for each individual object
-		objectMask := make([]uint8, protoHeight*protoWeight)
-
-		// Perform matrix multiplication for this object
-		for j := 0; j < colsB; j++ {
-			var temp float32 = 0
-			for k := 0; k < colsA; k++ {
-				temp += A[i*colsA+k] * B[k*colsB+j]
-			}
-			if temp > 0 {
-				objectMask[j] = 4 // object region
-			} else {
-				objectMask[j] = 0 // background
-			}
-		}
-
-		// Calculate bounding box coordinates (x, y, width, height) from filterBoxes
-		x1 := data.filterBoxes[i*4+0]      // x-coordinate (top-left corner)
-		y1 := data.filterBoxes[i*4+1]      // y-coordinate (top-left corner)
-		x2 := x1 + data.filterBoxes[i*4+2] // x1 + width
-		y2 := y1 + data.filterBoxes[i*4+3] // y1 + height
-
-		log.Printf("MASK BOX: x,y=%d,%d  x2,y2=%d,%d  width=%d, height=%d\n",
-			int(x1), int(y1), int(x2), int(y2),
-			int(x2-x1), int(y2-y1),
-		)
-
-		// Create a BoundingBox for this object (x, y, width, height)
-		bbox := BoundingBox{
-			X:      int(x1),
-			Y:      int(y1),
-			Width:  int(x2 - x1), // width
-			Height: int(y2 - y1), // height
-		}
-
-		// Append the mask and bounding box to the result
-		objectMasks = append(objectMasks, ObjectMask{
-			Mask:        objectMask,
-			BoundingBox: bbox,
-		})
-	}
-
-	return objectMasks
-}
-
-func (y *YOLOv5Seg) matmulUint8Parallel(data *strideData, boxesNum int) []uint8 {
-
-	A := data.filterSegmentsByNMS
-	B := data.proto
-	C := make([]uint8, boxesNum*protoHeight*protoWeight)
-
-	rowsA := boxesNum
-	colsA := protoChannel
-	colsB := protoHeight * protoWeight
-
-	// use a worker pool based on available CPU cores
-	numWorkers := runtime.NumCPU()
-	rowCh := make(chan int, rowsA)
-
-	// worker function for performing the matrix multiplication on a row
-	worker := func() {
-		for i := range rowCh {
-			for j := 0; j < colsB; j++ {
-				var temp float32
-				for k := 0; k < colsA; k++ {
-					temp += A[i*colsA+k] * B[k*colsB+j]
-				}
-				if temp > 0 {
-					C[i*colsB+j] = 4 // an object
-				} else {
-					C[i*colsB+j] = 0 // background
-				}
-			}
-		}
-	}
-
-	// start the workers
-	var wg sync.WaitGroup
-	wg.Add(numWorkers)
-	for w := 0; w < numWorkers; w++ {
-		go func() {
-			defer wg.Done()
-			worker()
-		}()
-	}
-
-	// distribute rows to workers
-	for i := 0; i < rowsA; i++ {
-		rowCh <- i
-	}
-	close(rowCh)
-
-	// wait for all workers to complete
-	wg.Wait()
-
-	return C
 }
 
 // processStride processes the given stride
