@@ -70,7 +70,8 @@ See the [example](example) directory.
   * [YOLOv10 Demo](example/yolov10)
   * [YOLOX Demo](example/yolox)
 * Instance Segmentation
-  * [YOLOv5-seg Demo](example/yolov5-seg) 
+  * [YOLOv5-seg Demo](example/yolov5-seg)
+  * [YOLOv8-seg Demo](example/yolov8-seg)
 * License Plate Recognition
   * [LPRNet Demo](example/lprnet) 
   * [ALPR Demo](example/alpr) - Automatic License Plate Recognition combining Yolov8 and LPRNet Models.
