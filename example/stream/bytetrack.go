@@ -125,6 +125,7 @@ func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
 		// force FPS to 10, as we don't have enough CPU power to do 30 FPS
 		FPS = 10
 		FPSinterval = time.Duration(float64(time.Second) / float64(FPS))
+		log.Println("***WARNING*** Instance Segmentation requires a lot of CPU, downgraded to 10 FPS")
 	default:
 		log.Fatal("Unknown model type, use 'v5', 'v8', 'v10', or 'x'")
 	}
