@@ -8,10 +8,11 @@ import (
 	"fmt"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/preprocess"
+	"github.com/swdee/go-rknnlite/render"
 	"gocv.io/x/gocv"
-	"image"
-	"image/color"
 	"log"
+	"os"
 	"time"
 )
 
@@ -43,9 +44,13 @@ func main() {
 	// set runtime to leave output tensors as int8
 	rt.SetWantFloat(false)
 
-	// optional querying of model file tensors and SDK version.  not necessary
-	// for production inference code
-	inputAttrs := optionalQueries(rt)
+	// optional querying of model file tensors and SDK version for printing
+	// to stdout.  not necessary for production inference code
+	err = rt.Query(os.Stdout)
+
+	if err != nil {
+		log.Fatal("Error querying runtime: ", err)
+	}
 
 	// create YOLOv5 post processor
 	yoloProcesser := postprocess.NewYOLOv5(postprocess.YOLOv5COCOParams())
@@ -68,9 +73,11 @@ func main() {
 	rgbImg := gocv.NewMat()
 	gocv.CvtColor(img, &rgbImg, gocv.ColorBGRToRGB)
 
+	resizer := preprocess.NewResizer(img.Cols(), img.Rows(),
+		int(rt.InputAttrs()[0].Dims[1]), int(rt.InputAttrs()[0].Dims[2]))
+
 	cropImg := rgbImg.Clone()
-	scaleSize := image.Pt(int(inputAttrs[0].Dims[1]), int(inputAttrs[0].Dims[2]))
-	gocv.Resize(rgbImg, &cropImg, scaleSize, 0, 0, gocv.InterpolationArea)
+	resizer.LetterBoxResize(rgbImg, &cropImg, render.Black)
 
 	defer img.Close()
 	defer rgbImg.Close()
@@ -87,30 +94,27 @@ func main() {
 
 	endInference := time.Now()
 
-	log.Println("outputs=", len(outputs.Output))
-
-	detectResults := yoloProcesser.DetectObjects(outputs)
+	detectObjs := yoloProcesser.DetectObjects(outputs, resizer)
+	detectResults := detectObjs.GetDetectResults()
 
 	endDetect := time.Now()
 
-	log.Printf("Model first run speed: inference=%s, post processing=%s, total time=%s\n",
+	render.DetectionBoxes(&img, detectResults, classNames,
+		render.DefaultFont(), 2)
+
+	endRendering := time.Now()
+
+	// output detection boxes to stdout
+	for _, detResult := range detectResults {
+		fmt.Printf("%s @ (%d %d %d %d) %f\n", classNames[detResult.Class], detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Probability)
+	}
+
+	log.Printf("Model first run speed: inference=%s, post processing=%s, rendering=%s, total time=%s\n",
 		endInference.Sub(start).String(),
 		endDetect.Sub(endInference).String(),
-		endDetect.Sub(start).String(),
+		endRendering.Sub(endDetect).String(),
+		endRendering.Sub(start).String(),
 	)
-
-	for _, detResult := range detectResults {
-
-		text := fmt.Sprintf("%s %.1f%%", classNames[detResult.Class], detResult.Probability*100)
-		fmt.Printf("%s @ (%d %d %d %d) %f\n", classNames[detResult.Class], detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom, detResult.Probability)
-
-		// Draw rectangle around detected object
-		rect := image.Rect(detResult.Box.Left, detResult.Box.Top, detResult.Box.Right, detResult.Box.Bottom)
-		gocv.Rectangle(&img, rect, color.RGBA{R: 0, G: 0, B: 255, A: 0}, 2)
-
-		// Put text
-		gocv.PutText(&img, text, image.Pt(detResult.Box.Left, detResult.Box.Top+12), gocv.FontHersheyDuplex, 0.4, color.RGBA{R: 255, G: 255, B: 255, A: 0}, 1)
-	}
 
 	// Save the result
 	if ok := gocv.IMWrite(*saveFile, img); !ok {
@@ -126,8 +130,8 @@ func main() {
 		log.Fatal("Error freeing Outputs: ", err)
 	}
 
-	// optional code.  run benchmark to get average time of 10 runs
-	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg})
+	// optional code.  run benchmark to get average time
+	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg}, classNames, resizer, img)
 
 	// close runtime and release resources
 	err = rt.Close()
@@ -140,7 +144,8 @@ func main() {
 }
 
 func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv5,
-	mats []gocv.Mat) {
+	mats []gocv.Mat, classNames []string, resizer *preprocess.Resizer,
+	srcImg gocv.Mat) {
 
 	count := 100
 	start := time.Now()
@@ -154,7 +159,11 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv5,
 		}
 
 		// post process
-		_ = yoloProcesser.DetectObjects(outputs)
+		detectObjs := yoloProcesser.DetectObjects(outputs, resizer)
+		detectResults := detectObjs.GetDetectResults()
+
+		render.DetectionBoxes(&srcImg, detectResults, classNames,
+			render.DefaultFont(), 2)
 
 		err = outputs.Free()
 
@@ -170,53 +179,4 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv5,
 	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
 		total.String(), count, avg.String(),
 	)
-}
-
-func optionalQueries(rt *rknnlite.Runtime) []rknnlite.TensorAttr {
-
-	// get SDK version
-	ver, err := rt.SDKVersion()
-
-	if err != nil {
-		log.Fatal("Error initializing RKNN runtime: ", err)
-	}
-
-	fmt.Printf("Driver Version: %s, API Version: %s\n", ver.DriverVersion, ver.APIVersion)
-
-	// get model input and output numbers
-	num, err := rt.QueryModelIONumber()
-
-	if err != nil {
-		log.Fatal("Error querying IO Numbers: ", err)
-	}
-
-	log.Printf("Model Input Number: %d, Ouput Number: %d\n", num.NumberInput, num.NumberOutput)
-
-	// query Input tensors
-	inputAttrs, err := rt.QueryInputTensors()
-
-	if err != nil {
-		log.Fatal("Error querying Input Tensors: ", err)
-	}
-
-	log.Println("Input tensors:")
-
-	for _, attr := range inputAttrs {
-		log.Printf("  %s\n", attr.String())
-	}
-
-	// query Output tensors
-	outputAttrs, err := rt.QueryOutputTensors()
-
-	if err != nil {
-		log.Fatal("Error querying Output Tensors: ", err)
-	}
-
-	log.Println("Output tensors:")
-
-	for _, attr := range outputAttrs {
-		log.Printf("  %s\n", attr.String())
-	}
-
-	return inputAttrs
 }

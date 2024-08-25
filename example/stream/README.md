@@ -192,6 +192,23 @@ As mentioned above the Lag statistic is rendered on top of the demo video stream
 to show what lag is experienced.
 
 
+## Instance Segmentation
+
+The YOLOv5-seg and YOLOv8-seg processors have been integrated into this Stream example
+however instance segmentation requires alot of post processing via the CPU and 
+achieving 30 FPS on a 720p video is not possible.   When either of these
+processors are used the code downgrades to 10 FPS.
+
+Further more tracking objects with ByteTrack involves the process of using YOLO
+object detection to detect the objects in a single image and ByteTrack then
+manages these tracked objects over time and returns its own object bounding boxes.
+This means the tracked objects per frame can vary to those found by pure YOLO object
+detection.   When this occurs we have no segmentation mask to render, so during
+outline rendering mode it reverts back to drawing a bounding box of the tracked
+object.  When rendering in mask mode the segment overlay will disappear for that 
+frame.
+
+
 ## Tracking Accuracy
 
 The Go ByteTrack code ported outputs the same result as the C++ and Python source

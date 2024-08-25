@@ -2,6 +2,7 @@ package postprocess
 
 import (
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/preprocess"
 )
 
 // YOLOv10 defines the struct for YOLOv10 model inference post processing
@@ -59,9 +60,21 @@ func NewYOLOv10(p YOLOv10Params) *YOLOv10 {
 	}
 }
 
+// YOLOv10Result defines a struct used for object detection results
+type YOLOv10Result struct {
+	DetectResults []DetectResult
+}
+
+// GetDetectResults returns the object detection results containing bounding
+// boxes
+func (r YOLOv10Result) GetDetectResults() []DetectResult {
+	return r.DetectResults
+}
+
 // DetectObjects takes the RKNN outputs and runs the object detection process
 // then returns the results
-func (y *YOLOv10) DetectObjects(outputs *rknnlite.Outputs) []DetectResult {
+func (y *YOLOv10) DetectObjects(outputs *rknnlite.Outputs,
+	resizer *preprocess.Resizer) DetectionResult {
 
 	data := newStrideData(outputs)
 
@@ -132,8 +145,8 @@ func (y *YOLOv10) DetectObjects(outputs *rknnlite.Outputs) []DetectResult {
 		}
 		n := indexArray[i]
 
-		x1 := data.filterBoxes[n*4+0]
-		y1 := data.filterBoxes[n*4+1]
+		x1 := data.filterBoxes[n*4+0] - float32(resizer.XPad())
+		y1 := data.filterBoxes[n*4+1] - float32(resizer.YPad())
 		x2 := x1 + data.filterBoxes[n*4+2]
 		y2 := y1 + data.filterBoxes[n*4+3]
 		id := data.classID[n]
@@ -141,10 +154,10 @@ func (y *YOLOv10) DetectObjects(outputs *rknnlite.Outputs) []DetectResult {
 
 		result := DetectResult{
 			Box: BoxRect{
-				Left:   int(clamp(x1, 0, data.width)),
-				Top:    int(clamp(y1, 0, data.height)),
-				Right:  int(clamp(x2, 0, data.width)),
-				Bottom: int(clamp(y2, 0, data.height)),
+				Left:   int(clamp(x1, 0, data.width) / resizer.ScaleFactor()),
+				Top:    int(clamp(y1, 0, data.height) / resizer.ScaleFactor()),
+				Right:  int(clamp(x2, 0, data.width) / resizer.ScaleFactor()),
+				Bottom: int(clamp(y2, 0, data.height) / resizer.ScaleFactor()),
 			},
 			Probability: objConf,
 			Class:       id,
@@ -155,7 +168,9 @@ func (y *YOLOv10) DetectObjects(outputs *rknnlite.Outputs) []DetectResult {
 		lastCount++
 	}
 
-	return group
+	return YOLOv10Result{
+		DetectResults: group,
+	}
 }
 
 // processStride processes the given stride

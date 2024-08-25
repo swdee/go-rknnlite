@@ -1,11 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"github.com/swdee/go-rknnlite"
 	"gocv.io/x/gocv"
 	"image"
-	"log"
 )
 
 // resizeKeepAspectRatio resizes an image to a desired width and height while
@@ -53,53 +50,4 @@ func resizeKeepAspectRatio(srcImg gocv.Mat, dstImg *gocv.Mat, width, height int)
 	roi := dstImg.Region(image.Rect(x, y, x+newWidth, y+newHeight))
 	resizedImg.CopyTo(&roi)
 	roi.Close()
-}
-
-func optionalQueries(rt *rknnlite.Runtime) ([]rknnlite.TensorAttr, []rknnlite.TensorAttr) {
-
-	// get SDK version
-	ver, err := rt.SDKVersion()
-
-	if err != nil {
-		log.Fatal("Error initializing RKNN runtime: ", err)
-	}
-
-	fmt.Printf("Driver Version: %s, API Version: %s\n", ver.DriverVersion, ver.APIVersion)
-
-	// get model input and output numbers
-	num, err := rt.QueryModelIONumber()
-
-	if err != nil {
-		log.Fatal("Error querying IO Numbers: ", err)
-	}
-
-	log.Printf("Model Input Number: %d, Ouput Number: %d\n", num.NumberInput, num.NumberOutput)
-
-	// query Input tensors
-	inputAttrs, err := rt.QueryInputTensors()
-
-	if err != nil {
-		log.Fatal("Error querying Input Tensors: ", err)
-	}
-
-	log.Println("Input tensors:")
-
-	for _, attr := range inputAttrs {
-		log.Printf("  %s\n", attr.String())
-	}
-
-	// query Output tensors
-	outputAttrs, err := rt.QueryOutputTensors()
-
-	if err != nil {
-		log.Fatal("Error querying Output Tensors: ", err)
-	}
-
-	log.Println("Output tensors:")
-
-	for _, attr := range outputAttrs {
-		log.Printf("  %s\n", attr.String())
-	}
-
-	return inputAttrs, outputAttrs
 }

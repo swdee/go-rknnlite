@@ -30,14 +30,13 @@ Output tensors:
   index=3, name=537, n_dims=4, dims=[1, 80, 40, 40], n_elems=128000, size=128000, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003646
   index=4, name=544, n_dims=4, dims=[1, 64, 20, 20], n_elems=25600, size=25600, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-68, scale=0.058066
   index=5, name=558, n_dims=4, dims=[1, 80, 20, 20], n_elems=32000, size=32000, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003894
-outputs= 6
-Model first run speed: inference=55.132988ms, post processing=2.789738ms, total time=57.922726ms
 bus @ (92 136 555 436) 0.958003
 person @ (110 235 226 536) 0.907376
 person @ (212 240 285 509) 0.887905
 person @ (476 233 559 521) 0.829490
+Model first run speed: inference=58.666351ms, post processing=2.771067ms, rendering=1.236349ms, total time=62.673767ms
 Saved object detection result to ../data/bus-yolov10-out.jpg
-Benchmark time=3.997102106s, count=100, average total time=39.971021ms
+Benchmark time=4.144871338s, count=100, average total time=41.448713ms
 done
 ```
 

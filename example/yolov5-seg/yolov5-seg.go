@@ -1,6 +1,3 @@
-/*
-Example code showing how to perform object detection using a YOLOv10 model.
-*/
 package main
 
 import (
@@ -21,10 +18,11 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	modelFile := flag.String("m", "../data/yolov10s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
-	imgFile := flag.String("i", "../data/bus.jpg", "Image file to run object detection on")
+	modelFile := flag.String("m", "../data/yolov5s-seg-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
+	imgFile := flag.String("i", "../data/catdog.jpg", "Image file to run object detection on")
 	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
-	saveFile := flag.String("o", "../data/bus-yolov10-out.jpg", "The output JPG file with object detection markers")
+	saveFile := flag.String("o", "../data/catdog-yolov5-seg-out.jpg", "The output JPG file with object detection markers")
+	renderFormat := flag.String("r", "outline", "The rendering format used for instance segmentation [outline|mask|dump]")
 
 	flag.Parse()
 
@@ -52,8 +50,8 @@ func main() {
 		log.Fatal("Error querying runtime: ", err)
 	}
 
-	// create YOLOv10 post processor
-	yoloProcesser := postprocess.NewYOLOv10(postprocess.YOLOv10COCOParams())
+	// create YOLOv5seg post processor
+	yoloProcesser := postprocess.NewYOLOv5Seg(postprocess.YOLOv5SegCOCOParams())
 
 	// load in Model class names
 	classNames, err := rknnlite.LoadLabels(*labelFile)
@@ -76,7 +74,7 @@ func main() {
 	resizer := preprocess.NewResizer(img.Cols(), img.Rows(),
 		int(rt.InputAttrs()[0].Dims[1]), int(rt.InputAttrs()[0].Dims[2]))
 
-	cropImg := rgbImg.Clone()
+	cropImg := gocv.NewMat()
 	resizer.LetterBoxResize(rgbImg, &cropImg, render.Black)
 
 	defer img.Close()
@@ -94,13 +92,37 @@ func main() {
 
 	endInference := time.Now()
 
+	// detect objects
 	detectObjs := yoloProcesser.DetectObjects(outputs, resizer)
 	detectResults := detectObjs.GetDetectResults()
+	segMask := yoloProcesser.SegmentMask(detectObjs, resizer)
 
 	endDetect := time.Now()
 
-	render.DetectionBoxes(&img, detectResults, classNames,
-		render.DefaultFont(), 2)
+	switch *renderFormat {
+	case "mask":
+		// draw segmentation mask
+		render.SegmentMask(&img, segMask.Mask, 0.5)
+
+		render.DetectionBoxes(&img, detectResults, classNames,
+			render.DefaultFont(), 2)
+
+	case "dump":
+		// dump only segmentation mask to file
+		err = render.PaintSegmentToFile(*saveFile,
+			img.Rows(), img.Cols(), segMask.Mask, 1)
+
+		if err != nil {
+			log.Fatal("Failed to dump segmentation mask to file: ", err)
+		}
+
+	case "outline":
+		fallthrough
+	default:
+		// default outline
+		render.SegmentOutline(&img, segMask.Mask, detectResults, 1000,
+			classNames, render.DefaultFont(), 2)
+	}
 
 	endRendering := time.Now()
 
@@ -116,9 +138,11 @@ func main() {
 		endRendering.Sub(start).String(),
 	)
 
-	// Save the result
-	if ok := gocv.IMWrite(*saveFile, img); !ok {
-		log.Fatal("Failed to save the image")
+	// save the result
+	if *renderFormat != "dump" {
+		if ok := gocv.IMWrite(*saveFile, img); !ok {
+			log.Fatal("Failed to save the image")
+		}
 	}
 
 	log.Printf("Saved object detection result to %s\n", *saveFile)
@@ -130,8 +154,9 @@ func main() {
 		log.Fatal("Error freeing Outputs: ", err)
 	}
 
-	// optional code.  run benchmark to get average time
-	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg}, classNames, resizer, img)
+	// optional code.  run benchmark to get average time of 10 runs
+	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg}, classNames,
+		resizer, *renderFormat, img)
 
 	// close runtime and release resources
 	err = rt.Close()
@@ -143,11 +168,11 @@ func main() {
 	log.Println("done")
 }
 
-func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv10,
+func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv5Seg,
 	mats []gocv.Mat, classNames []string, resizer *preprocess.Resizer,
-	srcImg gocv.Mat) {
+	renderFormat string, srcImg gocv.Mat) {
 
-	count := 100
+	count := 20
 	start := time.Now()
 
 	for i := 0; i < count; i++ {
@@ -161,9 +186,26 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv10,
 		// post process
 		detectObjs := yoloProcesser.DetectObjects(outputs, resizer)
 		detectResults := detectObjs.GetDetectResults()
+		segMask := yoloProcesser.SegmentMask(detectObjs, resizer)
 
-		render.DetectionBoxes(&srcImg, detectResults, classNames,
-			render.DefaultFont(), 2)
+		switch renderFormat {
+		case "mask":
+			// draw segmentation mask
+			render.SegmentMask(&srcImg, segMask.Mask, 0.5)
+
+			render.DetectionBoxes(&srcImg, detectResults, classNames,
+				render.DefaultFont(), 2)
+
+		case "dump":
+			// do nothing
+
+		case "outline":
+			fallthrough
+		default:
+			// default outline
+			render.SegmentOutline(&srcImg, segMask.Mask, detectResults, 1000,
+				classNames, render.DefaultFont(), 2)
+		}
 
 		err = outputs.Free()
 
