@@ -22,3 +22,6 @@ The Inference, Post Processing, and Rendering columns show how processing time
 is split across the Total Time.   These figures are derived from the first
 run on the benchmark so when totaled together they are slightly higher than the
 Average Total Time.
+
+The Inference column represents processing on the NPU, Post Processing and Rendering
+values are performed on the CPU.
