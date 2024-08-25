@@ -315,7 +315,12 @@ func (y *YOLOv8Seg) SegmentMask(detectObjs DetectionResult,
 	// greater than 6 boxes. the parallel version has a negative consequence
 	// in that it effects the performance of the resizeByOpenCVUint8() call
 	// afterwards due to the overhead of the goroutines being cleaned up.
+	//
+	// also tried a version doing matmul in float32 using the ARM compute library
+	// whilst it is faster on the matmul step the other Resize and Crop steps
+	// are still to slow so no benefit is seen.
 	var matmulOut []uint8
+
 	if boxesNum > 6 {
 		matmulOut = matmulUint8Parallel(segData.data, boxesNum)
 	} else {
