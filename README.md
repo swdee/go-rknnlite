@@ -48,6 +48,15 @@ To my knowledge [Armbian](https://www.armbian.com/) and
 [Joshua's Ubuntu](https://github.com/Joshua-Riek/ubuntu-rockchip/) 
 OS images also have the driver installed for the support SBC's.
 
+You can test if your OS has the driver installed with.
+```
+dmesg | grep -i rknpu
+```
+
+The output should list the driver and indicate the NPU is initialized.
+```
+[    5.130935] [drm] Initialized rknpu 0.8.2 20220829 for fdab0000.npu on minor 1
+```
 
 ### GoCV
 
