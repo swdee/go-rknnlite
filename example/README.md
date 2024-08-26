@@ -28,13 +28,13 @@ Average Total Time.
 The Inference column represents processing on the NPU, Post Processing and Rendering
 values are performed on the CPU.
 
-|     ![YOLOv5 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-out.jpg)     |     ![YOLOv8 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-out.jpg)     | 
-|:-------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------:|
-|                                      YOLOv5s - 21 Objects Detected                                      |                                      YOLOv8s - 22 Objects Detected                                      |
-|    ![YOLOv10 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov10-out.jpg)    |      ![YOLOX Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolox-out.jpg)      |
-|                                     YOLOv10s - 19 Objects Detected                                      |                                      YOLOXs - 29 Objects Detected                                       |
-| ![YOLOv5-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/people-yolov8-pose-out.jpg) |  |
-|                                    YOLOv5n-pose - 9 Objects Detected                                    |                                   |
-| ![YOLOv5-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-seg-out.jpg) | ![YOLOv8-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov8-seg-out.jpg) |
-|                                    YOLOv5s-seg - 21 Objects Detected                                    |                                    YOLOv8s-seg - 20 Objects Detected                                    |
+|     ![YOLOv5 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-out.jpg)      |     ![YOLOv8 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-out.jpg)     | 
+|:--------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------:|
+|                                      YOLOv5s - 21 Objects Detected                                       |                                      YOLOv8s - 22 Objects Detected                                      |
+|    ![YOLOv10 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov10-out.jpg)     |      ![YOLOX Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolox-out.jpg)      |
+|                                      YOLOv10s - 19 Objects Detected                                      |                                      YOLOXs - 29 Objects Detected                                       |
+| ![YOLOv5-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov8-pose-out.jpg) |  |
+|                                    YOLOv5n-pose - 9 Objects Detected                                     |                                   |
+| ![YOLOv5-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-seg-out.jpg)  | ![YOLOv8-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov8-seg-out.jpg) |
+|                                    YOLOv5s-seg - 21 Objects Detected                                     |                                    YOLOv8s-seg - 20 Objects Detected                                    |
 
