@@ -47,6 +47,23 @@ The saved JPG image with pose estimation markers.
 
 
 
+See the help for command line parameters.
+```
+$ go run yolov8-pose.go --help
+
+Usage of /tmp/go-build1390906730/b001/exe/yolov8-pose:
+  -i string
+        Image file to run object detection on (default "../data/people-poses.jpg")
+  -l string
+        Text file containing model labels (default "../data/yolov8_pose_labels_list.txt")
+  -m string
+        RKNN compiled YOLO model file (default "../data/yolov8n-pose-640-640-rk3588.rknn")
+  -o string
+        The output JPG file with pose detection markers (default "../data/people-yolov8-pose-out.jpg")       
+```
+
+
+
 ## Background
 
 This YOLOv8-pose example is a Go conversion of the [C API example](https://github.com/airockchip/rknn_model_zoo/blob/main/examples/yolov8_pose/cpp/main.cc).
