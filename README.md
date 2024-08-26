@@ -81,6 +81,8 @@ See the [example](example) directory.
 * Instance Segmentation
   * [YOLOv5-seg Demo](example/yolov5-seg)
   * [YOLOv8-seg Demo](example/yolov8-seg)
+* Pose Estimation
+  * [YOLOv8-pose Demo](example/yolov8-pose) - Identify and display skeleton/pose of people.
 * License Plate Recognition
   * [LPRNet Demo](example/lprnet) 
   * [ALPR Demo](example/alpr) - Automatic License Plate Recognition combining Yolov8 and LPRNet Models.

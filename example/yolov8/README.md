@@ -11,7 +11,7 @@ cd example/
 git clone https://github.com/swdee/go-rknnlite-data.git data
 ```
 
-Run the Yolov8 example.
+Run the YOLOv8 example.
 ```
 cd example/yolov8
 go run yolov8.go

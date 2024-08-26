@@ -209,6 +209,18 @@ object.  When rendering in mask mode the segment overlay will disappear for that
 frame.
 
 
+## Pose Estimation
+
+The YOLOv8-pose processor has been added to this Stream example, use the following
+video to view example.
+
+```
+go run bytetrack.go -a :8080 -s 3 -v ../data/dance.mp4 -t v8pose -m ../data/yolov8n-pose-640-640-rk3588.rknn
+```
+
+Tracking trails have been turned off as the trails distract from the skeleton.
+
+
 ## Tracking Accuracy
 
 The Go ByteTrack code ported outputs the same result as the C++ and Python source

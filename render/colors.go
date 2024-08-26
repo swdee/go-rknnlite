@@ -78,4 +78,50 @@ var (
 	White  = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	Yellow = color.RGBA{R: 255, G: 255, B: 50, A: 255}
 	Pink   = color.RGBA{R: 255, G: 0, B: 255, A: 255}
+
+	// postPalette are the colors used for the skeleton/pose
+	posePalette = []color.RGBA{
+		{R: 255, G: 128, B: 0, A: 255},
+		{R: 255, G: 153, B: 51, A: 255},
+		{R: 255, G: 178, B: 102, A: 255},
+		{R: 230, G: 230, B: 0, A: 255},
+		{R: 255, G: 153, B: 255, A: 255},
+		{R: 153, G: 204, B: 255, A: 255},
+		{R: 255, G: 102, B: 255, A: 255},
+		{R: 255, G: 51, B: 255, A: 255},
+		{R: 102, G: 178, B: 255, A: 255},
+		{R: 51, G: 153, B: 255, A: 255},
+		{R: 255, G: 153, B: 153, A: 255},
+		{R: 255, G: 102, B: 102, A: 255},
+		{R: 255, G: 51, B: 51, A: 255},
+		{R: 153, G: 255, B: 153, A: 255},
+		{R: 102, G: 255, B: 102, A: 255},
+		{R: 51, G: 255, B: 51, A: 255},
+		{R: 0, G: 255, B: 0, A: 255},
+		{R: 0, G: 0, B: 255, A: 255},
+		{R: 255, G: 0, B: 0, A: 255},
+		{R: 255, G: 255, B: 255, A: 255},
+	}
+
+	// keyPointColors correspond to the skeleton/pose key points
+	// and colors to use to render for the joints (circles).
+	// require 17 colors
+	keyPointColors = []color.RGBA{
+		posePalette[16], posePalette[16], posePalette[16], posePalette[16], posePalette[16],
+		posePalette[9], posePalette[9], posePalette[9], posePalette[9], posePalette[9],
+		posePalette[9], posePalette[0], posePalette[0], posePalette[0], posePalette[0],
+		posePalette[0], posePalette[0],
+	}
+
+	// limbColors correspond to the lines drawn between the key points
+	// on the skeleton/pose.  require 19 colors
+	limbColors = []color.RGBA{
+		posePalette[0], posePalette[0], posePalette[0], posePalette[0], posePalette[7],
+		posePalette[7], posePalette[7], posePalette[9], posePalette[9], posePalette[9],
+		posePalette[9], posePalette[9], posePalette[16], posePalette[16], posePalette[16],
+		posePalette[16], posePalette[16], posePalette[16], posePalette[16],
+	}
 )
+
+// 0 is arms
+// 9 is legs

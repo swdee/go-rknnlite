@@ -120,6 +120,7 @@ func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
 		d.process = postprocess.NewYOLOv10(postprocess.YOLOv10COCOParams())
 	case "x":
 		d.process = postprocess.NewYOLOX(postprocess.YOLOXCOCOParams())
+
 	case "v5seg":
 		d.process = postprocess.NewYOLOv5Seg(postprocess.YOLOv5SegCOCOParams())
 		// force FPS to 10, as we don't have enough CPU power to do 30 FPS
@@ -132,6 +133,9 @@ func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
 		FPS = 10
 		FPSinterval = time.Duration(float64(time.Second) / float64(FPS))
 		log.Println("***WARNING*** Instance Segmentation requires a lot of CPU, downgraded to 10 FPS")
+
+	case "v8pose":
+		d.process = postprocess.NewYOLOv8Pose(postprocess.YOLOv8PoseCOCOParams())
 
 	default:
 		log.Fatal("Unknown model type, use 'v5', 'v8', 'v10', or 'x'")
@@ -322,11 +326,18 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 
 	// run object detection on frame
 	detectObjs, err := d.DetectObjects(img, frameNum, timing)
-	detectResults := detectObjs.GetDetectResults()
 
 	if err != nil {
 		log.Printf("Error detecting objects: %v", err)
+		return
 	}
+
+	if detectObjs == nil {
+		// no objects detected
+		return
+	}
+
+	detectResults := detectObjs.GetDetectResults()
 
 	// track detected objects
 	timing.TrackerStart = time.Now()
@@ -344,6 +355,7 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	// objects can be different to the object detection results so need to
 	// strip those objects from the mask
 	var segMask postprocess.SegMask
+	var keyPoints [][]postprocess.KeyPoint
 
 	if d.modelType == "v5seg" {
 		segMask = d.process.(*postprocess.YOLOv5Seg).TrackMask(detectObjs,
@@ -352,11 +364,15 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	} else if d.modelType == "v8seg" {
 		segMask = d.process.(*postprocess.YOLOv8Seg).TrackMask(detectObjs,
 			trackObjs, d.resizer)
+
+	} else if d.modelType == "v8pose" {
+		keyPoints = d.process.(*postprocess.YOLOv8Pose).GetPoseEstimation(detectObjs)
 	}
 
 	// copy the source image and annotate the copy
 	img.CopyTo(&resImg)
-	d.AnnotateImg(resImg, detectResults, trackObjs, segMask, trail, fps, frameNum, timing)
+	d.AnnotateImg(resImg, detectResults, trackObjs, segMask, keyPoints,
+		trail, fps, frameNum, timing)
 
 	// Encode the image to JPEG format
 	buf, err := gocv.IMEncode(".jpg", resImg)
@@ -400,7 +416,8 @@ func (d *Demo) LimitResults(trackResults []*tracker.STrack) []*tracker.STrack {
 // image Mat
 func (d *Demo) AnnotateImg(img gocv.Mat, detectResults []postprocess.DetectResult,
 	trackResults []*tracker.STrack,
-	segMask postprocess.SegMask, trail *tracker.Trail, fps float64,
+	segMask postprocess.SegMask, keyPoints [][]postprocess.KeyPoint,
+	trail *tracker.Trail, fps float64,
 	frameNum int, timing *Timing) {
 
 	timing.RenderingStart = time.Now()
@@ -421,6 +438,13 @@ func (d *Demo) AnnotateImg(img gocv.Mat, detectResults []postprocess.DetectResul
 				1000, d.labels, render.DefaultFont(), 2, 5)
 		}
 
+	} else if d.modelType == "v8pose" {
+
+		render.PoseKeyPoints(&img, keyPoints, 2)
+
+		render.TrackerBoxes(&img, trackResults, d.labels,
+			render.DefaultFont(), 1)
+
 	} else {
 		// draw detection boxes
 		render.TrackerBoxes(&img, trackResults, d.labels,
@@ -428,7 +452,9 @@ func (d *Demo) AnnotateImg(img gocv.Mat, detectResults []postprocess.DetectResul
 	}
 
 	// draw object trail lines
-	render.Trail(&img, trackResults, trail, render.DefaultTrailStyle())
+	if d.modelType != "v8pose" {
+		render.Trail(&img, trackResults, trail, render.DefaultTrailStyle())
+	}
 
 	timing.ProcessEnd = time.Now()
 
@@ -500,7 +526,7 @@ func main() {
 
 	// read in cli flags
 	modelFile := flag.String("m", "../data/yolov5s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
-	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|v10|x|v5seg|v8seg]")
+	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|v10|x|v5seg|v8seg|v8pose]")
 	vidFile := flag.String("v", "../data/palace.mp4", "Video file to run object detection and tracking on")
 	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
 	httpAddr := flag.String("a", "localhost:8080", "HTTP Address to run server on, format address:port")

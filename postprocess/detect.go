@@ -24,3 +24,11 @@ type DetectResult struct {
 	// ID is a unique ID assigned to the detection result
 	ID int64
 }
+
+// Keypoint is used for specifying the X, Y coordinates and confidence score
+// of an individual point used in Pose Estimatation
+type KeyPoint struct {
+	X     int
+	Y     int
+	Score float32
+}

@@ -9,4 +9,7 @@ require (
 	gonum.org/v1/gonum v0.15.0
 )
 
-require golang.org/x/text v0.15.0 // indirect
+require (
+	github.com/x448/float16 v0.8.4 // indirect
+	golang.org/x/text v0.15.0 // indirect
+)
