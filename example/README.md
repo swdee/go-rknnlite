@@ -16,6 +16,7 @@ The `data/palace.jpg` image file was used for benchmarking.
 | YOLOv8s     | 44.8ms             | 47.5ms    | 5.0ms           | 4.2ms     |
 | YOLOv10s    | 49.4ms             | 57.1ms    | 2.9ms           | 4.1ms     |
 | YOLOXs      | 42.4ms             | 48.7ms    | 0.5ms           | 5.5ms     |
+| YOLOv8n-pose | 47.5ms             | 54.1ms    | 1.0ms           | 3.0ms |
 | YOLOv5s-seg | 207.5ms            | 57.0ms    | 107.6ms         | 75.9ms    |
 | YOLOv8s-seg | 232.5ms            | 67.9ms    | 113.3ms         | 73.4ms    |
 
@@ -32,5 +33,8 @@ values are performed on the CPU.
 |                                      YOLOv5s - 21 Objects Detected                                      |                                      YOLOv8s - 22 Objects Detected                                      |
 |    ![YOLOv10 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov10-out.jpg)    |      ![YOLOX Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolox-out.jpg)      |
 |                                     YOLOv10s - 19 Objects Detected                                      |                                      YOLOXs - 29 Objects Detected                                       |
+| ![YOLOv5-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/people-yolov8-pose-out.jpg) |  |
+|                                    YOLOv5n-pose - 9 Objects Detected                                    |                                   |
 | ![YOLOv5-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-seg-out.jpg) | ![YOLOv8-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov8-seg-out.jpg) |
 |                                    YOLOv5s-seg - 21 Objects Detected                                    |                                    YOLOv8s-seg - 20 Objects Detected                                    |
+
