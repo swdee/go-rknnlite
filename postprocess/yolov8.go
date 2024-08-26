@@ -139,7 +139,8 @@ func (y *YOLOv8) DetectObjects(outputs *rknnlite.Outputs,
 
 	// for each classID in the classSet calculate the NMS
 	for c := range classSet {
-		nms(validCount, data.filterBoxes, data.classID, indexArray, c, y.Params.NMSThreshold)
+		nms(validCount, data.filterBoxes, data.classID, indexArray, c,
+			y.Params.NMSThreshold, 4)
 	}
 
 	// collate objects into a result for returning

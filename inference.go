@@ -8,6 +8,7 @@ package rknnlite
 import "C"
 import (
 	"fmt"
+	"github.com/x448/float16"
 	"gocv.io/x/gocv"
 	"sync"
 	"unsafe"
@@ -216,12 +217,34 @@ func (r *Runtime) GetOutputs(nOutputs uint32, wantFloat bool) (*Outputs, error) 
 			outputs.Output[i].BufFloat = (*[1 << 30]float32)(outputs.cOutputs[i].buf)[:outputs.cOutputs[i].size/4]
 
 		} else if outputs.Output[i].WantFloat == 0 {
-			// convert buffer to []int8
-			outputs.Output[i].BufInt = (*[1 << 30]int8)(outputs.cOutputs[i].buf)[:outputs.cOutputs[i].size]
+			// yolov8-pose has output tensors of int8 and fp16, so we need to
+			// handle the fp16 specially
+			if r.outputAttrs[i].Type == TensorFloat16 {
+				// convert float16 buffer to []float32
+				float16Buf := (*[1 << 30]uint16)(outputs.cOutputs[i].buf)[:outputs.cOutputs[i].size/2]
+				outputs.Output[i].BufFloat = convertFloat16BufferToFloat32(float16Buf)
+
+			} else {
+				// convert buffer to []int8
+				outputs.Output[i].BufInt = (*[1 << 30]int8)(outputs.cOutputs[i].buf)[:outputs.cOutputs[i].size]
+			}
 		}
 	}
 
 	return outputs, nil
+}
+
+// convertFloat16BufferToFloat32 converts a float16 buffer to float32 as Go
+// has not support for FP16.
+func convertFloat16BufferToFloat32(float16Buf []uint16) []float32 {
+	float32Buf := make([]float32, len(float16Buf))
+
+	for i, val := range float16Buf {
+		f16 := float16.Frombits(val)
+		float32Buf[i] = f16.Float32()
+	}
+
+	return float32Buf
 }
 
 // Free C memory buffer holding RKNN inference outputs

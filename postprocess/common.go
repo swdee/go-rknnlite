@@ -23,6 +23,38 @@ func qntF32ToAffine(f32 float32, zp int32, scale float32) int8 {
 	return int8(res)
 }
 
+// sigmoid perform sigmoid function on given float
+func sigmoid(x float32) float32 {
+	return 1 / (1 + float32(math.Exp(float64(-x))))
+}
+
+// unsigmoid function (reverse of sigmoid)
+func unsigmoid(x float32) float32 {
+	return -float32(math.Log(float64(1/x - 1)))
+}
+
+// softmax function for []float32 input
+func softmax(input []float32, size int) {
+	// Find the maximum value to subtract for numerical stability
+	maxVal := input[0]
+	for i := 1; i < size; i++ {
+		if input[i] > maxVal {
+			maxVal = input[i]
+		}
+	}
+
+	// Calculate the sum of exponentials
+	var sumExp float32 = 0.0
+	for i := 0; i < size; i++ {
+		sumExp += float32(math.Exp(float64(input[i] - maxVal)))
+	}
+
+	// Normalize the values to form a probability distribution
+	for i := 0; i < size; i++ {
+		input[i] = float32(math.Exp(float64(input[i]-maxVal))) / sumExp
+	}
+}
+
 // clip restricts the value x to be within the range min and max and converts
 // the result to int
 func clip(val, min, max float32) int {
@@ -97,7 +129,7 @@ func quickSortIndiceInverse(input []float32, left int, right int, indices []int)
 
 // nms implements a Non-Maximum Suppression (NMS) algorithm
 func nms(validCount int, outputLocations []float32, classIds, order []int,
-	filterId int, threshold float32) {
+	filterId int, threshold float32, pos int) {
 
 	for i := 0; i < validCount; i++ {
 
@@ -114,15 +146,15 @@ func nms(validCount int, outputLocations []float32, classIds, order []int,
 				continue
 			}
 
-			xmin0 := outputLocations[n*4+0]
-			ymin0 := outputLocations[n*4+1]
-			xmax0 := xmin0 + outputLocations[n*4+2]
-			ymax0 := ymin0 + outputLocations[n*4+3]
+			xmin0 := outputLocations[n*pos+0]
+			ymin0 := outputLocations[n*pos+1]
+			xmax0 := xmin0 + outputLocations[n*pos+2]
+			ymax0 := ymin0 + outputLocations[n*pos+3]
 
-			xmin1 := outputLocations[m*4+0]
-			ymin1 := outputLocations[m*4+1]
-			xmax1 := xmin1 + outputLocations[m*4+2]
-			ymax1 := ymin1 + outputLocations[m*4+3]
+			xmin1 := outputLocations[m*pos+0]
+			ymin1 := outputLocations[m*pos+1]
+			xmax1 := xmin1 + outputLocations[m*pos+2]
+			ymax1 := ymin1 + outputLocations[m*pos+3]
 
 			iou := calculateOverlap(xmin0, ymin0, xmax0, ymax0, xmin1, ymin1, xmax1, ymax1)
 
