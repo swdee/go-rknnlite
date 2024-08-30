@@ -8,7 +8,6 @@ package rknnlite
 import "C"
 import (
 	"fmt"
-	"github.com/x448/float16"
 	"gocv.io/x/gocv"
 	"sync"
 	"unsafe"
@@ -240,8 +239,7 @@ func convertFloat16BufferToFloat32(float16Buf []uint16) []float32 {
 	float32Buf := make([]float32, len(float16Buf))
 
 	for i, val := range float16Buf {
-		f16 := float16.Frombits(val)
-		float32Buf[i] = f16.Float32()
+		float32Buf[i] = f16LookupTable[val]
 	}
 
 	return float32Buf
