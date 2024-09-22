@@ -236,11 +236,9 @@ func (r *Runtime) GetOutputs(nOutputs uint32, wantFloat bool) (*Outputs, error) 
 // convertFloat16BufferToFloat32 converts a float16 buffer to float32 as Go
 // has not support for FP16.
 func convertFloat16BufferToFloat32(float16Buf []uint16) []float32 {
-	float32Buf := make([]float32, len(float16Buf))
 
-	for i, val := range float16Buf {
-		float32Buf[i] = f16LookupTable[val]
-	}
+	float32Buf := make([]float32, len(float16Buf))
+	float16ToFloat32Buffer(float16Buf, float32Buf)
 
 	return float32Buf
 }
