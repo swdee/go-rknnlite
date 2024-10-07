@@ -82,16 +82,22 @@ This outputs options of:
 ```
   -a string
         HTTP Address to run server on, format address:port (default "localhost:8080")
+  -c value
+        Web Camera resolution in format <width>x<height>@<fps>, eg: 1280x720@30 (default 1280x720@30)
+  -codec string
+        Web Camera codec The rendering format [mjpg|yuyv] (default "mjpg")
   -l string
         Text file containing model labels (default "../data/coco_80_labels_list.txt")
   -m string
         RKNN compiled YOLO model file (default "../data/yolov5s-640-640-rk3588.rknn")
+  -r string
+        The rendering format used for instance segmentation [outline|mask] (default "outline")
   -s int
         Size of RKNN runtime pool, choose 1, 2, 3, or multiples of 3 (default 3)
   -t string
-        Version of YOLO model [v5|v8|v10|x] (default "v5")
+        Version of YOLO model [v5|v8|v10|x|v5seg|v8seg|v8pose] (default "v5")
   -v string
-        Video file to run object detection and tracking on (default "../data/palace.mp4")
+        Video file to run object detection and tracking on or device of web camera when used with -c flag (default "../data/palace.mp4")
   -x string
         Comma delimited list of labels (COCO) to restrict object tracking to
 ```
@@ -130,6 +136,31 @@ There is also another test video provided at `../data/cars.mp4` for object track
 
 https://github.com/user-attachments/assets/ad4e806d-dc26-44cb-9c40-f3a9a60e7451
 
+
+## Web Camera
+
+Use of a web camera is possible instead of passing video (MP4) files, use the following
+commands on your linux distribution to establish the device number of your 
+web camera and available resolutions.
+
+List available web camera devices
+```
+v4l2-ctl --list-devices
+```
+
+List available resolutions and frame rates camera supports for camera at `/dev/video1`.
+```
+v4l2-ctl --device=/dev/video1 --list-formats-ext
+```
+
+I find the results with object detection substandard however the YOLOv8-pose
+model works quite well.  To run this example pass the camera device `-v 1` and 
+resolution and frame rate of `-c 1280x720@30` on the command line to represent
+`/dev/video1` and a resolution of `1280x720` running at `30`FPS.
+
+```
+go run bytetrack.go -a :8080 -s 6 -v 1 -c 640x480@30 -codec MJPG -m ../data/yolov8n-pose-640-640-rk3588.rknn -t v8pose
+```
 
 
 
@@ -219,6 +250,23 @@ go run bytetrack.go -a :8080 -s 3 -v ../data/dance.mp4 -t v8pose -m ../data/yolo
 ```
 
 Tracking trails have been turned off as the trails distract from the skeleton.
+
+
+## Code Example Limitations
+
+This streaming example serves as a code example for other developers, it is not production
+level code as it does not check input parameters or edge cases.   This is done in an
+effort to keep the number of lines of code down.
+
+When using the webcamera it only supports a single connection from the browser which
+opens the webcamera device for its exclusive use.   Multiple connections are not possible, this
+would require a larger code base that opens the webcamera in a seperate goroutine which then
+copies the analysed camera frame to a Hub that handles and distributes it to all HTTP connections.
+
+The method used to stream JPG images to the browser using HTTP headers is not the 
+fastest method available, but it is simple.   In our production code we stream the JPG
+images over a websocket and render them on an HTML canvas element.  This is faster and
+also allows us to "scrub" (fast forward and rewind) the video timeframe client side.
 
 
 ## Tracking Accuracy

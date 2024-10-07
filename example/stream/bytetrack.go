@@ -13,6 +13,8 @@ import (
 	"image/color"
 	"log"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -52,8 +54,60 @@ type YOLOProcessor interface {
 		resizer *preprocess.Resizer) postprocess.DetectionResult
 }
 
+type VideoFormat string
+
+const (
+	VideoFile VideoFormat = "file"
+	Webcam    VideoFormat = "webcam"
+)
+
+// VideoSource defines the video/media source to use for playback.
+type VideoSource struct {
+	Path     string
+	Format   VideoFormat
+	Settings string
+	Codec    string
+	// camera validated settings
+	width  int
+	height int
+	fps    int
+}
+
+// Validate and extract the video source settings
+func (v *VideoSource) Validate() error {
+	// get camera settings
+	pattern := `^(\d+)x(\d+)@(\d+)$`
+	re := regexp.MustCompile(pattern)
+
+	matches := re.FindStringSubmatch(v.Settings)
+
+	if len(matches) == 0 {
+		return fmt.Errorf("Camera settings does not match the pattern <width>x<height>@<fps>")
+	}
+
+	// ignore errors since it passed pattern matching above
+	width, _ := strconv.Atoi(matches[1])
+	height, _ := strconv.Atoi(matches[2])
+	fps, _ := strconv.Atoi(matches[3])
+
+	v.width = width
+	v.height = height
+	v.fps = fps
+
+	// check Codec
+	v.Codec = strings.ToUpper(v.Codec)
+
+	if v.Codec != "YUYV" {
+		v.Codec = "MJPG"
+	}
+
+	return nil
+}
+
 // Demo defines the struct for running the object tracking demo
 type Demo struct {
+	// vidSrc holds details on our video source for playback
+	vidSrc *VideoSource
 	// vidBuffer buffers the video frames into memory
 	vidBuffer []gocv.Mat
 	// pool of rknnlite runtimes to perform inference in parallel
@@ -78,17 +132,23 @@ type Demo struct {
 
 // NewDemo returns and instance of Demo, a streaming HTTP server showing
 // video with object detection
-func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
+func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
 	modelType string, renderFormat string) (*Demo, error) {
 
+	var err error
+
 	d := &Demo{
+		vidSrc:    vidSrc,
 		limitObjs: make([]string, 0),
 	}
 
-	err := d.bufferVideo(vidFile)
+	if vidSrc.Format == VideoFile {
+		// buffer video file
+		err = d.bufferVideo(vidSrc.Path)
 
-	if err != nil {
-		return nil, fmt.Errorf("Error buffering video: %w", err)
+		if err != nil {
+			return nil, fmt.Errorf("Error buffering video: %w", err)
+		}
 	}
 
 	// create new pool
@@ -105,8 +165,13 @@ func NewDemo(vidFile, modelFile, labelFile string, poolSize int,
 	// input size requirements
 	rt := d.pool.Get()
 
-	d.resizer = preprocess.NewResizer(d.vidBuffer[0].Cols(), d.vidBuffer[0].Rows(),
-		int(rt.InputAttrs()[0].Dims[1]), int(rt.InputAttrs()[0].Dims[2]))
+	if vidSrc.Format == Webcam {
+		d.resizer = preprocess.NewResizer(d.vidSrc.width, d.vidSrc.height,
+			int(rt.InputAttrs()[0].Dims[1]), int(rt.InputAttrs()[0].Dims[2]))
+	} else {
+		d.resizer = preprocess.NewResizer(d.vidBuffer[0].Cols(), d.vidBuffer[0].Rows(),
+			int(rt.InputAttrs()[0].Dims[1]), int(rt.InputAttrs()[0].Dims[2]))
+	}
 
 	d.pool.Return(rt)
 
@@ -220,6 +285,55 @@ func (d *Demo) bufferVideo(vidFile string) error {
 	return nil
 }
 
+// startWebcam starts the web camera and copies frames to a channel.   function
+// is to be called from a goroutine as its blocking
+func (d *Demo) startWebcam(framesCh chan gocv.Mat, exitCh chan struct{}) {
+
+	var err error
+	var webcam *gocv.VideoCapture
+
+	devNum, _ := strconv.Atoi(d.vidSrc.Path)
+	webcam, err = gocv.VideoCaptureDevice(devNum)
+
+	if err != nil {
+		log.Printf("Error opening web camera: %v", err)
+		return
+	}
+
+	defer webcam.Close()
+
+	webcam.Set(gocv.VideoCaptureFOURCC, webcam.ToCodec(d.vidSrc.Codec))
+	webcam.Set(gocv.VideoCaptureFrameWidth, float64(d.vidSrc.width))
+	webcam.Set(gocv.VideoCaptureFrameHeight, float64(d.vidSrc.height))
+	webcam.Set(gocv.VideoCaptureFPS, float64(d.vidSrc.fps))
+
+	camImg := gocv.NewMat()
+	defer camImg.Close()
+
+loop:
+	for {
+		select {
+		case <-exitCh:
+			log.Printf("Closing webcamera")
+			break loop
+
+		default:
+
+			if ok := webcam.Read(&camImg); !ok {
+				// error reading webcamera frame
+				continue
+			}
+			if camImg.Empty() {
+				continue
+			}
+
+			// send frame to channel, copy to avoid race conditions
+			frameCopy := camImg.Clone()
+			framesCh <- frameCopy
+		}
+	}
+}
+
 // Stream is the HTTP handler function used to stream video frames to browser
 func (d *Demo) Stream(w http.ResponseWriter, r *http.Request) {
 
@@ -253,15 +367,35 @@ func (d *Demo) Stream(w http.ResponseWriter, r *http.Request) {
 	// chan to receive processed frames
 	recvFrame := make(chan ResultFrame, 30)
 
+	// create channel to receive frames from the webcam
+	cameraFrames := make(chan gocv.Mat, 8)
+	closeCamera := make(chan struct{})
+
+	if d.vidSrc.Format == Webcam {
+		go d.startWebcam(cameraFrames, closeCamera)
+	}
+
 loop:
 	for {
 		select {
 		case <-r.Context().Done():
 			log.Printf("Client disconnected\n")
+			closeCamera <- struct{}{}
 			break loop
+
+		// receive web camera frames
+		case frame := <-cameraFrames:
+			frameNum++
+
+			go d.ProcessFrame(frame, recvFrame, fps, frameNum,
+				byteTrack, trail, true)
 
 		// simulate reading 30FPS web camera
 		case <-ticker.C:
+			if d.vidSrc.Format == Webcam {
+				// skip this routine if running webcamera video source
+				continue
+			}
 
 			// increment pointer to next image in the video buffer
 			frameNum++
@@ -275,7 +409,7 @@ loop:
 			}
 
 			go d.ProcessFrame(d.vidBuffer[frameNum], recvFrame, fps, frameNum,
-				byteTrack, trail)
+				byteTrack, trail, false)
 
 		case buf := <-recvFrame:
 
@@ -315,7 +449,8 @@ loop:
 // detection on it, annotates the image and returns the result encoded
 // as a JPG file
 func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
-	fps float64, frameNum int, byteTrack *tracker.BYTETracker, trail *tracker.Trail) {
+	fps float64, frameNum int, byteTrack *tracker.BYTETracker,
+	trail *tracker.Trail, closeImg bool) {
 
 	timing := &Timing{
 		ProcessStart: time.Now(),
@@ -324,8 +459,11 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	resImg := gocv.NewMat()
 	defer resImg.Close()
 
+	// copy source image
+	img.CopyTo(&resImg)
+
 	// run object detection on frame
-	detectObjs, err := d.DetectObjects(img, frameNum, timing)
+	detectObjs, err := d.DetectObjects(resImg, frameNum, timing)
 
 	if err != nil {
 		log.Printf("Error detecting objects: %v", err)
@@ -369,8 +507,7 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 		keyPoints = d.process.(*postprocess.YOLOv8Pose).GetPoseEstimation(detectObjs)
 	}
 
-	// copy the source image and annotate the copy
-	img.CopyTo(&resImg)
+	// annotate the image
 	d.AnnotateImg(resImg, detectResults, trackObjs, segMask, keyPoints,
 		trail, fps, frameNum, timing)
 
@@ -380,6 +517,11 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	res := ResultFrame{
 		Buf: buf,
 		Err: err,
+	}
+
+	if closeImg {
+		// close copied web camera frame
+		img.Close()
 	}
 
 	retChan <- res
@@ -520,6 +662,24 @@ func (d *Demo) DetectObjects(img gocv.Mat, frameNum int,
 	return detectObjs, nil
 }
 
+// cameraResFlag is a custom type that tracks whether the CLI flag was explicitly set
+type cameraResFlag struct {
+	value string
+	isSet bool
+}
+
+// String implement's the flag.Value interface for cameraResFlag
+func (c *cameraResFlag) String() string {
+	return c.value
+}
+
+// Set
+func (c *cameraResFlag) Set(val string) error {
+	c.value = val
+	c.isSet = true
+	return nil
+}
+
 func main() {
 	// disable logging timestamps
 	log.SetFlags(0)
@@ -527,14 +687,47 @@ func main() {
 	// read in cli flags
 	modelFile := flag.String("m", "../data/yolov5s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
 	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|v10|x|v5seg|v8seg|v8pose]")
-	vidFile := flag.String("v", "../data/palace.mp4", "Video file to run object detection and tracking on")
+	vidFile := flag.String("v", "../data/palace.mp4", "Video file to run object detection and tracking on or device of web camera when used with -c flag")
 	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
 	httpAddr := flag.String("a", "localhost:8080", "HTTP Address to run server on, format address:port")
 	poolSize := flag.Int("s", 3, "Size of RKNN runtime pool, choose 1, 2, 3, or multiples of 3")
 	limitLabels := flag.String("x", "", "Comma delimited list of labels (COCO) to restrict object tracking to")
 	renderFormat := flag.String("r", "outline", "The rendering format used for instance segmentation [outline|mask]")
+	codecFormat := flag.String("codec", "mjpg", "Web Camera codec The rendering format [mjpg|yuyv]")
+
+	// Initialize the custom camera resolution flag with a default value
+	cameraRes := &cameraResFlag{value: "1280x720@30"}
+	flag.Var(cameraRes, "c", "Web Camera resolution in format <width>x<height>@<fps>, eg: 1280x720@30")
 
 	flag.Parse()
+
+	if *poolSize > 33 {
+		log.Fatalf("RKNN runtime pool size (flag -s) is to large, a value of 3, 6, 9, or 12 works best")
+	}
+
+	// check which video source to use
+	var vidSrc *VideoSource
+
+	if cameraRes.isSet {
+		vidSrc = &VideoSource{
+			Path:     *vidFile,
+			Format:   Webcam,
+			Settings: cameraRes.value,
+			Codec:    *codecFormat,
+		}
+
+		err := vidSrc.Validate()
+
+		if err != nil {
+			log.Fatalf("Error in video source settings: %v", err)
+		}
+
+	} else {
+		vidSrc = &VideoSource{
+			Path:   *vidFile,
+			Format: VideoFile,
+		}
+	}
 
 	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
 
@@ -542,7 +735,7 @@ func main() {
 		log.Printf("Failed to set CPU Affinity: %w", err)
 	}
 
-	demo, err := NewDemo(*vidFile, *modelFile, *labelFile, *poolSize,
+	demo, err := NewDemo(vidSrc, *modelFile, *labelFile, *poolSize,
 		*modelType, *renderFormat)
 
 	if err != nil {
