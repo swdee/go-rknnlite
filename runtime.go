@@ -21,12 +21,13 @@ type CoreMask int
 // DepthwiseConvolution, Add, Concat, Relu, Clip, Relu6, ThresholdedRelu, Prelu,
 // and LeakyRelu. Other type of ops will fallback to Core0 to continue running
 const (
-	NPUCoreAuto CoreMask = C.RKNN_NPU_CORE_AUTO
-	NPUCore0    CoreMask = C.RKNN_NPU_CORE_0
-	NPUCore1    CoreMask = C.RKNN_NPU_CORE_1
-	NPUCore2    CoreMask = C.RKNN_NPU_CORE_2
-	NPUCore01   CoreMask = C.RKNN_NPU_CORE_0_1
-	NPUCore012  CoreMask = C.RKNN_NPU_CORE_0_1_2
+	NPUCoreAuto    CoreMask = C.RKNN_NPU_CORE_AUTO
+	NPUCore0       CoreMask = C.RKNN_NPU_CORE_0
+	NPUCore1       CoreMask = C.RKNN_NPU_CORE_1
+	NPUCore2       CoreMask = C.RKNN_NPU_CORE_2
+	NPUCore01      CoreMask = C.RKNN_NPU_CORE_0_1
+	NPUCore012     CoreMask = C.RKNN_NPU_CORE_0_1_2
+	NPUSkipSetCore CoreMask = 9999
 )
 
 // ErrorCodes
@@ -118,10 +119,14 @@ func NewRuntime(modelFile string, core CoreMask) (*Runtime, error) {
 		return nil, err
 	}
 
-	err = r.setCoreMask(core)
+	// setCoreMask is only supported on RK3588, allow skipping for other Rockchip models
+	// like RK3566
+	if core != NPUSkipSetCore {
+		err = r.setCoreMask(core)
 
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// cache IONumber
