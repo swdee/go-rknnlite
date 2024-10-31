@@ -114,7 +114,8 @@ func (r *RetinaFace) DetectFaces(outputs *rknnlite.Outputs,
 
 	quickSortIndiceInverse(props, 0, validCount-1, filterIndices)
 
-	r.nms(validCount, location, filterIndices, r.Params.NMSThreshold)
+	r.nms(validCount, location, filterIndices, r.Params.NMSThreshold,
+		resizer.SrcWidth(), resizer.SrcHeight())
 
 	// collate objects into a result for returning
 	group := make([]DetectResult, 0)
@@ -226,7 +227,7 @@ func (r *RetinaFace) filterValidResult(scores, loc, landms []float32,
 // nms implements a Non-Maximum Suppression (NMS) algorithm to filter
 // overlapping bounding boxes
 func (r *RetinaFace) nms(validCount int, outputLocations []float32, order []int,
-	threshold float32) {
+	threshold float32, width, height int) {
 
 	for i := 0; i < validCount; i++ {
 
@@ -245,16 +246,16 @@ func (r *RetinaFace) nms(validCount int, outputLocations []float32, order []int,
 			}
 
 			// Calculate coordinates for bounding box n
-			xmin0 := outputLocations[n*4+0]
-			ymin0 := outputLocations[n*4+1]
-			xmax0 := outputLocations[n*4+2]
-			ymax0 := outputLocations[n*4+3]
+			xmin0 := outputLocations[n*4+0] * float32(width)
+			ymin0 := outputLocations[n*4+1] * float32(height)
+			xmax0 := outputLocations[n*4+2] * float32(width)
+			ymax0 := outputLocations[n*4+3] * float32(height)
 
 			// Calculate coordinates for bounding box m
-			xmin1 := outputLocations[m*4+0]
-			ymin1 := outputLocations[m*4+1]
-			xmax1 := outputLocations[m*4+2]
-			ymax1 := outputLocations[m*4+3]
+			xmin1 := outputLocations[m*4+0] * float32(width)
+			ymin1 := outputLocations[m*4+1] * float32(height)
+			xmax1 := outputLocations[m*4+2] * float32(width)
+			ymax1 := outputLocations[m*4+3] * float32(height)
 
 			// Calculate the IoU (Intersection over Union)
 			iou := calculateOverlap(xmin0, ymin0, xmax0, ymax0, xmin1, ymin1, xmax1, ymax1)
