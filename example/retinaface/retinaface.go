@@ -50,6 +50,9 @@ func main() {
 
 	retinaProcessor := postprocess.NewRetinaFace(postprocess.WiderFaceParams())
 
+	// retinaface does not use class names in its model, so define a single placeholder "face"
+	classNames := []string{"face"}
+
 	// load image
 	img := gocv.IMRead(*imgFile, gocv.IMReadColor)
 
@@ -90,7 +93,7 @@ func main() {
 
 	render.FaceKeyPoints(&img, keyPoints)
 
-	render.DetectionBoxes(&img, detectResults, []string{"face"},
+	render.DetectionBoxes(&img, detectResults, classNames,
 		render.DefaultFont(), 2)
 
 	endRendering := time.Now()
@@ -122,7 +125,7 @@ func main() {
 	}
 
 	// optional code.  run benchmark to get average time
-	//runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg}, classNames, resizer, img)
+	runBenchmark(rt, retinaProcessor, []gocv.Mat{cropImg}, classNames, resizer, img)
 
 	// close runtime and release resources
 	err = rt.Close()
@@ -132,4 +135,45 @@ func main() {
 	}
 
 	log.Println("done")
+}
+
+func runBenchmark(rt *rknnlite.Runtime, retinaProcessor *postprocess.RetinaFace,
+	mats []gocv.Mat, classNames []string, resizer *preprocess.Resizer,
+	srcImg gocv.Mat) {
+
+	count := 20
+	start := time.Now()
+
+	for i := 0; i < count; i++ {
+		// perform inference on image file
+		outputs, err := rt.Inference(mats)
+
+		if err != nil {
+			log.Fatal("Runtime inferencing failed with error: ", err)
+		}
+
+		// post process
+		detectFaces := retinaProcessor.DetectFaces(outputs, resizer)
+		detectResults := detectFaces.GetDetectResults()
+		keyPoints := retinaProcessor.GetFaceLandmarks(detectFaces)
+
+		render.FaceKeyPoints(&srcImg, keyPoints)
+
+		render.DetectionBoxes(&srcImg, detectResults, classNames,
+			render.DefaultFont(), 2)
+
+		err = outputs.Free()
+
+		if err != nil {
+			log.Fatal("Error freeing Outputs: ", err)
+		}
+	}
+
+	end := time.Now()
+	total := end.Sub(start)
+	avg := total / time.Duration(count)
+
+	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
+		total.String(), count, avg.String(),
+	)
 }
