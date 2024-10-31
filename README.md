@@ -106,6 +106,16 @@ the average inference speed down to 1.65ms per image.
 See the [Pool example](example/pool).
 
 
+## Other Rockchip Models
+
+For other Rockchip models such as the RK3566 which features a single NPU core, initialise
+the Runtime with the `rknnlite.NPUSkipSetCore` flag as follows.
+
+```
+rt, err := rknnlite.NewRuntime(*modelFile, rknnlite.NPUSkipSetCore)
+```
+
+
 ## CPU Affinity
 
 The performance of the NPU is effected by which CPU cores your program runs on, so
