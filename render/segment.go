@@ -202,17 +202,7 @@ func SegmentOutline(img *gocv.Mat, segMask []uint8,
 		}
 	}
 
-	// draw all precalculated box labels so they are the top most layer on the
-	// image and don't get overlapped with segment contour lines
-	for _, box := range boxLabels {
-		// draw box text gets written on
-		gocv.Rectangle(img, box.rect, box.clr, -1)
-
-		// Draw the label over box
-		gocv.PutTextWithParams(img, box.text, box.textPos,
-			font.Face, font.Scale, font.Color, font.Thickness,
-			font.LineType, false)
-	}
+	drawBoxLabels(img, boxLabels, font)
 
 	return nil
 }
@@ -367,17 +357,7 @@ func TrackerOutlines(img *gocv.Mat, segMask []uint8,
 		boxLabels = append(boxLabels, nextLabel)
 	}
 
-	// draw all precalculated box labels so they are the top most layer on the
-	// image and don't get overlapped with segment contour lines
-	for _, box := range boxLabels {
-		// draw box text gets written on
-		gocv.Rectangle(img, box.rect, box.clr, -1)
-
-		// Draw the label over box
-		gocv.PutTextWithParams(img, box.text, box.textPos,
-			font.Face, font.Scale, font.Color, font.Thickness,
-			font.LineType, false)
-	}
+	drawBoxLabels(img, boxLabels, font)
 
 	return nil
 }

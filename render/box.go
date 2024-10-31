@@ -6,6 +6,7 @@ import (
 	"github.com/swdee/go-rknnlite/tracker"
 	"gocv.io/x/gocv"
 	"image"
+	"image/color"
 	"math"
 )
 
@@ -67,17 +68,7 @@ func DetectionBoxes(img *gocv.Mat, detectResults []postprocess.DetectResult,
 		boxLabels = append(boxLabels, nextLabel)
 	}
 
-	// draw all precalculated box labels so they are the top most layer on the
-	// image and don't get overlapped with segment contour lines
-	for _, box := range boxLabels {
-		// draw box text gets written on
-		gocv.Rectangle(img, box.rect, box.clr, -1)
-
-		// Draw the label over box
-		gocv.PutTextWithParams(img, box.text, box.textPos,
-			font.Face, font.Scale, font.Color, font.Thickness,
-			font.LineType, false)
-	}
+	drawBoxLabels(img, boxLabels, font)
 }
 
 // TrackerBoxes renders the bounding boxes around the object detected for
@@ -143,17 +134,7 @@ func TrackerBoxes(img *gocv.Mat, trackResults []*tracker.STrack,
 
 	}
 
-	// draw all precalculated box labels so they are the top most layer on the
-	// image and don't get overlapped with segment contour lines
-	for _, box := range boxLabels {
-		// draw box text gets written on
-		gocv.Rectangle(img, box.rect, box.clr, -1)
-
-		// Draw the label over box
-		gocv.PutTextWithParams(img, box.text, box.textPos,
-			font.Face, font.Scale, font.Color, font.Thickness,
-			font.LineType, false)
-	}
+	drawBoxLabels(img, boxLabels, font)
 }
 
 // OrientedBoundingBoxes renders the oriented bounding boxes around the object
@@ -179,57 +160,73 @@ func OrientedBoundingBoxes(img *gocv.Mat, detectResults []postprocess.DetectResu
 			detResult.Box.Angle,
 		)
 
-		// Draw lines between the corners to form the rotated rectangle
-		for n := 0; n < 4; n++ {
-			// Get the indices of the current corner and the next corner
-			index1 := n * 2
-			index2 := ((n + 1) % 4) * 2
-
-			// Draw the line between corners
-			pt1 := image.Point{X: corners[index1], Y: corners[index1+1]}
-			pt2 := image.Point{X: corners[index2], Y: corners[index2+1]}
-			gocv.Line(img, pt1, pt2, useClr, lineThickness)
-		}
-
-		// create text for label
 		text := fmt.Sprintf("%s %.2f", classNames[detResult.Class], detResult.Probability)
-		textSize := gocv.GetTextSize(text, font.Face, font.Scale, font.Thickness)
 
-		// Calculate the alignment of text label
-		minX, centerX, maxX, topY := calculateCornerTextAlignment(corners)
-
-		var useX int
-
-		switch font.Alignment {
-		case Center:
-			useX = centerX
-
-		case Right:
-			useX = maxX - (textSize.X / 2) - font.RightPad + (lineThickness / 2)
-
-		case Left:
-			fallthrough
-		default:
-			useX = minX + (textSize.X / 2) + font.LeftPad - (lineThickness / 2)
-		}
-
-		// Adjust the label position so the text is centered horizontally
-		labelPosition := image.Pt(useX-textSize.X/2, topY-font.BottomPad)
-
-		// create box for placing text on
-		bRect := image.Rect(useX-textSize.X/2-font.LeftPad,
-			topY-textSize.Y-font.TopPad-font.BottomPad,
-			useX+textSize.X/2+font.RightPad, topY)
-
-		// record label rendering details
-		nextLabel := boxLabel{
-			rect:    bRect,
-			clr:     useClr,
-			text:    text,
-			textPos: labelPosition,
-		}
-		boxLabels = append(boxLabels, nextLabel)
+		drawOBBResult(img, corners, useClr, &boxLabels, text,
+			font, lineThickness)
 	}
+
+	drawBoxLabels(img, boxLabels, font)
+}
+
+// drawOBBResult draws a single oriented bounding box on the image
+func drawOBBResult(img *gocv.Mat, corners [8]int, useClr color.RGBA,
+	boxLabels *[]boxLabel, text string, font Font, lineThickness int) {
+
+	// Draw lines between the corners to form the rotated rectangle
+	for n := 0; n < 4; n++ {
+		// Get the indices of the current corner and the next corner
+		index1 := n * 2
+		index2 := ((n + 1) % 4) * 2
+
+		// Draw the line between corners
+		pt1 := image.Point{X: corners[index1], Y: corners[index1+1]}
+		pt2 := image.Point{X: corners[index2], Y: corners[index2+1]}
+		gocv.Line(img, pt1, pt2, useClr, lineThickness)
+	}
+
+	// create text for label
+	textSize := gocv.GetTextSize(text, font.Face, font.Scale, font.Thickness)
+
+	// Calculate the alignment of text label
+	minX, centerX, maxX, topY := calculateCornerTextAlignment(corners)
+
+	var useX int
+
+	switch font.Alignment {
+	case Center:
+		useX = centerX
+
+	case Right:
+		useX = maxX - (textSize.X / 2) - font.RightPad + (lineThickness / 2)
+
+	case Left:
+		fallthrough
+	default:
+		useX = minX + (textSize.X / 2) + font.LeftPad - (lineThickness / 2)
+	}
+
+	// Adjust the label position so the text is centered horizontally
+	labelPosition := image.Pt(useX-textSize.X/2, topY-font.BottomPad)
+
+	// create box for placing text on
+	bRect := image.Rect(useX-textSize.X/2-font.LeftPad,
+		topY-textSize.Y-font.TopPad-font.BottomPad,
+		useX+textSize.X/2+font.RightPad, topY)
+
+	// record label rendering details
+	nextLabel := boxLabel{
+		rect:    bRect,
+		clr:     useClr,
+		text:    text,
+		textPos: labelPosition,
+	}
+
+	*boxLabels = append(*boxLabels, nextLabel)
+}
+
+// drawBoxLabels renders detection box labels on image
+func drawBoxLabels(img *gocv.Mat, boxLabels []boxLabel, font Font) {
 
 	// draw all precalculated box labels so they are the top most layer on the
 	// image and don't get overlapped with segment contour lines
@@ -242,6 +239,55 @@ func OrientedBoundingBoxes(img *gocv.Mat, detectResults []postprocess.DetectResu
 			font.Face, font.Scale, font.Color, font.Thickness,
 			font.LineType, false)
 	}
+}
+
+func TrackerOrientedBoundingBoxes(img *gocv.Mat, trackResults []*tracker.STrack,
+	detectResults []postprocess.DetectResult, classNames []string, font Font,
+	lineThickness int) {
+
+	// keep a record of all box labels for later rendering
+	boxLabels := make([]boxLabel, 0)
+
+	for _, tResult := range trackResults {
+
+		// detResult will be an empty struct if not found.   This is ok as it means
+		// the Box.Angle will be 0, ie: no rotation
+		detResult := getDetectResultByID(tResult.GetDetectionID(), detectResults)
+
+		// Get the color for this object
+		colorIndex := tResult.GetTrackID() % len(classColors)
+		useClr := classColors[colorIndex]
+
+		// Convert rotated bounding box to corner points
+		corners := obbToCorners(
+			int(tResult.GetRect().X()),
+			int(tResult.GetRect().Y()),
+			int(tResult.GetRect().Width()),
+			int(tResult.GetRect().Height()),
+			detResult.Box.Angle,
+		)
+
+		// label text to use
+		text := fmt.Sprintf("%s %d", classNames[tResult.GetLabel()], tResult.GetTrackID())
+
+		drawOBBResult(img, corners, useClr, &boxLabels, text,
+			font, lineThickness)
+	}
+
+	drawBoxLabels(img, boxLabels, font)
+}
+
+// getDetectResultByID returns the detection result from the Detection ID
+func getDetectResultByID(detectID int64,
+	detectResults []postprocess.DetectResult) postprocess.DetectResult {
+
+	for _, detResult := range detectResults {
+		if detectID == detResult.ID {
+			return detResult
+		}
+	}
+
+	return postprocess.DetectResult{}
 }
 
 // obbToCorners converts oritented bounding box to corners

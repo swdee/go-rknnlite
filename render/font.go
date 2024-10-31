@@ -44,3 +44,19 @@ func DefaultFont() Font {
 		Alignment: Left,
 	}
 }
+
+// DefaultFont returns default font settings with specified alignment
+func DefaultFontAlign(align Alignment) Font {
+	return Font{
+		Face:      gocv.FontHersheySimplex,
+		Scale:     0.5,
+		Color:     White,
+		Thickness: 1,
+		LineType:  gocv.LineAA,
+		LeftPad:   4,
+		RightPad:  4,
+		TopPad:    4,
+		BottomPad: 6,
+		Alignment: align,
+	}
+}

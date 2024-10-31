@@ -101,12 +101,8 @@ func main() {
 
 	endDetect := time.Now()
 
-	// use default font but center align label text
-	useFont := render.DefaultFont()
-	useFont.Alignment = render.Center
-
 	render.OrientedBoundingBoxes(&img, detectResults, classNames,
-		useFont, 2)
+		render.DefaultFontAlign(render.Center), 2)
 
 	endRendering := time.Now()
 
@@ -137,8 +133,7 @@ func main() {
 	}
 
 	// optional code.  run benchmark to get average time
-	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg}, classNames, resizer,
-		img, useFont)
+	runBenchmark(rt, yoloProcesser, []gocv.Mat{cropImg}, classNames, resizer, img)
 
 	// close runtime and release resources
 	err = rt.Close()
@@ -152,7 +147,7 @@ func main() {
 
 func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv8obb,
 	mats []gocv.Mat, classNames []string, resizer *preprocess.Resizer,
-	srcImg gocv.Mat, useFont render.Font) {
+	srcImg gocv.Mat) {
 
 	count := 20
 	start := time.Now()
@@ -170,7 +165,7 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv8obb,
 		detectResults := detectObjs.GetDetectResults()
 
 		render.OrientedBoundingBoxes(&srcImg, detectResults, classNames,
-			useFont, 2)
+			render.DefaultFontAlign(render.Center), 2)
 
 		err = outputs.Free()
 
