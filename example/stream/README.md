@@ -252,6 +252,16 @@ go run bytetrack.go -a :8080 -s 3 -v ../data/dance.mp4 -t v8pose -m ../data/yolo
 Tracking trails have been turned off as the trails distract from the skeleton.
 
 
+## Oriented Bounding Boxes
+
+Using the YOLOv8-obb processor and example has been added for object detection
+using oriented bounding boxes.
+
+```
+go run bytetrack.go -a :8080 -s 3 -v ../data/aerial.mp4 -t v8obb -m ../data/yolov8n-obb-640-640-rk3588.rknn -l ../data/yolov8_obb_labels_list.txt
+```
+
+
 ## Code Example Limitations
 
 This streaming example serves as a code example for other developers, it is not production

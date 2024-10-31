@@ -202,8 +202,11 @@ func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
 	case "v8pose":
 		d.process = postprocess.NewYOLOv8Pose(postprocess.YOLOv8PoseCOCOParams())
 
+	case "v8obb":
+		d.process = postprocess.NewYOLOv8obb(postprocess.YOLOv8obbDOTAv1Params())
+
 	default:
-		log.Fatal("Unknown model type, use 'v5', 'v8', 'v10', or 'x'")
+		log.Fatal("Unknown model type, use 'v5', 'v8', 'v10', 'x', 'v5seg', 'v8seg', 'v8pose', or 'v8obb'")
 	}
 
 	d.modelType = modelType
@@ -479,9 +482,11 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 
 	// track detected objects
 	timing.TrackerStart = time.Now()
+
 	trackObjs, err := byteTrack.Update(
 		postprocess.DetectionsToObjects(detectResults),
 	)
+
 	timing.TrackerEnd = time.Now()
 
 	// add tracked objects to history trail
@@ -586,6 +591,11 @@ func (d *Demo) AnnotateImg(img gocv.Mat, detectResults []postprocess.DetectResul
 
 		render.TrackerBoxes(&img, trackResults, d.labels,
 			render.DefaultFont(), 1)
+
+	} else if d.modelType == "v8obb" {
+
+		render.TrackerOrientedBoundingBoxes(&img, trackResults, detectResults,
+			d.labels, render.DefaultFontAlign(render.Center), 1)
 
 	} else {
 		// draw detection boxes
