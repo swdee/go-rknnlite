@@ -121,6 +121,16 @@ var (
 		posePalette[9], posePalette[9], posePalette[16], posePalette[16], posePalette[16],
 		posePalette[16], posePalette[16], posePalette[16], posePalette[16],
 	}
+
+	// faceLandmarkColors correspond to the face landmark feature keypoints
+	// used in RetinaFace models
+	faceLandmarkColors = []color.RGBA{
+		{R: 51, G: 153, B: 255, A: 255}, // left eye
+		{R: 51, G: 153, B: 255, A: 255}, // right eye
+		{R: 255, G: 0, B: 0, A: 255},    // nose
+		{R: 0, G: 255, B: 0, A: 255},    // left mouth corner
+		{R: 0, G: 255, B: 0, A: 255},    // right mouth corner
+	}
 )
 
 // 0 is arms

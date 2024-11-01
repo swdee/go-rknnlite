@@ -62,3 +62,21 @@ func PoseKeyPoints(img *gocv.Mat, keyPoints [][]postprocess.KeyPoint,
 		}
 	}
 }
+
+// FaceKeyPoints renders the provided face landmark keypoints for all
+// faces detected
+func FaceKeyPoints(img *gocv.Mat, keyPoints [][]postprocess.KeyPoint) {
+
+	// for each object
+	for i := 0; i < len(keyPoints); i++ {
+
+		// an individual object's key points
+		keyPoint := keyPoints[i]
+
+		// draw circles for each landmark
+		for j := 0; j < len(keyPoint); j++ {
+			gocv.Circle(img, image.Pt(keyPoint[j].X, keyPoint[j].Y),
+				3, faceLandmarkColors[j], -1)
+		}
+	}
+}

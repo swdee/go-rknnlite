@@ -78,13 +78,14 @@ See the [example](example) directory.
   * [YOLOv8 Demo](example/yolov8)
   * [YOLOv10 Demo](example/yolov10)
   * [YOLOX Demo](example/yolox)
+  * [RetinaFace](example/retinaface) - Detect human faces and identify landmark features (eyes, nose, and mouth).
 * Instance Segmentation
   * [YOLOv5-seg Demo](example/yolov5-seg)
   * [YOLOv8-seg Demo](example/yolov8-seg)
 * Pose Estimation
   * [YOLOv8-pose Demo](example/yolov8-pose) - Identify and display skeleton/pose of people.
 * Oriented Bounding Boxes
-  * [YOLOv8-obb Demo](example/yolov8-obb) - Object detection with Oriented Bounding Boxes 
+  * [YOLOv8-obb Demo](example/yolov8-obb) - Object detection with Oriented Bounding Boxes
 * License Plate Recognition
   * [LPRNet Demo](example/lprnet) 
   * [ALPR Demo](example/alpr) - Automatic License Plate Recognition combining Yolov8 and LPRNet Models.
