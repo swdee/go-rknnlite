@@ -281,10 +281,10 @@ func (y *YOLOv5) processStride(input []int8, stride YOLOStride,
 						}
 					}
 
-					if maxClassProbs > thresI8 {
-						data.objProbs = append(data.objProbs,
-							deqntAffineToF32(maxClassProbs, zp, scale)*deqntAffineToF32(boxConfidence, zp, scale),
-						)
+					limitScore := deqntAffineToF32(maxClassProbs, zp, scale) * deqntAffineToF32(boxConfidence, zp, scale)
+
+					if limitScore >= y.Params.BoxThreshold {
+						data.objProbs = append(data.objProbs, limitScore)
 						data.classID = append(data.classID, maxClassID)
 						data.filterBoxes = append(data.filterBoxes, boxX, boxY, boxW, boxH)
 						validCount++
