@@ -1,7 +1,7 @@
 # HTTP Stream with ByteTrack Object Tracking
 
 A demo that streams video over HTTP with object detection using YOLOv5, YOLOv8, 
-YOLOv10, or YOLOX
+YOLOv10, YOLOv11, or YOLOX
 plus [ByteTrack](https://github.com/ifzhang/ByteTrack) object tracking to 
 assign an ID to each object and track them over time.
 
@@ -95,7 +95,7 @@ This outputs options of:
   -s int
         Size of RKNN runtime pool, choose 1, 2, 3, or multiples of 3 (default 3)
   -t string
-        Version of YOLO model [v5|v8|v10|x|v5seg|v8seg|v8pose] (default "v5")
+        Version of YOLO model [v5|v8|v10|v11|x|v5seg|v8seg|v8pose] (default "v5")
   -v string
         Video file to run object detection and tracking on or device of web camera when used with -c flag (default "../data/palace.mp4")
   -x string
@@ -109,6 +109,9 @@ go run bytetrack.go -a :8080 -s 3 -x person -m ../data/yolov8s-640-640-rk3588.rk
 
 # YOLOv10
 go run bytetrack.go -a :8080 -s 3 -x person -m ../data/yolov10s-640-640-rk3588.rknn -t v10
+
+# YOLOv11
+go run bytetrack.go -a :8080 -s 3 -x person -m ../data/yolov11s-640-640-rk3588.rknn -t v11
 
 # YOLOX
 go run bytetrack.go -a :8080 -s 3 -x person -m ../data/yoloxs-640-640-rk3588.rknn -t x
