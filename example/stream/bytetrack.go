@@ -183,6 +183,8 @@ func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
 		d.process = postprocess.NewYOLOv5(postprocess.YOLOv5COCOParams())
 	case "v10":
 		d.process = postprocess.NewYOLOv10(postprocess.YOLOv10COCOParams())
+	case "v11":
+		d.process = postprocess.NewYOLOv11(postprocess.YOLOv11COCOParams())
 	case "x":
 		d.process = postprocess.NewYOLOX(postprocess.YOLOXCOCOParams())
 
@@ -206,7 +208,7 @@ func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
 		d.process = postprocess.NewYOLOv8obb(postprocess.YOLOv8obbDOTAv1Params())
 
 	default:
-		log.Fatal("Unknown model type, use 'v5', 'v8', 'v10', 'x', 'v5seg', 'v8seg', 'v8pose', or 'v8obb'")
+		log.Fatal("Unknown model type, use 'v5', 'v8', 'v10', 'v11', 'x', 'v5seg', 'v8seg', 'v8pose', or 'v8obb'")
 	}
 
 	d.modelType = modelType
@@ -696,7 +698,7 @@ func main() {
 
 	// read in cli flags
 	modelFile := flag.String("m", "../data/yolov5s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
-	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|v10|x|v5seg|v8seg|v8pose]")
+	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|v10|v11|x|v5seg|v8seg|v8pose]")
 	vidFile := flag.String("v", "../data/palace.mp4", "Video file to run object detection and tracking on or device of web camera when used with -c flag")
 	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
 	httpAddr := flag.String("a", "localhost:8080", "HTTP Address to run server on, format address:port")
