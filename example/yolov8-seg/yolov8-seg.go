@@ -51,7 +51,9 @@ func main() {
 	}
 
 	// create YOLOv8 post processor
-	yoloProcesser := postprocess.NewYOLOv8Seg(postprocess.YOLOv8SegCOCOParams())
+	yParams := postprocess.YOLOv8SegCOCOParams()
+	yParams.ObjectClassNum = 1
+	yoloProcesser := postprocess.NewYOLOv8Seg(yParams)
 
 	// load in Model class names
 	classNames, err := rknnlite.LoadLabels(*labelFile)
@@ -69,7 +71,7 @@ func main() {
 
 	// convert colorspace and resize image
 	rgbImg := gocv.NewMat()
-	gocv.CvtColor(img, &rgbImg, gocv.ColorBGRToRGB)
+	gocv.CvtColor(img, &rgbImg, gocv.ColorBGRToGray)
 
 	resizer := preprocess.NewResizer(img.Cols(), img.Rows(),
 		int(rt.InputAttrs()[0].Dims[1]), int(rt.InputAttrs()[0].Dims[2]))

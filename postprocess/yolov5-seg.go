@@ -97,8 +97,8 @@ func NewYOLOv5Seg(p YOLOv5SegParams) *YOLOv5Seg {
 
 const (
 	protoChannel = 32
-	protoHeight  = 160
-	protoWeight  = 160
+	protoHeight  = 320
+	protoWeight  = 320
 	protoSize    = protoChannel * protoHeight * protoWeight
 )
 
