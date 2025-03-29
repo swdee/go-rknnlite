@@ -13,6 +13,8 @@ type YOLOv5Seg struct {
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
 	idGen *idGenerator
+	// protoSize is the Prototype tensor size of the Segment Mask
+	protoSize int
 }
 
 // YOLOv5SegParams defines the struct containing the YOLOv5Seg parameters to use
@@ -37,6 +39,16 @@ type YOLOv5SegParams struct {
 	// MaxObjectNumber is the maximum number of objects detected that can be
 	// returned
 	MaxObjectNumber int
+	// PrototypeChannel is the Prototype tensor defined in the Model used
+	// for generating the Segment Mask.  This is the number of channels
+	// generated
+	PrototypeChannel int
+	// PrototypeChannel is the Prototype tensor defined in the Model used
+	// for generating the Segment Mask.  This is spatial resolution height
+	PrototypeHeight int
+	// PrototypeChannel is the Prototype tensor defined in the Model used
+	// for generating the Segment Mask.  This is the spatial resolution weight
+	PrototypeWeight int
 }
 
 // SegMask defines the segment mask data that is returned with detection results
@@ -63,6 +75,9 @@ type SegMask struct {
 //   - confidence score
 //
 // - Maximum Object Number: 64
+// - PrototypeChannel: 32
+// - PrototypeHeight: 160
+// - PrototypeWeight: 160
 func YOLOv5SegCOCOParams() YOLOv5SegParams {
 	return YOLOv5SegParams{
 		Strides: []YOLOStride{
@@ -79,31 +94,28 @@ func YOLOv5SegCOCOParams() YOLOv5SegParams {
 				Anchor: []int{116, 90, 156, 198, 373, 326},
 			},
 		},
-		BoxThreshold:    0.25,
-		NMSThreshold:    0.45,
-		ObjectClassNum:  80,
-		ProbBoxSize:     85,
-		MaxObjectNumber: 64,
+		BoxThreshold:     0.25,
+		NMSThreshold:     0.45,
+		ObjectClassNum:   80,
+		ProbBoxSize:      85,
+		MaxObjectNumber:  64,
+		PrototypeChannel: 32,
+		PrototypeHeight:  160,
+		PrototypeWeight:  160,
 	}
 }
 
 // NewYOLOv5Seg returns an instance of the YOLOv5Seg post processor
 func NewYOLOv5Seg(p YOLOv5SegParams) *YOLOv5Seg {
 	return &YOLOv5Seg{
-		Params: p,
-		idGen:  NewIDGenerator(),
+		Params:    p,
+		idGen:     NewIDGenerator(),
+		protoSize: p.PrototypeChannel * p.PrototypeHeight * p.PrototypeWeight,
 	}
 }
 
-const (
-	protoChannel = 32
-	protoHeight  = 160
-	protoWeight  = 160
-	protoSize    = protoChannel * protoHeight * protoWeight
-)
-
 // newStrideDataSeg returns an initialised instance of strideData
-func newStrideDataSeg(outputs *rknnlite.Outputs) *strideData {
+func newStrideDataSeg(outputs *rknnlite.Outputs, protoSize int) *strideData {
 
 	in := outputs.InputAttributes()
 	out := outputs.OutputAttributes()
@@ -158,7 +170,7 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 	resizer *preprocess.Resizer) DetectionResult {
 
 	// strides in protoype code
-	data := newStrideDataSeg(outputs)
+	data := newStrideDataSeg(outputs, y.protoSize)
 
 	validCount := 0
 
@@ -218,9 +230,9 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 		id := data.classID[n]
 		objConf := data.objProbs[i]
 
-		for k := 0; k < protoChannel; k++ {
+		for k := 0; k < y.Params.PrototypeChannel; k++ {
 			data.filterSegmentsByNMS = append(data.filterSegmentsByNMS,
-				data.filterSegments[n*protoChannel+k])
+				data.filterSegments[n*y.Params.PrototypeChannel+k])
 		}
 
 		result := DetectResult{
@@ -297,15 +309,19 @@ func (y *YOLOv5Seg) SegmentMask(detectObjs DetectionResult,
 	// afterwards due to the overhead of the goroutines being cleaned up.
 	var matmulOut []uint8
 	if boxesNum > 6 {
-		matmulOut = matmulUint8Parallel(segData.data, boxesNum)
+		matmulOut = matmulUint8Parallel(segData.data, boxesNum,
+			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight)
 	} else {
-		matmulOut = matmulUint8(segData.data, boxesNum)
+		matmulOut = matmulUint8(segData.data, boxesNum,
+			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight)
 	}
 
 	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
 	segMask := make([]uint8, boxesNum*int(segData.data.height*segData.data.width))
 
-	resizeByOpenCVUint8(matmulOut, protoWeight, protoHeight,
+	resizeByOpenCVUint8(matmulOut, y.Params.PrototypeWeight, y.Params.PrototypeHeight,
 		boxesNum, segMask, int(segData.data.width), int(segData.data.height))
 
 	// crop mask takes all segment makes from inference and combines them into a single mask
@@ -365,15 +381,19 @@ func (y *YOLOv5Seg) TrackMask(detectObjs DetectionResult,
 	// afterwards due to the overhead of the goroutines being cleaned up.
 	var matmulOut []uint8
 	if boxesNum > 6 {
-		matmulOut = matmulUint8Parallel(segData.data, boxesNum)
+		matmulOut = matmulUint8Parallel(segData.data, boxesNum,
+			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight)
 	} else {
-		matmulOut = matmulUint8(segData.data, boxesNum)
+		matmulOut = matmulUint8(segData.data, boxesNum,
+			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight)
 	}
 
 	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
 	segMask := make([]uint8, boxesNum*int(segData.data.height*segData.data.width))
 
-	resizeByOpenCVUint8(matmulOut, protoWeight, protoHeight,
+	resizeByOpenCVUint8(matmulOut, y.Params.PrototypeWeight, y.Params.PrototypeHeight,
 		boxesNum, segMask, int(segData.data.width), int(segData.data.height))
 
 	// crop mask takes all segment makes from inference and combines them into a single mask
@@ -416,7 +436,7 @@ func (y *YOLOv5Seg) processStride(outputs *rknnlite.Outputs, inputID int,
 		zpProto := data.outZPs[inputID]
 		scaleProto := data.outScales[inputID]
 
-		for i := 0; i < protoSize; i++ {
+		for i := 0; i < y.protoSize; i++ {
 			data.proto[i] = deqntAffineToF32(inputProto[i], zpProto, scaleProto)
 		}
 
@@ -441,7 +461,7 @@ func (y *YOLOv5Seg) processStride(outputs *rknnlite.Outputs, inputID int,
 				if boxConfidence >= thresI8 {
 
 					offset := (y.Params.ProbBoxSize*a)*gridLen + i*gridW + j
-					offsetSeg := (protoChannel*a)*gridLen + i*gridW + j
+					offsetSeg := (y.Params.PrototypeChannel*a)*gridLen + i*gridW + j
 					inPtr := offset // Used as a starting index into input
 					inPtrSeg := offsetSeg
 
@@ -473,7 +493,7 @@ func (y *YOLOv5Seg) processStride(outputs *rknnlite.Outputs, inputID int,
 					limitScore := boxConfF32 * classProbF32
 
 					if limitScore > y.Params.BoxThreshold {
-						for k := 0; k < protoChannel; k++ {
+						for k := 0; k < y.Params.PrototypeChannel; k++ {
 							segElementFP := deqntAffineToF32(inputSeg[inPtrSeg+k*gridLen], zpSeg, scaleSeg)
 							data.filterSegments = append(data.filterSegments, segElementFP)
 						}

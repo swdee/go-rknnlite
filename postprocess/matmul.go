@@ -6,7 +6,8 @@ import (
 )
 
 // matmulUint8 performs matrix multiplication using the CPU
-func matmulUint8(data *strideData, boxesNum int) []uint8 {
+func matmulUint8(data *strideData, boxesNum int, protoChannel int,
+	protoHeight int, protoWeight int) []uint8 {
 
 	A := data.filterSegmentsByNMS
 	B := data.proto
@@ -38,7 +39,8 @@ func matmulUint8(data *strideData, boxesNum int) []uint8 {
 
 // matmulUint8Parallel performs matrix multiplication using the CPU with
 // optimization to process in parallel across goroutines
-func matmulUint8Parallel(data *strideData, boxesNum int) []uint8 {
+func matmulUint8Parallel(data *strideData, boxesNum int, protoChannel int,
+	protoHeight int, protoWeight int) []uint8 {
 
 	A := data.filterSegmentsByNMS
 	B := data.proto

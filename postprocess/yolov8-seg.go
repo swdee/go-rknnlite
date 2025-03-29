@@ -13,6 +13,8 @@ type YOLOv8Seg struct {
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
 	idGen *idGenerator
+	// protoSize is the Prototype tensor size of the Segment Mask
+	protoSize int
 }
 
 // YOLOv8SegParams defines the struct containing the YOLOv8Seg parameters to use
@@ -31,6 +33,16 @@ type YOLOv8SegParams struct {
 	// MaxObjectNumber is the maximum number of objects detected that can be
 	// returned
 	MaxObjectNumber int
+	// PrototypeChannel is the Prototype tensor defined in the Model used
+	// for generating the Segment Mask.  This is the number of channels
+	// generated
+	PrototypeChannel int
+	// PrototypeChannel is the Prototype tensor defined in the Model used
+	// for generating the Segment Mask.  This is spatial resolution height
+	PrototypeHeight int
+	// PrototypeChannel is the Prototype tensor defined in the Model used
+	// for generating the Segment Mask.  This is the spatial resolution weight
+	PrototypeWeight int
 }
 
 // YOLOv8SegDefaultParams returns an instance of YOLOv8SegParams configured with
@@ -39,20 +51,27 @@ type YOLOv8SegParams struct {
 // - Box Threshold: 0.25
 // - NMS Threshold: 0.45
 // - Maximum Object Number: 64
+// - PrototypeChannel: 32
+// - PrototypeHeight: 160
+// - PrototypeWeight: 160
 func YOLOv8SegCOCOParams() YOLOv8SegParams {
 	return YOLOv8SegParams{
-		BoxThreshold:    0.25,
-		NMSThreshold:    0.45,
-		ObjectClassNum:  80,
-		MaxObjectNumber: 64,
+		BoxThreshold:     0.25,
+		NMSThreshold:     0.45,
+		ObjectClassNum:   80,
+		MaxObjectNumber:  64,
+		PrototypeChannel: 32,
+		PrototypeHeight:  160,
+		PrototypeWeight:  160,
 	}
 }
 
 // NewYOLOv8 returns an instance of the YOLOv8Seg post processor
 func NewYOLOv8Seg(p YOLOv8SegParams) *YOLOv8Seg {
 	return &YOLOv8Seg{
-		Params: p,
-		idGen:  NewIDGenerator(),
+		Params:    p,
+		idGen:     NewIDGenerator(),
+		protoSize: p.PrototypeChannel * p.PrototypeHeight * p.PrototypeWeight,
 	}
 }
 
@@ -77,7 +96,7 @@ func (r YOLOv8SegResult) GetSegmentData() SegmentData {
 func (y *YOLOv8Seg) DetectObjects(outputs *rknnlite.Outputs,
 	resizer *preprocess.Resizer) DetectionResult {
 
-	data := newStrideDataSeg(outputs)
+	data := newStrideDataSeg(outputs, y.protoSize)
 
 	validCount := 0
 
@@ -141,9 +160,9 @@ func (y *YOLOv8Seg) DetectObjects(outputs *rknnlite.Outputs,
 		id := data.classID[n]
 		objConf := data.objProbs[i]
 
-		for k := 0; k < protoChannel; k++ {
+		for k := 0; k < y.Params.PrototypeChannel; k++ {
 			data.filterSegmentsByNMS = append(data.filterSegmentsByNMS,
-				data.filterSegments[n*protoChannel+k])
+				data.filterSegments[n*y.Params.PrototypeChannel+k])
 		}
 
 		result := DetectResult{
@@ -212,7 +231,7 @@ func (y *YOLOv8Seg) processStride(outputs *rknnlite.Outputs, inputID int,
 		zpProto := data.outZPs[inputID]
 		scaleProto := data.outScales[inputID]
 
-		for i := 0; i < protoSize; i++ {
+		for i := 0; i < y.protoSize; i++ {
 			data.proto[i] = deqntAffineToF32(inputProto[i], zpProto, scaleProto)
 		}
 
@@ -267,7 +286,7 @@ func (y *YOLOv8Seg) processStride(outputs *rknnlite.Outputs, inputID int,
 			// Compute box
 			if maxScore > scoreThresI8 {
 
-				for k := 0; k < protoChannel; k++ {
+				for k := 0; k < y.Params.PrototypeChannel; k++ {
 					segElementFP := deqntAffineToF32(inPtrSeg[k*gridLen], segZP, segScale)
 					data.filterSegments = append(data.filterSegments, segElementFP)
 				}
@@ -323,15 +342,19 @@ func (y *YOLOv8Seg) SegmentMask(detectObjs DetectionResult,
 	var matmulOut []uint8
 
 	if boxesNum > 6 {
-		matmulOut = matmulUint8Parallel(segData.data, boxesNum)
+		matmulOut = matmulUint8Parallel(segData.data, boxesNum,
+			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight)
 	} else {
-		matmulOut = matmulUint8(segData.data, boxesNum)
+		matmulOut = matmulUint8(segData.data, boxesNum,
+			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight)
 	}
 
 	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
 	segMask := make([]uint8, boxesNum*int(segData.data.height*segData.data.width))
 
-	resizeByOpenCVUint8(matmulOut, protoWeight, protoHeight,
+	resizeByOpenCVUint8(matmulOut, y.Params.PrototypeWeight, y.Params.PrototypeHeight,
 		boxesNum, segMask, int(segData.data.width), int(segData.data.height))
 
 	// crop mask takes all segment makes from inference and combines them into a single mask
@@ -391,15 +414,19 @@ func (y *YOLOv8Seg) TrackMask(detectObjs DetectionResult,
 	// afterwards due to the overhead of the goroutines being cleaned up.
 	var matmulOut []uint8
 	if boxesNum > 6 {
-		matmulOut = matmulUint8Parallel(segData.data, boxesNum)
+		matmulOut = matmulUint8Parallel(segData.data, boxesNum,
+			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight)
 	} else {
-		matmulOut = matmulUint8(segData.data, boxesNum)
+		matmulOut = matmulUint8(segData.data, boxesNum,
+			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight)
 	}
 
 	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
 	segMask := make([]uint8, boxesNum*int(segData.data.height*segData.data.width))
 
-	resizeByOpenCVUint8(matmulOut, protoWeight, protoHeight,
+	resizeByOpenCVUint8(matmulOut, y.Params.PrototypeWeight, y.Params.PrototypeHeight,
 		boxesNum, segMask, int(segData.data.width), int(segData.data.height))
 
 	// crop mask takes all segment makes from inference and combines them into a single mask

@@ -99,7 +99,25 @@ go run yolov8-seg.go -r dump
 ![catdog-dump.jpg](catdog-dump.jpg)
 
 
+## Model Segment Mask Size
 
+The Rockchip examples are based on Models with an input tensor size of 640x640 with
+3 channels (RGB).  The output tensor for the segment mask size is 160x160.
+
+If your Model has been trained with a different output segment mask size such as 320x320
+you will need to pass those sizes to the `YOLOv8SegParams.Prototype*` variables, eg:
+
+```
+// start with default COCO Parameters
+yParams := postprocess.YOLOv8SegCOCOParams()
+
+// Set your Models output mask size
+yParams.PrototypeHeight = 320
+yParams.PrototypeWeight = 320
+
+// create YOLO Processor instance	
+yoloProcesser := postprocess.NewYOLOv8Seg(yParams)
+```
 
 
 ## Background
