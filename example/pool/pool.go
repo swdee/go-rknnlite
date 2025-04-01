@@ -56,7 +56,7 @@ func main() {
 	}
 
 	// create new pool
-	pool, err := rknnlite.NewPool(*poolSize, *modelFile)
+	pool, err := rknnlite.NewPool(*poolSize, *modelFile, rknnlite.RK3588)
 
 	if err != nil {
 		log.Fatalf("Error creating RKNN pool: %v\n", err)

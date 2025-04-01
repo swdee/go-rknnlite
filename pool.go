@@ -14,15 +14,18 @@ type Pool struct {
 	close sync.Once
 }
 
-// NewPool creates a new runtime pool
-func NewPool(size int, modelFile string) (*Pool, error) {
+// NewPool creates a new runtime pool that pins the runtimes to the
+// specified NPU cores.  You can use the variables RK3588, RK3582, RK3576,
+// RK3568, RK3566, RK3562 for the CoreMask array, or create your own, eg:
+// []CoreMask{NPUCore0, NPUCore1}
+func NewPool(size int, modelFile string, cores []CoreMask) (*Pool, error) {
 	p := &Pool{
 		runtimes: make(chan *Runtime, size),
 		size:     size,
 	}
 
 	for i := 0; i < size; i++ {
-		rt, err := NewRuntime(modelFile, getRuntimeCore(i))
+		rt, err := NewRuntime(modelFile, getRuntimeCore(i, cores))
 
 		if err != nil {
 			// close any instances that may have been created before receiving
@@ -76,18 +79,8 @@ func (p *Pool) SetWantFloat(val bool) {
 	}
 }
 
-// getRuntimeCore takes an integer and returns the core mask value to use
-func getRuntimeCore(i int) CoreMask {
-
-	switch i % 3 {
-	case 0:
-		return NPUCore0
-	case 1:
-		return NPUCore1
-	case 2:
-		return NPUCore2
-	}
-
-	// impossible to reach here
-	return NPUCoreAuto
+// getRuntimeCore takes an integer and returns the core mask value to use from
+// the coremask list
+func getRuntimeCore(i int, cores []CoreMask) CoreMask {
+	return cores[i%len(cores)]
 }

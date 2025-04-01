@@ -133,7 +133,7 @@ type Demo struct {
 // NewDemo returns and instance of Demo, a streaming HTTP server showing
 // video with object detection
 func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
-	modelType string, renderFormat string) (*Demo, error) {
+	modelType string, renderFormat string, cores []rknnlite.CoreMask) (*Demo, error) {
 
 	var err error
 
@@ -152,7 +152,7 @@ func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
 	}
 
 	// create new pool
-	d.pool, err = rknnlite.NewPool(poolSize, modelFile)
+	d.pool, err = rknnlite.NewPool(poolSize, modelFile, cores)
 
 	if err != nil {
 		log.Fatalf("Error creating RKNN pool: %v\n", err)
@@ -748,7 +748,7 @@ func main() {
 	}
 
 	demo, err := NewDemo(vidSrc, *modelFile, *labelFile, *poolSize,
-		*modelType, *renderFormat)
+		*modelType, *renderFormat, rknnlite.RK3588)
 
 	if err != nil {
 		log.Fatalf("Error creating demo: %v", err)
