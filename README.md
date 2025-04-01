@@ -214,6 +214,9 @@ require minor changes to your code to support the latest version.
 
 Versioning of the library will be added at a later date once the feature set stablises.
 
+See the [CHANGES](Changes.md) file for a list of breaking changes.
+
+
 
 ## Reference Material
 
