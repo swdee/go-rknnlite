@@ -30,6 +30,18 @@ const (
 	NPUSkipSetCore CoreMask = 9999
 )
 
+var (
+	// A list of Rockchip models and the NPU core masks used for each.
+	// These are provided for passing to NewPool() to define which NPU
+	// cores to pin the Model and Runtime too.
+	RK3588 = []CoreMask{NPUCore0, NPUCore1, NPUCore2}
+	RK3582 = []CoreMask{NPUCore0, NPUCore1, NPUCore2}
+	RK3576 = []CoreMask{NPUCore0, NPUCore1}
+	RK3568 = []CoreMask{NPUCore0}
+	RK3566 = []CoreMask{NPUCore0}
+	RK3562 = []CoreMask{NPUCore0}
+)
+
 // ErrorCodes
 type ErrorCodes int
 
