@@ -96,7 +96,6 @@ versions must be compatible.
 Run the following command to build your custom docker image.  It takes
 approximately 25 minutes to build on RK3588 based SBC.
 ```
-cd env/
 docker build --progress=plain -t my-go-rknnlite .
 ```
 
@@ -262,7 +261,6 @@ The following notes are for the go-rknnlite maintainer only, you do not need to 
 
 Building the docker image.
 ```
-cd env/
 docker build --progress=plain -t swdee/go-rknnlite:latest .
 ```
 
