@@ -78,6 +78,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libswscale-dev \
     libgtk-3-0 \
     libtbb12 \
+    ffmpeg \
     libwebpdemux2 \
     && rm -rf /var/lib/apt/lists/*
 
