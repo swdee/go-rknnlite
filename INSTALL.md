@@ -24,7 +24,7 @@ We provide the following installation options.
 * Manual Installation - Step by step instructions you can manually execute on CLI
   * [Debian 12 (Bookworm)](#debian-12-bookworm)
 
-You can install on other Linux OS's, the Manual Installation instructions can assist 
+You can install on other Linux distributions, the Manual Installation instructions can assist 
 you in that process but some variation maybe needed.
 
 
@@ -243,10 +243,69 @@ Check installation.
 opencv_version --verbose
 ```
 
+Update system shared library cache (LD library).
+```
+sudo ldconfig
+```
+
 Clean up and remove files.
 ```
 cd /tmp
 rm -rf opencv/ opencv_contrib/
+```
+
+### Test GoCV
+
+Create a simple program to download and run GoCV.
+
+```
+cd /tmp
+mkdir testgocv
+cd testgocv
+```
+
+Create file `/tmp/testgocv/main.go` with contents;
+
+```
+package main
+
+import (
+	"fmt"
+	"runtime"
+	"gocv.io/x/gocv"
+)
+
+func main() {
+	fmt.Println("Go version:", runtime.Version())
+	fmt.Println("GoCV version:", gocv.Version())
+	fmt.Println("OpenCV version:", gocv.OpenCVVersion())
+}
+```
+
+Make test program a Go module.
+```
+go mod init testgocv
+go mod tidy
+```
+
+Run test program.  Note the first run takes a while as Go compiles the CGO to OpenCV,
+but subsequent runs are cached and run quickly.
+
+```
+go run main.go
+```
+
+Output from test program.
+```
+Go version: go1.23.5
+GoCV version: 0.41.0
+OpenCV version: 4.11.0
+```
+
+Clean up and remove test program
+```
+cd /tmp
+rm -rf testgocv/
 ```
 
 
