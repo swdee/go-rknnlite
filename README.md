@@ -103,6 +103,20 @@ See the [example](example) directory.
   * [HTTP Stream with ByteTrack Tracking](example/stream) - Demo that streams a video over HTTP with YOLO object detection and ByteTrack object tracking.  
 
 
+## Converting Inference Models
+
+To convert your inference model into the required `.rknn` format to run on the NPU, see the
+[vendor instructions](https://github.com/airockchip/rknn_model_zoo/tree/main/examples/yolov8#4-convert-to-rknn) 
+in the Model Zoo.
+
+Each Model has its own `convert.py` script contained in the vendors project.  You may
+need to modify this python script for your own Models depending on how they were trained.   
+
+Run the `convert.py` script on your x86 workstation to perform the conversion.
+
+
+
+
 ## Pooled Runtimes
 
 Running multiple Runtimes in a Pool allows you to take advantage of all three
