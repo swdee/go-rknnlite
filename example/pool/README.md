@@ -67,6 +67,26 @@ When selecting the number of Runtimes to initialize the pool with select 1, 2, 3
 a multiple of 3 to spread them across all three NPU cores.
 
 
+### Docker
+
+To run the Pool example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/pool/pool.go -q -s 3 -r 4
+```
+
+
+
 
 ## Benchmarks
 

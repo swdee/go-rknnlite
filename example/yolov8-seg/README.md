@@ -74,6 +74,27 @@ Usage of /tmp/go-build401282281/b001/exe/yolov8-seg:
 ```
 
 
+
+### Docker
+
+To run the YOLOv8-seg example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/yolov8-seg/yolov8-seg.go
+```
+
+
+
 ## Rendering Methods
 
 The default rendering method is to draw an outline around the edge of the detected

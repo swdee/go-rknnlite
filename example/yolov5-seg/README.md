@@ -67,6 +67,26 @@ Usage of /tmp/go-build401282281/b001/exe/yolov5-seg:
         The rendering format used for instance segmentation [outline|mask|dump] (default "outline")
 ```
 
+### Docker
+
+To run the YOLOv5-seg example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/yolov5-seg/yolov5-seg.go
+```
+
+
+
 
 ## Rendering Methods
 

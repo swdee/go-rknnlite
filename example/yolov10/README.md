@@ -55,6 +55,26 @@ It should have one label per line.
 
 
 
+### Docker
+
+To run the YOLOv10 example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/yolov10/yolov10.go
+```
+
+
+
 
 ## Proprietary Models
 

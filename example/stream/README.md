@@ -70,6 +70,26 @@ https://github.com/user-attachments/assets/ee28fc00-1d07-4af0-bc77-171a3acde5ce
 
 
 
+### Docker
+
+To run the Stream example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm -it \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  -p 8080:8080 \
+  swdee/go-rknnlite:latest \
+  go run ./example/stream/bytetrack.go -a :8080 -s 3 -x person
+```
+
+
 ### Detailed Usage
 
 

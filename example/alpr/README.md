@@ -76,4 +76,22 @@ Usage of /tmp/go-build506851743/b001/exe/alpr:
         The text drawing mode [cn|en] (default "cn")
 ```
 
+### Docker
+
+To run the ALPR example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/alpr/alpr.go
+```
+
 

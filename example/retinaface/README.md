@@ -67,6 +67,25 @@ Usage of /tmp/go-build3929104604/b001/exe/retinaface:
 ```
 
 
+### Docker
+
+To run the RetinaFace example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/retinaface/retinaface.go
+```
+
+
 
 ## Background
 
