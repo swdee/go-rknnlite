@@ -35,8 +35,10 @@ Then refer to the Readme files for each example to run on command line.
 
 ## Dependencies
 
-The [rknn-toolkit2](https://github.com/airockchip/rknn-toolkit2) must be installed on 
-your system with C header files available in the system path, eg: `/usr/include/rknn_api.h`.
+The [rknn-toolkit2](https://github.com/airockchip/rknn-toolkit2) must be installed on
+your system with C header files and libraries available in the system path,
+eg: `/usr/include/rknn_api.h` and `/usr/lib/librknnrt.so`.  If your using an
+official OS image provided by your SBC vendor these files probably already exist.
 
 Refer to the official documentation on how to install this on your system as it
 will vary based on OS and SBC vendor.
@@ -63,8 +65,9 @@ The output should list the driver and indicate the NPU is initialized.
 ### GoCV
 
 The examples make use of [GoCV](https://gocv.io/) for image processing.  Make sure
-you have a working installation of GoCV first, see the instructions in the link
-for installation on your system.
+you have a working installation of GoCV first, see the [How to Install](INSTALL.md)
+instructions that provide details on prebuilt docker images or manual
+installation.
 
 
 
@@ -98,6 +101,20 @@ See the [example](example) directory.
   * [PPOCR System](example/ppocr#ppocr-system) - Combines both Detect and Recognise.
 * Streaming
   * [HTTP Stream with ByteTrack Tracking](example/stream) - Demo that streams a video over HTTP with YOLO object detection and ByteTrack object tracking.  
+
+
+## Converting Inference Models
+
+To convert your inference model into the required `.rknn` format to run on the NPU, see the
+[vendor instructions](https://github.com/airockchip/rknn_model_zoo/tree/main/examples/yolov8#4-convert-to-rknn) 
+in the Model Zoo.
+
+Each Model has its own `convert.py` script contained in the vendors project.  You may
+need to modify this python script for your own Models depending on how they were trained.   
+
+Run the `convert.py` script on your x86 workstation to perform the conversion.
+
+
 
 
 ## Pooled Runtimes

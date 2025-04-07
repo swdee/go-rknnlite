@@ -38,6 +38,25 @@ To use your own RKNN compiled model and images.
 go run mobilenet.go -m <RKNN model file> -i <image file>
 ```
 
+### Docker
+
+To run the MobileNet example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/mobilenet/mobilenet.go
+```
+
+
 ## Background
 
 This MobileNet example is a Go conversion of the [C API example](https://github.com/airockchip/rknn-toolkit2/blob/v1.6.0/rknpu2/examples/rknn_mobilenet_demo/src/main.cc).

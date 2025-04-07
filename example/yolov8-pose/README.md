@@ -64,6 +64,26 @@ Usage of /tmp/go-build1390906730/b001/exe/yolov8-pose:
 
 
 
+### Docker
+
+To run the YOLOv8-pose example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/yolov8-pose/yolov8-pose.go
+```
+
+
+
 ## Background
 
 This YOLOv8-pose example is a Go conversion of the [C API example](https://github.com/airockchip/rknn_model_zoo/blob/main/examples/yolov8_pose/cpp/main.cc).

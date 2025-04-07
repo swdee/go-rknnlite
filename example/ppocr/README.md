@@ -29,7 +29,7 @@ git clone https://github.com/swdee/go-rknnlite-data.git data
 
 ### Usage
 
-Run the PPOCR Recognition example.
+Run the PPOCR Detection example.
 ```
 cd example/ppocr
 go run detect.go common.go
@@ -68,6 +68,26 @@ done
 Bounding boxes have been drawn around detected text areas.
 
 ![detect-out.jpg](detect-out.jpg)
+
+
+### Docker
+
+To run the PPOCR Detection example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/ppocr/detect.go ./example/ppocr/common.go
+```
+
 
 
 ### Background
@@ -110,6 +130,26 @@ Sample images input and text detected.
 | ![region.jpg](region.jpg)         |    浙G·Z6825        | 0.65         |
 | ![cn-text.png](cn-text.png)       |    中华老字号        | 0.71          |
 | ![mozzarella.jpg](mozzarella.jpg) |    MOZZARELLA - 188        | 0.67  |
+
+
+### Docker
+
+To run the PPOCR Recognition example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/ppocr/recognise.go ./example/ppocr/common.go
+```
+
 
 
 ### Other Language Models
@@ -220,7 +260,7 @@ This PPOCR Recognise example is a Go conversion of the [C API example](https://g
 
 ### Usage
 
-Run the PPOCR Recognition example.
+Run the PPOCR System example.
 ```
 cd example/ppocr
 go run system.go common.go
@@ -282,6 +322,25 @@ done
 As can be seen all of the text area's from the image processed at the 
 PPOCR Detect stage have had OCR applied using PPOCR Recognise.  Displayed
 are the Chinese and English characters read from the OCR process.
+
+### Docker
+
+To run the PPOCR System example using the prebuilt docker image, make sure the data files have been downloaded first,
+then run.
+```
+# from project root directory
+
+docker run --rm \
+  --device /dev/dri:/dev/dri \
+  -v "$(pwd):/go/src/app" \
+  -v "$(pwd)/example/data:/go/src/data" \
+  -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
+  -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
+  -w /go/src/app \
+  swdee/go-rknnlite:latest \
+  go run ./example/ppocr/system.go ./example/ppocr/common.go
+```
+
 
 
 ### Background
