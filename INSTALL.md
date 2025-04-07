@@ -38,17 +38,17 @@ You can use this image to run your own application or the go-rknnlite examples. 
 to run the [MobileNet Demo](example/mobilenet) use the following commands.
 
 ```
-cd example/mobilenet
+# from project root directory
 
 docker run --rm \
   --device /dev/dri:/dev/dri \
   -v "$(pwd):/go/src/app" \
-  -v "$(pwd)/../data:/go/src/data" \
+  -v "$(pwd)/example/data:/go/src/data" \
   -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run mobilenet.go
+  go run ./example/mobilenet/mobilenet.go  
 ```
 
 An explanation of each parameter in the docker command is as follows;
@@ -57,12 +57,12 @@ An explanation of each parameter in the docker command is as follows;
 |------------------------------------------------------|-----------------------------------------------------------------| 
 | --device /dev/dri:/dev/dri                           | Pass the NPU device through into the container                  |
 | -v "$(pwd):/go/src/app"                              | Mount the current Go application source code into the container |
-| -v "$(pwd)/../data:/go/src/data"                     | Mount the example/data files into the container                 |
+| -v "$(pwd)/example/data:/go/src/data"                | Mount the example/data files into the container                 |
 | -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" | Include the rknn-toolkit2 header files                          |
 | -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so"     | Include the rknn-toolkit2 shared library                        |
 | -w /go/src/app                                       | Set the working directory in docker container                   |
 | swdee/go-rknnlite:latest                             | Use the prebuilt go-rknnlite docker image                       |
-| go run mobilenet.go                                  | Run the mobilenet.go demo                                       |
+| go run ./example/mobilenet/mobilenet.go              | Run the mobilenet.go demo                                       |
 
 
 To view the OpenCV configuration in this prebuilt docker image run.
