@@ -388,68 +388,57 @@ func TrackerMask(img *gocv.Mat, segMask []uint8,
 	trackResults []*tracker.STrack, detectResults []postprocess.DetectResult,
 	alpha float32) {
 
-	// get dimensions
-	width := img.Cols()
-	height := img.Rows()
 	boxesNum := len(trackResults)
-	segMaskIDs := make([]int, boxesNum)
+	segMaskIDs := make([]int, boxesNum+1)
 
-	// it is too slow to manipulate pixel by pixel using GoCV due to slowness
-	// over CGO.  So we copy the bytes from the source image and manipulate
-	// the bytes directly before copying back to a Mat
-	imgData := img.ToBytes()
+	// get pointer to image Mat so we can directly manipulate its pixels
+	buf, err := img.DataPtrUint8()
 
-	var detectID int64
-	var trackID int
-
-	// iterate over each pixel in the segmentation mask
-	for j := 0; j < height; j++ {
-		for k := 0; k < width; k++ {
-
-			idx := j*width + k
-
-			if segMask[idx] != 0 {
-
-				if int(segMask[idx]) >= len(segMaskIDs) {
-					continue
-				}
-
-				// check if track ID is cached for pixel color
-				if segMaskIDs[segMask[idx]] == 0 {
-					detectID = detectResults[segMask[idx]-1].ID
-					trackID = getTrackIDFromDetectID(detectID, trackResults)
-
-					if trackID == -1 {
-						continue
-					}
-
-					segMaskIDs[segMask[idx]] = trackID
-
-				} else {
-					trackID = segMaskIDs[segMask[idx]]
-				}
-
-				colorIndex := trackID % len(classColors)
-				useClr := classColors[colorIndex]
-
-				// calculate position in the byte slice
-				pixelPos := j*width*3 + k*3
-
-				// get original pixel colors directly from the byte slice
-				b, g, r := imgData[pixelPos+0], imgData[pixelPos+1], imgData[pixelPos+2]
-
-				// calculate blended colors based on alpha transparency
-				imgData[pixelPos+0] = uint8(float32(b)*(1-alpha) + float32(useClr.B)*alpha)
-				imgData[pixelPos+1] = uint8(float32(g)*(1-alpha) + float32(useClr.G)*alpha)
-				imgData[pixelPos+2] = uint8(float32(r)*(1-alpha) + float32(useClr.R)*alpha)
-			}
-		}
+	if err != nil {
+		return
 	}
 
-	// copy back to the original mat
-	tmpImg, _ := gocv.NewMatFromBytes(height, width, gocv.MatTypeCV8UC3, imgData)
-	defer tmpImg.Close()
-	tmpImg.CopyTo(img)
+	invA := 1.0 - alpha
+
+	// increment through all pixels in segment mask
+	for i, cls := range segMask {
+
+		// skip pixels that have no segment mask
+		if cls == 0 || int(cls) > boxesNum {
+			continue
+		}
+		id := int(cls)
+
+		// check if track ID is cached for pixel color
+		trackID := segMaskIDs[id]
+
+		if trackID == 0 {
+			detID := detectResults[id-1].ID
+			tID := getTrackIDFromDetectID(detID, trackResults)
+
+			if tID == -1 {
+				continue
+			}
+
+			trackID = tID
+			segMaskIDs[id] = trackID
+		}
+
+		// pixel position in buffer
+		pixelPos := i * 3
+
+		b := float32(buf[pixelPos+0])
+		g := float32(buf[pixelPos+1])
+		r := float32(buf[pixelPos+2])
+
+		// overlay colour to use
+		col := classColors[trackID%len(classColors)]
+
+		// calculate blended colors based on alpha transparency
+		buf[pixelPos+0] = uint8(b*invA + float32(col.B)*alpha)
+		buf[pixelPos+1] = uint8(g*invA + float32(col.G)*alpha)
+		buf[pixelPos+2] = uint8(r*invA + float32(col.R)*alpha)
+	}
 }
 
 // getTrackIDFromDetectID
