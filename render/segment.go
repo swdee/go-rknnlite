@@ -13,44 +13,39 @@ import (
 // top of the whole image
 func SegmentMask(img *gocv.Mat, segMask []uint8, alpha float32) {
 
-	// get dimensions
-	width := img.Cols()
-	height := img.Rows()
+	// get pointer to image Mat so we can directly manipulate its pixels
+	buf, err := img.DataPtrUint8() // length == total*3 (BGR)
 
-	// it is too slow to manipulate pixel by pixel using GoCV due to slowness
-	// over CGO.  So we copy the bytes from the source image and manipulate
-	// the bytes directly before copying back to a Mat
-	imgData := img.ToBytes()
-
-	// iterate over each pixel in the segmentation mask
-	for j := 0; j < height; j++ {
-		for k := 0; k < width; k++ {
-
-			idx := j*width + k
-
-			if segMask[idx] != 0 {
-
-				classIndex := segMask[idx] % uint8(len(classColors))
-				color := classColors[classIndex]
-
-				// calculate position in the byte slice
-				pixelPos := j*width*3 + k*3
-
-				// get original pixel colors directly from the byte slice
-				b, g, r := imgData[pixelPos+0], imgData[pixelPos+1], imgData[pixelPos+2]
-
-				// calculate blended colors based on alpha transparency
-				imgData[pixelPos+0] = uint8(float32(b)*(1-alpha) + float32(color.B)*alpha)
-				imgData[pixelPos+1] = uint8(float32(g)*(1-alpha) + float32(color.G)*alpha)
-				imgData[pixelPos+2] = uint8(float32(r)*(1-alpha) + float32(color.R)*alpha)
-			}
-		}
+	if err != nil {
+		return
 	}
 
-	// copy back to the original mat
-	tmpImg, _ := gocv.NewMatFromBytes(height, width, gocv.MatTypeCV8UC3, imgData)
-	defer tmpImg.Close()
-	tmpImg.CopyTo(img)
+	invA := 1.0 - alpha
+
+	// increment through all pixels in segment mask
+	for i, cls := range segMask {
+
+		// skip pixels that have no segment mask
+		if cls == 0 {
+			continue
+		}
+
+		// pixel position in buffer
+		pixelPos := i * 3
+
+		// get original pixel colors directly from the byte slice
+		b := float32(buf[pixelPos+0])
+		g := float32(buf[pixelPos+1])
+		r := float32(buf[pixelPos+2])
+
+		// overlay colour to use
+		col := classColors[cls%uint8(len(classColors))]
+
+		// calculate blended colors based on alpha transparency
+		buf[pixelPos+0] = uint8(b*invA + float32(col.B)*alpha)
+		buf[pixelPos+1] = uint8(g*invA + float32(col.G)*alpha)
+		buf[pixelPos+2] = uint8(r*invA + float32(col.R)*alpha)
+	}
 }
 
 // boxLabel defines where the detection object label should be rendered on
