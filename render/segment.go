@@ -138,7 +138,6 @@ func SegmentOutline(img *gocv.Mat, segMask []uint8,
 
 		// crop the mask to just this ROI
 		roi := maskMat.Region(roiRect)
-		defer roi.Close()
 
 		// threshold for the single object ID (idx+1)
 		lowerBound := gocv.NewScalar(float64(idx+1), 0, 0, 0)
@@ -147,7 +146,6 @@ func SegmentOutline(img *gocv.Mat, segMask []uint8,
 
 		// Find contours for this object
 		contours := gocv.FindContours(objMask, gocv.RetrievalExternal, gocv.ChainApproxSimple)
-		defer contours.Close()
 
 		// Get the color for this object
 		useClr := classColors[idx%len(classColors)]
@@ -219,6 +217,9 @@ func SegmentOutline(img *gocv.Mat, segMask []uint8,
 			approx.Close()
 			ptsVec.Close()
 		}
+
+		contours.Close()
+		roi.Close()
 	}
 
 	drawBoxLabels(img, boxLabels, font)
@@ -270,7 +271,7 @@ func TrackerOutlines(img *gocv.Mat, segMask []uint8,
 	width := img.Cols()
 	height := img.Rows()
 
-	// create a Mat from the segMask
+	// create a Mat from the segMask once
 	maskMat, err := gocv.NewMatFromBytes(height, width, gocv.MatTypeCV8U, segMask)
 
 	if err != nil {
@@ -279,99 +280,131 @@ func TrackerOutlines(img *gocv.Mat, segMask []uint8,
 
 	defer maskMat.Close()
 
+	// one Mat for threshold results
+	objMask := gocv.NewMat()
+	defer objMask.Close()
+
 	// keep a record of all box labels for later rendering
 	boxLabels := make([]boxLabel, 0)
 
-	for _, tResult := range trackResults {
+	// loop over each track result
+	for _, tr := range trackResults {
 
-		segMaskID := getSegMaskIDFromDetectionID(tResult.GetDetectionID(), detectResults)
+		segMaskID := getSegMaskIDFromDetectionID(tr.GetDetectionID(), detectResults)
 
-		// Create a binary mask for the current object (isolate the object by objID)
-		objMask := gocv.NewMatWithSize(height, width, gocv.MatTypeCV8U)
-		lowerBound := gocv.Scalar{Val1: float64(segMaskID)}
-		upperBound := gocv.Scalar{Val1: float64(segMaskID)}
-		gocv.InRangeWithScalar(maskMat, lowerBound, upperBound, &objMask)
-		defer objMask.Close()
+		// clamp & build ROI in full‑image coords
+		bb := tr.GetRect()
+
+		roi := image.Rect(
+			max(0, int(bb.TLX())),
+			max(0, int(bb.TLY())),
+			min(width, int(bb.BRX())),
+			min(height, int(bb.BRY())),
+		)
+
+		if roi.Empty() {
+			continue
+		}
+
+		// crop the mask to just this ROI
+		roiMat := maskMat.Region(roi)
+		lowerBound := gocv.NewScalar(float64(segMaskID), 0, 0, 0)
+		upperBound := gocv.NewScalar(float64(segMaskID), 0, 0, 0)
+		gocv.InRangeWithScalar(roiMat, lowerBound, upperBound, &objMask)
 
 		// Find contours for this object
 		contours := gocv.FindContours(objMask, gocv.RetrievalExternal, gocv.ChainApproxSimple)
-		defer contours.Close()
 
 		// Get the color for this object
-		colorIndex := tResult.GetTrackID() % len(classColors)
-		useClr := classColors[colorIndex]
+		useClr := classColors[tr.GetTrackID()%len(classColors)]
 
 		// create text for label
-		text := fmt.Sprintf("%s %d", classNames[tResult.GetLabel()], tResult.GetTrackID())
+		text := fmt.Sprintf("%s %d", classNames[tr.GetLabel()], tr.GetTrackID())
 		textSize := gocv.GetTextSize(text, font.Face, font.Scale, font.Thickness)
 
 		// Calculate the horizontal center of the bounding box
-		boundingBox := tResult.GetRect()
-		centerX := int((boundingBox.TLX() + boundingBox.BRX()) / 2)
+		centerX := int((bb.TLX() + bb.BRX()) / 2)
 
 		usedContours := 0
 
-		// Draw contours
+		// draw each contour
 		for i := 0; i < contours.Size(); i++ {
 			contour := contours.At(i)
 
 			// filter out small contours picked up from aliasing/noise in binary mask
-			area := gocv.ContourArea(contour)
-
-			if area < minArea {
+			if gocv.ContourArea(contour) < minArea {
 				continue
 			}
 
 			// Check if the contour's bounding rectangle is inside the object's bounding box
+			// get the bounding box in ROI coords…
 			contourRect := gocv.BoundingRect(contour)
-			if !isContourInsideTrackerRect(contourRect, boundingBox, 10) {
+			// shift it into full‑image coords
+			contourRect = contourRect.Add(image.Pt(roi.Min.X, roi.Min.Y))
+
+			if !isContourInsideTrackerRect(contourRect, bb, 10) {
 				continue
 			}
 
 			usedContours++
 
-			approx := gocv.ApproxPolyDP(contour, epsilon, true) // contour
+			approx := gocv.ApproxPolyDP(contour, epsilon, true)
+
+			// translate co-ordinates into full sized image space
+			pts := approx.ToPoints()
+			dx, dy := roi.Min.X, roi.Min.Y
+			for j := range pts {
+				pts[j].X += dx
+				pts[j].Y += dy
+			}
 
 			// Create a PointsVector to hold our PointVector
 			ptsVec := gocv.NewPointsVector()
 
 			// Add our approximated PointVector to PointsVector
-			ptsVec.Append(approx)
+			ptsVec.Append(gocv.NewPointVectorFromPoints(pts))
 
 			// Draw polygon lines using PointsVector
 			gocv.Polylines(img, ptsVec, true, useClr, lineThickness)
 
-			approx.Close()
 			ptsVec.Close()
+			approx.Close()
 		}
+
+		contours.Close()
+		roiMat.Close()
 
 		// draw rectangle around detected object if contour not found
 		if usedContours == 0 {
-			boxLeft := int(tResult.GetRect().TLX())
-			boxTop := int(tResult.GetRect().TLY())
-			boxRight := int(tResult.GetRect().BRX())
-			boxBottom := int(tResult.GetRect().BRY())
-			rect := image.Rect(boxLeft, boxTop, boxRight, boxBottom)
+			rect := image.Rect(
+				int(bb.TLX()),
+				int(bb.TLY()),
+				int(bb.BRX()),
+				int(bb.BRY()),
+			)
 			gocv.Rectangle(img, rect, useClr, lineThickness)
 		}
 
 		// Find the topmost point of the contour
-		topY := int(boundingBox.TLY())
+		topY := int(bb.TLY())
 
 		// Adjust the label position so the text is centered horizontally
-		labelPosition := image.Pt(centerX-textSize.X/2, topY-font.BottomPad)
+		labelPos := image.Pt(centerX-textSize.X/2, topY-font.BottomPad)
 
 		// create box for placing text on
-		bRect := image.Rect(centerX-textSize.X/2-font.LeftPad,
+		bRect := image.Rect(
+			centerX-textSize.X/2-font.LeftPad,
 			topY-textSize.Y-font.TopPad-font.BottomPad,
-			centerX+textSize.X/2+font.RightPad, topY)
+			centerX+textSize.X/2+font.RightPad,
+			topY,
+		)
 
 		// record label rendering details
 		nextLabel := boxLabel{
 			rect:    bRect,
 			clr:     useClr,
 			text:    text,
-			textPos: labelPosition,
+			textPos: labelPos,
 		}
 		boxLabels = append(boxLabels, nextLabel)
 	}
