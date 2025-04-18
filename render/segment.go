@@ -103,7 +103,7 @@ func SegmentOutline(img *gocv.Mat, segMask []uint8,
 	height := img.Rows()
 	boxesNum := len(detectResults)
 
-	// create a Mat from the segMask
+	// create a Mat from the segMask once
 	maskMat, err := gocv.NewMatFromBytes(height, width, gocv.MatTypeCV8U, segMask)
 
 	if err != nil {
@@ -112,76 +112,100 @@ func SegmentOutline(img *gocv.Mat, segMask []uint8,
 
 	defer maskMat.Close()
 
+	// one Mat for threshold results
+	objMask := gocv.NewMat()
+	defer objMask.Close()
+
 	// keep a record of all box labels for later rendering
-	boxLabels := make([]boxLabel, 0)
+	boxLabels := make([]boxLabel, 0, boxesNum)
 
 	// iterate over each unique object ID to isolate the mask
-	for objID := 1; objID < boxesNum+1; objID++ {
+	for idx, dr := range detectResults {
 
-		// Create a binary mask for the current object (isolate the object by objID)
-		objMask := gocv.NewMatWithSize(height, width, gocv.MatTypeCV8U)
-		lowerBound := gocv.Scalar{Val1: float64(objID)}
-		upperBound := gocv.Scalar{Val1: float64(objID)}
-		gocv.InRangeWithScalar(maskMat, lowerBound, upperBound, &objMask)
-		defer objMask.Close()
+		// clamp and build ROI from the detection box
+		bb := dr.Box
+
+		roiRect := image.Rect(
+			max(0, bb.Left),
+			max(0, bb.Top),
+			min(width, bb.Right),
+			min(height, bb.Bottom),
+		)
+
+		if roiRect.Empty() {
+			continue
+		}
+
+		// crop the mask to just this ROI
+		roi := maskMat.Region(roiRect)
+		defer roi.Close()
+
+		// threshold for the single object ID (idx+1)
+		lowerBound := gocv.NewScalar(float64(idx+1), 0, 0, 0)
+		upperBound := gocv.NewScalar(float64(idx+1), 0, 0, 0)
+		gocv.InRangeWithScalar(roi, lowerBound, upperBound, &objMask)
 
 		// Find contours for this object
 		contours := gocv.FindContours(objMask, gocv.RetrievalExternal, gocv.ChainApproxSimple)
 		defer contours.Close()
 
 		// Get the color for this object
-		colorIndex := (objID - 1) % len(classColors)
-		useClr := classColors[colorIndex]
+		useClr := classColors[idx%len(classColors)]
 
 		// Get the label from the detectResults
-		label := classNames[detectResults[objID-1].Class]
+		labelText := classNames[dr.Class]
 
 		// Calculate the horizontal center of the bounding box
-		boundingBox := detectResults[objID-1].Box
-		centerX := (boundingBox.Left + boundingBox.Right) / 2
+		centerX := (bb.Left + bb.Right) / 2
 
-		// Draw contours
+		// Draw contours in this ROI
 		for i := 0; i < contours.Size(); i++ {
 			contour := contours.At(i)
 
 			// filter out small contours picked up from aliasing/noise in binary mask
-			area := gocv.ContourArea(contour)
-
-			if area < minArea {
+			if gocv.ContourArea(contour) < minArea {
 				continue
 			}
 
-			// Check if the contour's bounding rectangle is inside the object's bounding box
-			contourRect := gocv.BoundingRect(contour)
-			if !isContourInsideBoxRect(contourRect, boundingBox, 10) {
-				continue
-			}
-
+			// approximate to reduce vertex count
 			approx := gocv.ApproxPolyDP(contour, 3, true)
 
-			// Create a PointsVector to hold our PointVector
+			// translate approx.points from ROI to full sized image coords
+			pts := approx.ToPoints()
+			dx, dy := roiRect.Min.X, roiRect.Min.Y
+			for j := range pts {
+				pts[j].X += dx
+				pts[j].Y += dy
+			}
+
+			// build a PointsVector just for this contour
 			ptsVec := gocv.NewPointsVector()
 
 			// Add our approximated PointVector to PointsVector
-			ptsVec.Append(approx)
+			ptsVec.Append(gocv.NewPointVectorFromPoints(pts))
 
-			// Draw polygon lines using PointsVector
+			// draw it—coords auto‑offset since ROI is a view on maskMat
 			gocv.Polylines(img, ptsVec, true, useClr, lineThickness)
 
-			// Find the topmost point of the contour
-			topPoint := findTopPoint(approx)
+			// find topmost point for label placement
+			top := findTopPoint(approx)
+			top.X += roiRect.Min.X
+			top.Y += roiRect.Min.Y
 
 			// create text for label
-			text := fmt.Sprintf("%s %.2f", label, detectResults[objID-1].Probability)
+			text := fmt.Sprintf("%s %.2f", labelText, dr.Probability)
 			textSize := gocv.GetTextSize(text, font.Face, font.Scale, font.Thickness)
 
 			// Adjust the label position so the text is centered horizontally
-			labelPosition := image.Pt(centerX-textSize.X/2, topPoint.Y-font.BottomPad)
+			labelPosition := image.Pt(centerX-textSize.X/2, top.Y-font.BottomPad)
 
 			// create box for placing text on
-			bRect := image.Rect(centerX-textSize.X/2-font.LeftPad,
-				topPoint.Y-textSize.Y-font.TopPad-font.BottomPad,
-				centerX+textSize.X/2+font.RightPad, topPoint.Y)
+			bRect := image.Rect(
+				centerX-textSize.X/2-font.LeftPad,
+				top.Y-textSize.Y-font.TopPad-font.BottomPad,
+				centerX+textSize.X/2+font.RightPad,
+				top.Y,
+			)
 
 			// record label rendering details
 			nextLabel := boxLabel{
