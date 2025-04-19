@@ -13,44 +13,39 @@ import (
 // top of the whole image
 func SegmentMask(img *gocv.Mat, segMask []uint8, alpha float32) {
 
-	// get dimensions
-	width := img.Cols()
-	height := img.Rows()
+	// get pointer to image Mat so we can directly manipulate its pixels
+	buf, err := img.DataPtrUint8() // length == total*3 (BGR)
 
-	// it is too slow to manipulate pixel by pixel using GoCV due to slowness
-	// over CGO.  So we copy the bytes from the source image and manipulate
-	// the bytes directly before copying back to a Mat
-	imgData := img.ToBytes()
-
-	// iterate over each pixel in the segmentation mask
-	for j := 0; j < height; j++ {
-		for k := 0; k < width; k++ {
-
-			idx := j*width + k
-
-			if segMask[idx] != 0 {
-
-				classIndex := segMask[idx] % uint8(len(classColors))
-				color := classColors[classIndex]
-
-				// calculate position in the byte slice
-				pixelPos := j*width*3 + k*3
-
-				// get original pixel colors directly from the byte slice
-				b, g, r := imgData[pixelPos+0], imgData[pixelPos+1], imgData[pixelPos+2]
-
-				// calculate blended colors based on alpha transparency
-				imgData[pixelPos+0] = uint8(float32(b)*(1-alpha) + float32(color.B)*alpha)
-				imgData[pixelPos+1] = uint8(float32(g)*(1-alpha) + float32(color.G)*alpha)
-				imgData[pixelPos+2] = uint8(float32(r)*(1-alpha) + float32(color.R)*alpha)
-			}
-		}
+	if err != nil {
+		return
 	}
 
-	// copy back to the original mat
-	tmpImg, _ := gocv.NewMatFromBytes(height, width, gocv.MatTypeCV8UC3, imgData)
-	defer tmpImg.Close()
-	tmpImg.CopyTo(img)
+	invA := 1.0 - alpha
+
+	// increment through all pixels in segment mask
+	for i, cls := range segMask {
+
+		// skip pixels that have no segment mask
+		if cls == 0 {
+			continue
+		}
+
+		// pixel position in buffer
+		pixelPos := i * 3
+
+		// get original pixel colors directly from the byte slice
+		b := float32(buf[pixelPos+0])
+		g := float32(buf[pixelPos+1])
+		r := float32(buf[pixelPos+2])
+
+		// overlay colour to use
+		col := classColors[cls%uint8(len(classColors))]
+
+		// calculate blended colors based on alpha transparency
+		buf[pixelPos+0] = uint8(b*invA + float32(col.B)*alpha)
+		buf[pixelPos+1] = uint8(g*invA + float32(col.G)*alpha)
+		buf[pixelPos+2] = uint8(r*invA + float32(col.R)*alpha)
+	}
 }
 
 // boxLabel defines where the detection object label should be rendered on
@@ -108,7 +103,7 @@ func SegmentOutline(img *gocv.Mat, segMask []uint8,
 	height := img.Rows()
 	boxesNum := len(detectResults)
 
-	// create a Mat from the segMask
+	// create a Mat from the segMask once
 	maskMat, err := gocv.NewMatFromBytes(height, width, gocv.MatTypeCV8U, segMask)
 
 	if err != nil {
@@ -117,76 +112,98 @@ func SegmentOutline(img *gocv.Mat, segMask []uint8,
 
 	defer maskMat.Close()
 
+	// one Mat for threshold results
+	objMask := gocv.NewMat()
+	defer objMask.Close()
+
 	// keep a record of all box labels for later rendering
-	boxLabels := make([]boxLabel, 0)
+	boxLabels := make([]boxLabel, 0, boxesNum)
 
 	// iterate over each unique object ID to isolate the mask
-	for objID := 1; objID < boxesNum+1; objID++ {
+	for idx, dr := range detectResults {
 
-		// Create a binary mask for the current object (isolate the object by objID)
-		objMask := gocv.NewMatWithSize(height, width, gocv.MatTypeCV8U)
-		lowerBound := gocv.Scalar{Val1: float64(objID)}
-		upperBound := gocv.Scalar{Val1: float64(objID)}
-		gocv.InRangeWithScalar(maskMat, lowerBound, upperBound, &objMask)
-		defer objMask.Close()
+		// clamp and build ROI from the detection box
+		bb := dr.Box
+
+		roiRect := image.Rect(
+			max(0, bb.Left),
+			max(0, bb.Top),
+			min(width, bb.Right),
+			min(height, bb.Bottom),
+		)
+
+		if roiRect.Empty() {
+			continue
+		}
+
+		// crop the mask to just this ROI
+		roi := maskMat.Region(roiRect)
+
+		// threshold for the single object ID (idx+1)
+		lowerBound := gocv.NewScalar(float64(idx+1), 0, 0, 0)
+		upperBound := gocv.NewScalar(float64(idx+1), 0, 0, 0)
+		gocv.InRangeWithScalar(roi, lowerBound, upperBound, &objMask)
 
 		// Find contours for this object
 		contours := gocv.FindContours(objMask, gocv.RetrievalExternal, gocv.ChainApproxSimple)
-		defer contours.Close()
 
 		// Get the color for this object
-		colorIndex := (objID - 1) % len(classColors)
-		useClr := classColors[colorIndex]
+		useClr := classColors[idx%len(classColors)]
 
 		// Get the label from the detectResults
-		label := classNames[detectResults[objID-1].Class]
+		labelText := classNames[dr.Class]
 
 		// Calculate the horizontal center of the bounding box
-		boundingBox := detectResults[objID-1].Box
-		centerX := (boundingBox.Left + boundingBox.Right) / 2
+		centerX := (bb.Left + bb.Right) / 2
 
-		// Draw contours
+		// Draw contours in this ROI
 		for i := 0; i < contours.Size(); i++ {
 			contour := contours.At(i)
 
 			// filter out small contours picked up from aliasing/noise in binary mask
-			area := gocv.ContourArea(contour)
-
-			if area < minArea {
+			if gocv.ContourArea(contour) < minArea {
 				continue
 			}
 
-			// Check if the contour's bounding rectangle is inside the object's bounding box
-			contourRect := gocv.BoundingRect(contour)
-			if !isContourInsideBoxRect(contourRect, boundingBox, 10) {
-				continue
-			}
-
+			// approximate to reduce vertex count
 			approx := gocv.ApproxPolyDP(contour, 3, true)
 
-			// Create a PointsVector to hold our PointVector
+			// translate approx.points from ROI to full sized image coords
+			pts := approx.ToPoints()
+			dx, dy := roiRect.Min.X, roiRect.Min.Y
+			for j := range pts {
+				pts[j].X += dx
+				pts[j].Y += dy
+			}
+
+			// build a PointsVector just for this contour
 			ptsVec := gocv.NewPointsVector()
 
 			// Add our approximated PointVector to PointsVector
-			ptsVec.Append(approx)
+			ptsVec.Append(gocv.NewPointVectorFromPoints(pts))
 
-			// Draw polygon lines using PointsVector
+			// draw it—coords auto‑offset since ROI is a view on maskMat
 			gocv.Polylines(img, ptsVec, true, useClr, lineThickness)
 
-			// Find the topmost point of the contour
-			topPoint := findTopPoint(approx)
+			// find topmost point for label placement
+			top := findTopPoint(approx)
+			top.X += roiRect.Min.X
+			top.Y += roiRect.Min.Y
 
 			// create text for label
-			text := fmt.Sprintf("%s %.2f", label, detectResults[objID-1].Probability)
+			text := fmt.Sprintf("%s %.2f", labelText, dr.Probability)
 			textSize := gocv.GetTextSize(text, font.Face, font.Scale, font.Thickness)
 
 			// Adjust the label position so the text is centered horizontally
-			labelPosition := image.Pt(centerX-textSize.X/2, topPoint.Y-font.BottomPad)
+			labelPosition := image.Pt(centerX-textSize.X/2, top.Y-font.BottomPad)
 
 			// create box for placing text on
-			bRect := image.Rect(centerX-textSize.X/2-font.LeftPad,
-				topPoint.Y-textSize.Y-font.TopPad-font.BottomPad,
-				centerX+textSize.X/2+font.RightPad, topPoint.Y)
+			bRect := image.Rect(
+				centerX-textSize.X/2-font.LeftPad,
+				top.Y-textSize.Y-font.TopPad-font.BottomPad,
+				centerX+textSize.X/2+font.RightPad,
+				top.Y,
+			)
 
 			// record label rendering details
 			nextLabel := boxLabel{
@@ -200,6 +217,9 @@ func SegmentOutline(img *gocv.Mat, segMask []uint8,
 			approx.Close()
 			ptsVec.Close()
 		}
+
+		contours.Close()
+		roi.Close()
 	}
 
 	drawBoxLabels(img, boxLabels, font)
@@ -251,7 +271,7 @@ func TrackerOutlines(img *gocv.Mat, segMask []uint8,
 	width := img.Cols()
 	height := img.Rows()
 
-	// create a Mat from the segMask
+	// create a Mat from the segMask once
 	maskMat, err := gocv.NewMatFromBytes(height, width, gocv.MatTypeCV8U, segMask)
 
 	if err != nil {
@@ -260,99 +280,131 @@ func TrackerOutlines(img *gocv.Mat, segMask []uint8,
 
 	defer maskMat.Close()
 
+	// one Mat for threshold results
+	objMask := gocv.NewMat()
+	defer objMask.Close()
+
 	// keep a record of all box labels for later rendering
 	boxLabels := make([]boxLabel, 0)
 
-	for _, tResult := range trackResults {
+	// loop over each track result
+	for _, tr := range trackResults {
 
-		segMaskID := getSegMaskIDFromDetectionID(tResult.GetDetectionID(), detectResults)
+		segMaskID := getSegMaskIDFromDetectionID(tr.GetDetectionID(), detectResults)
 
-		// Create a binary mask for the current object (isolate the object by objID)
-		objMask := gocv.NewMatWithSize(height, width, gocv.MatTypeCV8U)
-		lowerBound := gocv.Scalar{Val1: float64(segMaskID)}
-		upperBound := gocv.Scalar{Val1: float64(segMaskID)}
-		gocv.InRangeWithScalar(maskMat, lowerBound, upperBound, &objMask)
-		defer objMask.Close()
+		// clamp & build ROI in full‑image coords
+		bb := tr.GetRect()
+
+		roi := image.Rect(
+			max(0, int(bb.TLX())),
+			max(0, int(bb.TLY())),
+			min(width, int(bb.BRX())),
+			min(height, int(bb.BRY())),
+		)
+
+		if roi.Empty() {
+			continue
+		}
+
+		// crop the mask to just this ROI
+		roiMat := maskMat.Region(roi)
+		lowerBound := gocv.NewScalar(float64(segMaskID), 0, 0, 0)
+		upperBound := gocv.NewScalar(float64(segMaskID), 0, 0, 0)
+		gocv.InRangeWithScalar(roiMat, lowerBound, upperBound, &objMask)
 
 		// Find contours for this object
 		contours := gocv.FindContours(objMask, gocv.RetrievalExternal, gocv.ChainApproxSimple)
-		defer contours.Close()
 
 		// Get the color for this object
-		colorIndex := tResult.GetTrackID() % len(classColors)
-		useClr := classColors[colorIndex]
+		useClr := classColors[tr.GetTrackID()%len(classColors)]
 
 		// create text for label
-		text := fmt.Sprintf("%s %d", classNames[tResult.GetLabel()], tResult.GetTrackID())
+		text := fmt.Sprintf("%s %d", classNames[tr.GetLabel()], tr.GetTrackID())
 		textSize := gocv.GetTextSize(text, font.Face, font.Scale, font.Thickness)
 
 		// Calculate the horizontal center of the bounding box
-		boundingBox := tResult.GetRect()
-		centerX := int((boundingBox.TLX() + boundingBox.BRX()) / 2)
+		centerX := int((bb.TLX() + bb.BRX()) / 2)
 
 		usedContours := 0
 
-		// Draw contours
+		// draw each contour
 		for i := 0; i < contours.Size(); i++ {
 			contour := contours.At(i)
 
 			// filter out small contours picked up from aliasing/noise in binary mask
-			area := gocv.ContourArea(contour)
-
-			if area < minArea {
+			if gocv.ContourArea(contour) < minArea {
 				continue
 			}
 
 			// Check if the contour's bounding rectangle is inside the object's bounding box
+			// get the bounding box in ROI coords…
 			contourRect := gocv.BoundingRect(contour)
-			if !isContourInsideTrackerRect(contourRect, boundingBox, 10) {
+			// shift it into full‑image coords
+			contourRect = contourRect.Add(image.Pt(roi.Min.X, roi.Min.Y))
+
+			if !isContourInsideTrackerRect(contourRect, bb, 10) {
 				continue
 			}
 
 			usedContours++
 
-			approx := gocv.ApproxPolyDP(contour, epsilon, true) // contour
+			approx := gocv.ApproxPolyDP(contour, epsilon, true)
+
+			// translate co-ordinates into full sized image space
+			pts := approx.ToPoints()
+			dx, dy := roi.Min.X, roi.Min.Y
+			for j := range pts {
+				pts[j].X += dx
+				pts[j].Y += dy
+			}
 
 			// Create a PointsVector to hold our PointVector
 			ptsVec := gocv.NewPointsVector()
 
 			// Add our approximated PointVector to PointsVector
-			ptsVec.Append(approx)
+			ptsVec.Append(gocv.NewPointVectorFromPoints(pts))
 
 			// Draw polygon lines using PointsVector
 			gocv.Polylines(img, ptsVec, true, useClr, lineThickness)
 
-			approx.Close()
 			ptsVec.Close()
+			approx.Close()
 		}
+
+		contours.Close()
+		roiMat.Close()
 
 		// draw rectangle around detected object if contour not found
 		if usedContours == 0 {
-			boxLeft := int(tResult.GetRect().TLX())
-			boxTop := int(tResult.GetRect().TLY())
-			boxRight := int(tResult.GetRect().BRX())
-			boxBottom := int(tResult.GetRect().BRY())
-			rect := image.Rect(boxLeft, boxTop, boxRight, boxBottom)
+			rect := image.Rect(
+				int(bb.TLX()),
+				int(bb.TLY()),
+				int(bb.BRX()),
+				int(bb.BRY()),
+			)
 			gocv.Rectangle(img, rect, useClr, lineThickness)
 		}
 
 		// Find the topmost point of the contour
-		topY := int(boundingBox.TLY())
+		topY := int(bb.TLY())
 
 		// Adjust the label position so the text is centered horizontally
-		labelPosition := image.Pt(centerX-textSize.X/2, topY-font.BottomPad)
+		labelPos := image.Pt(centerX-textSize.X/2, topY-font.BottomPad)
 
 		// create box for placing text on
-		bRect := image.Rect(centerX-textSize.X/2-font.LeftPad,
+		bRect := image.Rect(
+			centerX-textSize.X/2-font.LeftPad,
 			topY-textSize.Y-font.TopPad-font.BottomPad,
-			centerX+textSize.X/2+font.RightPad, topY)
+			centerX+textSize.X/2+font.RightPad,
+			topY,
+		)
 
 		// record label rendering details
 		nextLabel := boxLabel{
 			rect:    bRect,
 			clr:     useClr,
 			text:    text,
-			textPos: labelPosition,
+			textPos: labelPos,
 		}
 		boxLabels = append(boxLabels, nextLabel)
 	}
@@ -369,68 +421,57 @@ func TrackerMask(img *gocv.Mat, segMask []uint8,
 	trackResults []*tracker.STrack, detectResults []postprocess.DetectResult,
 	alpha float32) {
 
-	// get dimensions
-	width := img.Cols()
-	height := img.Rows()
 	boxesNum := len(trackResults)
-	segMaskIDs := make([]int, boxesNum)
+	segMaskIDs := make([]int, boxesNum+1)
 
-	// it is too slow to manipulate pixel by pixel using GoCV due to slowness
-	// over CGO.  So we copy the bytes from the source image and manipulate
-	// the bytes directly before copying back to a Mat
-	imgData := img.ToBytes()
+	// get pointer to image Mat so we can directly manipulate its pixels
+	buf, err := img.DataPtrUint8()
 
-	var detectID int64
-	var trackID int
-
-	// iterate over each pixel in the segmentation mask
-	for j := 0; j < height; j++ {
-		for k := 0; k < width; k++ {
-
-			idx := j*width + k
-
-			if segMask[idx] != 0 {
-
-				if int(segMask[idx]) >= len(segMaskIDs) {
-					continue
-				}
-
-				// check if track ID is cached for pixel color
-				if segMaskIDs[segMask[idx]] == 0 {
-					detectID = detectResults[segMask[idx]-1].ID
-					trackID = getTrackIDFromDetectID(detectID, trackResults)
-
-					if trackID == -1 {
-						continue
-					}
-
-					segMaskIDs[segMask[idx]] = trackID
-
-				} else {
-					trackID = segMaskIDs[segMask[idx]]
-				}
-
-				colorIndex := trackID % len(classColors)
-				useClr := classColors[colorIndex]
-
-				// calculate position in the byte slice
-				pixelPos := j*width*3 + k*3
-
-				// get original pixel colors directly from the byte slice
-				b, g, r := imgData[pixelPos+0], imgData[pixelPos+1], imgData[pixelPos+2]
-
-				// calculate blended colors based on alpha transparency
-				imgData[pixelPos+0] = uint8(float32(b)*(1-alpha) + float32(useClr.B)*alpha)
-				imgData[pixelPos+1] = uint8(float32(g)*(1-alpha) + float32(useClr.G)*alpha)
-				imgData[pixelPos+2] = uint8(float32(r)*(1-alpha) + float32(useClr.R)*alpha)
-			}
-		}
+	if err != nil {
+		return
 	}
 
-	// copy back to the original mat
-	tmpImg, _ := gocv.NewMatFromBytes(height, width, gocv.MatTypeCV8UC3, imgData)
-	defer tmpImg.Close()
-	tmpImg.CopyTo(img)
+	invA := 1.0 - alpha
+
+	// increment through all pixels in segment mask
+	for i, cls := range segMask {
+
+		// skip pixels that have no segment mask
+		if cls == 0 || int(cls) > boxesNum {
+			continue
+		}
+		id := int(cls)
+
+		// check if track ID is cached for pixel color
+		trackID := segMaskIDs[id]
+
+		if trackID == 0 {
+			detID := detectResults[id-1].ID
+			tID := getTrackIDFromDetectID(detID, trackResults)
+
+			if tID == -1 {
+				continue
+			}
+
+			trackID = tID
+			segMaskIDs[id] = trackID
+		}
+
+		// pixel position in buffer
+		pixelPos := i * 3
+
+		b := float32(buf[pixelPos+0])
+		g := float32(buf[pixelPos+1])
+		r := float32(buf[pixelPos+2])
+
+		// overlay colour to use
+		col := classColors[trackID%len(classColors)]
+
+		// calculate blended colors based on alpha transparency
+		buf[pixelPos+0] = uint8(b*invA + float32(col.B)*alpha)
+		buf[pixelPos+1] = uint8(g*invA + float32(col.G)*alpha)
+		buf[pixelPos+2] = uint8(r*invA + float32(col.R)*alpha)
+	}
 }
 
 // getTrackIDFromDetectID

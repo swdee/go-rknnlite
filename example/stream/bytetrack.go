@@ -514,6 +514,8 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 		keyPoints = d.process.(*postprocess.YOLOv8Pose).GetPoseEstimation(detectObjs)
 	}
 
+	timing.DetObjEnd = time.Now()
+
 	// annotate the image
 	d.AnnotateImg(resImg, detectResults, trackObjs, segMask, keyPoints,
 		trail, fps, frameNum, timing)
@@ -665,8 +667,6 @@ func (d *Demo) DetectObjects(img gocv.Mat, frameNum int,
 	timing.DetObjInferenceEnd = time.Now()
 
 	detectObjs := d.process.DetectObjects(outputs, d.resizer)
-
-	timing.DetObjEnd = time.Now()
 
 	// free outputs allocated in C memory after you have finished post processing
 	err = outputs.Free()

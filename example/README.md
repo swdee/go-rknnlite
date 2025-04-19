@@ -16,10 +16,10 @@ The `data/palace.jpg` image file was used for benchmarking.
 | YOLOv8s      | 44.8ms             | 47.5ms    | 5.0ms           | 4.2ms     |
 | YOLOv10s     | 49.4ms             | 57.1ms    | 2.9ms           | 4.1ms     |
 | YOLOXs       | 42.4ms             | 48.7ms    | 0.5ms           | 5.5ms     |
-| YOLOv11s     | 48.1ms             | 55.1ms    | 2.3ms         | 4.1ms     |
+| YOLOv11s     | 48.1ms             | 55.1ms    | 2.3ms           | 4.1ms     |
 | YOLOv8n-pose | 47.5ms             | 54.1ms    | 1.0ms           | 3.0ms     |
-| YOLOv5s-seg  | 207.5ms            | 57.0ms    | 107.6ms         | 75.9ms    |
-| YOLOv8s-seg  | 232.5ms            | 67.9ms    | 113.3ms         | 73.4ms    |
+| YOLOv5s-seg  | 106.1ms            | 45.0ms    | 68.4ms          | 4.8ms     |
+| YOLOv8s-seg  | 122.6ms            | 52.7ms    | 69.3ms          | 4.3ms     |
 
 The Inference, Post Processing, and Rendering columns show how processing time
 is split across the Total Time.   These figures are derived from the first

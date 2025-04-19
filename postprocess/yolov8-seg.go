@@ -6,6 +6,14 @@ import (
 	"github.com/swdee/go-rknnlite/tracker"
 )
 
+const (
+	// buffers
+	bufMatMul  = "matMul"
+	bufSegMask = "segMask"
+	bufAllMask = "allMask"
+	bufCrop    = "crop"
+)
+
 // YOLOv8Seg defines the struct for YOLOv8Seg model inference post processing
 type YOLOv8Seg struct {
 	// Params are the Model configuration parameters
@@ -15,6 +23,10 @@ type YOLOv8Seg struct {
 	idGen *idGenerator
 	// protoSize is the Prototype tensor size of the Segment Mask
 	protoSize int
+	// buffer pools to stop allocation contention
+	bufPool *bufferPool
+	// bufPoolInit is a flag to indicate if the buffer pool has been initialized
+	bufPoolInit bool
 }
 
 // YOLOv8SegParams defines the struct containing the YOLOv8Seg parameters to use
@@ -72,6 +84,7 @@ func NewYOLOv8Seg(p YOLOv8SegParams) *YOLOv8Seg {
 		Params:    p,
 		idGen:     NewIDGenerator(),
 		protoSize: p.PrototypeChannel * p.PrototypeHeight * p.PrototypeWeight,
+		bufPool:   NewBufferPool(),
 	}
 }
 
@@ -323,9 +336,12 @@ func (y *YOLOv8Seg) processStride(outputs *rknnlite.Outputs, inputID int,
 func (y *YOLOv8Seg) SegmentMask(detectObjs DetectionResult,
 	resizer *preprocess.Resizer) SegMask {
 
-	// handle segment masks
 	segData := detectObjs.(YOLOv8SegResult).GetSegmentData()
 	boxesNum := segData.boxesNum
+	modelH := int(segData.data.height)
+	modelW := int(segData.data.width)
+
+	y.initBufferPool(segData, resizer)
 
 	// C code does not use USE_FP_RESIZE as uint8 is faster via CPU calculation
 	// than using NPU
@@ -335,74 +351,140 @@ func (y *YOLOv8Seg) SegmentMask(detectObjs DetectionResult,
 	// greater than 6 boxes. the parallel version has a negative consequence
 	// in that it effects the performance of the resizeByOpenCVUint8() call
 	// afterwards due to the overhead of the goroutines being cleaned up.
-	//
-	// also tried a version doing matmul in float32 using the ARM compute library
-	// whilst it is faster on the matmul step the other Resize and Crop steps
-	// are still to slow so no benefit is seen.
-	var matmulOut []uint8
+	matmulOut := y.bufPool.Get(bufMatMul,
+		boxesNum*y.Params.PrototypeHeight*y.Params.PrototypeWeight)
+	defer y.bufPool.Put(bufMatMul, matmulOut)
 
 	if boxesNum > 6 {
-		matmulOut = matmulUint8Parallel(segData.data, boxesNum,
-			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
-			y.Params.PrototypeWeight)
+		matmulUint8Parallel(
+			segData.data, boxesNum,
+			y.Params.PrototypeChannel,
+			y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight,
+			matmulOut,
+		)
 	} else {
-		matmulOut = matmulUint8(segData.data, boxesNum,
-			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
-			y.Params.PrototypeWeight)
+		matmulUint8(
+			segData.data, boxesNum,
+			y.Params.PrototypeChannel,
+			y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight,
+			matmulOut,
+		)
 	}
 
-	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
-	segMask := make([]uint8, boxesNum*int(segData.data.height*segData.data.width))
+	// resize each proto‑mask to full model input dims,
+	// but only in its bounding‑box ROI, merging into allMaskInOne
+	allMask := y.bufPool.Get(bufAllMask, modelH*modelW)
+	defer y.bufPool.Put(bufAllMask, allMask)
 
-	resizeByOpenCVUint8(matmulOut, y.Params.PrototypeWeight, y.Params.PrototypeHeight,
-		boxesNum, segMask, int(segData.data.width), int(segData.data.height))
+	protoH := y.Params.PrototypeHeight
+	protoW := y.Params.PrototypeWeight
 
-	// crop mask takes all segment makes from inference and combines them into a single mask
-	allMaskInOne := make([]uint8, segData.data.height*segData.data.width)
-	cropMaskWithIDUint8(segMask, allMaskInOne, segData.filterBoxesByNMS, boxesNum,
-		int(segData.data.height), int(segData.data.width), []int{})
+	// temp buffer for one‑box resize
+	segMaskBuf := y.bufPool.Get(bufSegMask, modelH*modelW)
+	defer y.bufPool.Put(bufSegMask, segMaskBuf)
 
-	// get real mask
-	croppedHeight := int(segData.data.height) - resizer.YPad()*2
-	croppedWidth := int(segData.data.width) - resizer.XPad()*2
+	for b := 0; b < boxesNum; b++ {
+		// get the b'th proto mask slice
+		start := b * protoH * protoW
+		protoSlice := matmulOut[start : start+protoH*protoW]
 
-	croppedSegMask := make([]uint8, croppedHeight*croppedWidth)
-	realSegMask := make([]uint8, resizer.SrcHeight()*resizer.SrcWidth())
+		// resize that one box’s mask to the full model dims
+		// not just ROI—so segReverse’s cropping lines up
+		resizeByOpenCVUint8(
+			protoSlice, protoW, protoH,
+			1,
+			segMaskBuf, modelW, modelH,
+		)
 
-	segReverse(allMaskInOne, croppedSegMask, realSegMask,
-		int(segData.data.height), int(segData.data.width), croppedHeight, croppedWidth,
-		resizer.SrcHeight(), resizer.SrcWidth(), resizer.YPad(), resizer.XPad(),
+		// merge just ROI pixels into allMask
+		// filterBoxesByNMS is in model coords
+		x1 := segData.filterBoxesByNMS[b*4+0]
+		y1 := segData.filterBoxesByNMS[b*4+1]
+		x2 := segData.filterBoxesByNMS[b*4+2]
+		y2 := segData.filterBoxesByNMS[b*4+3]
+
+		// clamp
+		if x1 < 0 {
+			x1 = 0
+		}
+
+		if y1 < 0 {
+			y1 = 0
+		}
+
+		if x2 > modelW {
+			x2 = modelW
+		}
+
+		if y2 > modelH {
+			y2 = modelH
+		}
+
+		id := uint8(b + 1) // assign unique id to object
+
+		for yy := y1; yy < y2; yy++ {
+			base := yy*modelW + x1
+
+			for xx := x1; xx < x2; xx++ {
+				if segMaskBuf[yy*modelW+xx] != 0 {
+					allMask[base+xx-x1] = id
+				}
+			}
+		}
+	}
+
+	// do segReverse to produce the final real‑image mask
+	croppedH := modelH - resizer.YPad()*2
+	croppedW := modelW - resizer.XPad()*2
+	realH := resizer.SrcHeight()
+	realW := resizer.SrcWidth()
+
+	cropBuf := y.bufPool.Get(bufCrop, croppedH*croppedW)
+	defer y.bufPool.Put(bufCrop, cropBuf)
+
+	// allocate final mask right before return
+	realMask := make([]uint8, realH*realW)
+
+	segReverse(
+		allMask,  // model‑input mask
+		cropBuf,  // temp cropped
+		realMask, // output
+		modelH, modelW,
+		croppedH, croppedW,
+		realH, realW,
+		resizer.YPad(), resizer.XPad(),
 	)
 
-	return SegMask{realSegMask}
+	return SegMask{realMask}
 }
 
 // TrackMask creates segment mask data for tracked objects
 func (y *YOLOv8Seg) TrackMask(detectObjs DetectionResult,
 	trackObjs []*tracker.STrack, resizer *preprocess.Resizer) SegMask {
 
-	// handle segment masks
-	detectResults := detectObjs.(YOLOv8SegResult).GetDetectResults()
+	detRes := detectObjs.(YOLOv8SegResult).GetDetectResults()
 	segData := detectObjs.(YOLOv8SegResult).GetSegmentData()
 	boxesNum := segData.boxesNum
+	modelH := int(segData.data.height)
+	modelW := int(segData.data.width)
 
 	// the detection objects and tracked objects can be different, so we need
 	// to adjust the segment mask to only have tracked object masks and strip
 	// out the non-used ones
-	trackObjIDs := make([]int64, 0)
+	keep := make([]bool, boxesNum)
 
-	for _, trackObj := range trackObjs {
-		trackObjIDs = append(trackObjIDs, trackObj.GetDetectionID())
-	}
-
-	// go through the detection results to find the object ID's we need to strip out
-	stripObjs := make([]int, 0)
-
-	for i, detResult := range detectResults {
-		if !int64InSlice(detResult.ID, trackObjIDs) {
-			stripObjs = append(stripObjs, i)
+	for _, to := range trackObjs {
+		for i, dr := range detRes {
+			if dr.ID == to.GetDetectionID() {
+				keep[i] = true
+				break
+			}
 		}
 	}
+
+	y.initBufferPool(segData, resizer)
 
 	// C code does not use USE_FP_RESIZE as uint8 is faster via CPU calculation
 	// than using NPU
@@ -412,39 +494,140 @@ func (y *YOLOv8Seg) TrackMask(detectObjs DetectionResult,
 	// greater than 6 boxes. the parallel version has a negative consequence
 	// in that it effects the performance of the resizeByOpenCVUint8() call
 	// afterwards due to the overhead of the goroutines being cleaned up.
-	var matmulOut []uint8
+	matmulOut := y.bufPool.Get(bufMatMul,
+		boxesNum*y.Params.PrototypeHeight*y.Params.PrototypeWeight)
+	defer y.bufPool.Put(bufMatMul, matmulOut)
+
 	if boxesNum > 6 {
-		matmulOut = matmulUint8Parallel(segData.data, boxesNum,
-			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
-			y.Params.PrototypeWeight)
+		matmulUint8Parallel(
+			segData.data, boxesNum,
+			y.Params.PrototypeChannel,
+			y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight,
+			matmulOut,
+		)
 	} else {
-		matmulOut = matmulUint8(segData.data, boxesNum,
-			y.Params.PrototypeChannel, y.Params.PrototypeHeight,
-			y.Params.PrototypeWeight)
+		matmulUint8(
+			segData.data, boxesNum,
+			y.Params.PrototypeChannel,
+			y.Params.PrototypeHeight,
+			y.Params.PrototypeWeight,
+			matmulOut,
+		)
 	}
 
-	// resize the tensor mask outputs to (boxes_num, model_in_width, model_in_height)
-	segMask := make([]uint8, boxesNum*int(segData.data.height*segData.data.width))
+	// prepare combined mask at model resolution
+	allMask := y.bufPool.Get(bufAllMask, modelH*modelW)
+	defer y.bufPool.Put(bufAllMask, allMask)
 
-	resizeByOpenCVUint8(matmulOut, y.Params.PrototypeWeight, y.Params.PrototypeHeight,
-		boxesNum, segMask, int(segData.data.width), int(segData.data.height))
+	protoH := y.Params.PrototypeHeight
+	protoW := y.Params.PrototypeWeight
 
-	// crop mask takes all segment makes from inference and combines them into a single mask
-	allMaskInOne := make([]uint8, segData.data.height*segData.data.width)
-	cropMaskWithIDUint8(segMask, allMaskInOne, segData.filterBoxesByNMS, boxesNum,
-		int(segData.data.height), int(segData.data.width), stripObjs)
+	// temp buffer for per‑object resize
+	segMaskBuf := y.bufPool.Get(bufSegMask, modelH*modelW)
+	defer y.bufPool.Put(bufSegMask, segMaskBuf)
 
-	// get real mask
-	croppedHeight := int(segData.data.height) - resizer.YPad()*2
-	croppedWidth := int(segData.data.width) - resizer.XPad()*2
+	for b := 0; b < boxesNum; b++ {
+		// skip objects we are not tracking
+		if !keep[b] {
+			continue
+		}
 
-	croppedSegMask := make([]uint8, croppedHeight*croppedWidth)
-	realSegMask := make([]uint8, resizer.SrcHeight()*resizer.SrcWidth())
+		// resize proto mask[b] to model dims
+		start := b * protoH * protoW
+		protoSlice := matmulOut[start : start+protoH*protoW]
 
-	segReverse(allMaskInOne, croppedSegMask, realSegMask,
-		int(segData.data.height), int(segData.data.width), croppedHeight, croppedWidth,
-		resizer.SrcHeight(), resizer.SrcWidth(), resizer.YPad(), resizer.XPad(),
+		resizeByOpenCVUint8(
+			protoSlice, protoW, protoH,
+			1,
+			segMaskBuf, modelW, modelH,
+		)
+
+		// merge only within ROI
+		x1 := segData.filterBoxesByNMS[b*4+0]
+		y1 := segData.filterBoxesByNMS[b*4+1]
+		x2 := segData.filterBoxesByNMS[b*4+2]
+		y2 := segData.filterBoxesByNMS[b*4+3]
+
+		// clamp
+		if x1 < 0 {
+			x1 = 0
+		}
+
+		if y1 < 0 {
+			y1 = 0
+		}
+
+		if x2 > modelW {
+			x2 = modelW
+		}
+
+		if y2 > modelH {
+			y2 = modelH
+		}
+
+		id := uint8(b + 1) // assign unique id to object
+
+		for yy := y1; yy < y2; yy++ {
+			base := yy*modelW + x1
+
+			for xx := x1; xx < x2; xx++ {
+				if segMaskBuf[yy*modelW+xx] != 0 {
+					allMask[base+xx-x1] = id
+				}
+			}
+		}
+	}
+
+	// reverse to original image size
+	croppedH := modelH - resizer.YPad()*2
+	croppedW := modelW - resizer.XPad()*2
+	realH := resizer.SrcHeight()
+	realW := resizer.SrcWidth()
+
+	cropBuf := y.bufPool.Get(bufCrop, croppedH*croppedW)
+	defer y.bufPool.Put(bufCrop, cropBuf)
+
+	// allocate final mask right before return
+	realMask := make([]uint8, realH*realW)
+
+	segReverse(
+		allMask,
+		cropBuf,
+		realMask,
+		modelH, modelW,
+		croppedH, croppedW,
+		realH, realW,
+		resizer.YPad(), resizer.XPad(),
 	)
 
-	return SegMask{realSegMask}
+	return SegMask{realMask}
+}
+
+// initBufferPool initializes the buffer pool
+func (y *YOLOv8Seg) initBufferPool(segData SegmentData,
+	resizer *preprocess.Resizer) {
+
+	if y.bufPoolInit {
+		return
+	}
+
+	modelH := int(segData.data.height)
+	modelW := int(segData.data.width)
+
+	y.bufPool.Create(bufMatMul,
+		y.Params.MaxObjectNumber*y.Params.PrototypeHeight*y.Params.PrototypeWeight)
+
+	y.bufPool.Create(bufSegMask,
+		y.Params.MaxObjectNumber*int(segData.data.height*segData.data.width))
+
+	y.bufPool.Create(bufAllMask,
+		int(segData.data.height*segData.data.width))
+
+	croppedH := modelH - resizer.YPad()*2
+	croppedW := modelW - resizer.XPad()*2
+
+	y.bufPool.Create(bufCrop, croppedH*croppedW)
+
+	y.bufPoolInit = true
 }

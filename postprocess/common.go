@@ -285,42 +285,6 @@ func intInSlice(i int, arr []int) bool {
 	return false
 }
 
-// cropMaskWithIDUint8 for each objects segmentation mask combine it into a single
-// mask with each object assigned a unique ID to distinguish its mask from
-// other objects masks.
-func cropMaskWithIDUint8(segMask, allMaskInOne []uint8, boxes []int, boxesNum int,
-	height, width int, stripObjs []int) {
-
-	for b := 0; b < boxesNum; b++ {
-		x1 := boxes[b*4+0]
-		y1 := boxes[b*4+1]
-		x2 := boxes[b*4+2]
-		y2 := boxes[b*4+3]
-
-		for i := 0; i < height; i++ {
-			for j := 0; j < width; j++ {
-				if j >= x1 && j < x2 && i >= y1 && i < y2 {
-					if allMaskInOne[i*width+j] == 0 {
-						if segMask[b*height*width+i*width+j] > 0 {
-							// check if we strip this object out
-							if intInSlice(b, stripObjs) {
-
-								// strip out by marking as background
-								allMaskInOne[i*width+j] = 0
-							} else {
-								// Assign a unique object ID
-								allMaskInOne[i*width+j] = uint8(b + 1) // mark as object region
-							}
-						} else {
-							allMaskInOne[i*width+j] = 0 // mark as background
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
 // boxReverse scales detection box back to box for use on original image dimensions
 func boxReverse(pos int, pad int, scale float32) int {
 	return int(float32(pos-pad) / scale)
