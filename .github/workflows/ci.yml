@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  lint:
+    name: Lint & fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.58.2
+      - name: Check gofmt
+        run: |
+          if diff -u <(echo -n) <(gofmt -d .); then
+            echo "All files are gofmted"
+          else
+            echo "Please run gofmt -s -w ."
+            exit 1
+          fi
