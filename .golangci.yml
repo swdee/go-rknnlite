@@ -1,14 +1,20 @@
+
+version: "2"
+
 run:
   timeout: 5m                     # give linters up to 5m to complete
   tests: true                     # also run linters on *_test.go
 
-issues:
-  exclude-rules:
-    - linters:
-        - typecheck
-      path: ^example/ppocr/.*\.go$
-      text: "main redeclared in this block"  # ignore multiple main() declaractions in ppocr directory
+linters:
+  default: none
+  enable:
+    - govet
+    - unused
 
-linters-settings:
-  errcheck:
-    ignore: ''  # workaround to bug #4743, fix to upgrade to v1.62.0+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
