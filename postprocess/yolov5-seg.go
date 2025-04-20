@@ -286,16 +286,6 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 	return res
 }
 
-func int64InSlice(i int64, arr []int64) bool {
-	for _, next := range arr {
-		if i == next {
-			return true
-		}
-	}
-
-	return false
-}
-
 // SegmentMask creates segment mask data for object detection results
 func (y *YOLOv5Seg) SegmentMask(detectObjs DetectionResult,
 	resizer *preprocess.Resizer) SegMask {

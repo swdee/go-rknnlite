@@ -69,18 +69,7 @@ func findTopPoint(approx gocv.PointVector) image.Point {
 	return topPoint
 }
 
-// isContourInsideBoxRect checks if the bounding box of a contour fits
-// inside the bounding box of the detection result plus a pad
-func isContourInsideBoxRect(contourRect image.Rectangle,
-	bbox postprocess.BoxRect, pad int) bool {
-
-	return contourRect.Min.X >= bbox.Left-pad &&
-		contourRect.Min.Y >= bbox.Top-pad &&
-		contourRect.Max.X <= bbox.Right+pad &&
-		contourRect.Max.Y <= bbox.Bottom+pad
-}
-
-// isContourInsideBoxRect checks if the bounding box of a contour fits
+// isContourInsideTrackerRect checks if the bounding box of a contour fits
 // inside the bounding box of the detection result plus a pad
 func isContourInsideTrackerRect(contourRect image.Rectangle,
 	bbox *tracker.Rect, pad int) bool {

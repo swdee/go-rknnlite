@@ -275,16 +275,6 @@ func resizeByOpenCVUint8(inputImage []uint8, inputWidth, inputHeight, boxesNum i
 	}
 }
 
-func intInSlice(i int, arr []int) bool {
-	for _, next := range arr {
-		if i == next {
-			return true
-		}
-	}
-
-	return false
-}
-
 // boxReverse scales detection box back to box for use on original image dimensions
 func boxReverse(pos int, pad int, scale float32) int {
 	return int(float32(pos-pad) / scale)

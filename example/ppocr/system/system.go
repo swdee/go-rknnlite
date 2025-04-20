@@ -350,17 +350,3 @@ func minInt(nums ...int) int {
 
 	return min
 }
-
-// maxInt finds the max value in a slice of integers
-func maxInt(nums ...int) int {
-
-	max := nums[0]
-
-	for _, v := range nums {
-		if v > max {
-			max = v
-		}
-	}
-
-	return max
-}
