@@ -41,7 +41,7 @@ func main() {
 	err := rknnlite.SetCPUAffinity(cpumask)
 
 	if err != nil {
-		log.Printf("Failed to set CPU Affinity: %w", err)
+		log.Printf("Failed to set CPU Affinity: %v\n", err)
 	}
 
 	// check dir exists
@@ -118,7 +118,7 @@ func processFile(rt *rknnlite.Runtime, file string, quiet bool) {
 	img := gocv.IMRead(file, gocv.IMReadColor)
 
 	if img.Empty() {
-		log.Printf("Error reading image from: ", file)
+		log.Printf("Error reading image from: %s\n", file)
 		return
 	}
 
@@ -141,14 +141,14 @@ func processFile(rt *rknnlite.Runtime, file string, quiet bool) {
 	end := time.Since(start)
 
 	if err != nil {
-		log.Printf("Runtime inferencing failed with error: ", err)
+		log.Printf("Runtime inferencing failed with error: %v\n", err)
 	}
 
 	// free outputs allocated in C memory after you have finished post processing
 	err = outputs.Free()
 
 	if err != nil {
-		log.Printf("Error freeing Outputs: ", err)
+		log.Printf("Error freeing Outputs: %v\n", err)
 	}
 
 	if !quiet {

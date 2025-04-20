@@ -24,7 +24,7 @@ func main() {
 	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
 
 	if err != nil {
-		log.Printf("Failed to set CPU Affinity: %w", err)
+		log.Printf("Failed to set CPU Affinity: %v", err)
 	}
 
 	// create rknn runtime instance
