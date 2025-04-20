@@ -19,6 +19,9 @@ jobs:
         -v /usr/include/rknn_api.h:/usr/include/rknn_api.h
         -v /usr/lib/librknnrt.so:/usr/lib/librknnrt.so      
 
+    env:
+      GOFLAGS: "-buildvcs=false"    # disable VCS stamping globally
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
