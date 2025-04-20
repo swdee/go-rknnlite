@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  lint:
+    name: Lint and gofmt
+    runs-on: [ self-hosted, rk3588, npu ]
+
+    container:
+      image: swdee/go-rknnlite:latest
+      # pass in NPU
+      options: >-
+        --device /dev/dri:/dev/dri
+        -v /usr/include/rknn_api.h:/usr/include/rknn_api.h
+        -v /usr/lib/librknnrt.so:/usr/lib/librknnrt.so      
+
+    env:
+      GOFLAGS: "-buildvcs=false"    # disable VCS stamping globally
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Fetch Go modules
+        run: go mod download
+
+      - name: Install nodejs for golangci
+        run: |
+            apt-get update
+            apt-get install -y nodejs
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.1.2
+          args: -v --config .golangci.yml
+
+
+  integration-test:
+    name: Integration on RK3588
+    runs-on: [ self-hosted, rk3588, npu ]
+
+    container:
+      image: swdee/go-rknnlite:latest
+      # pass in NPU
+      options: >-
+        --device /dev/dri:/dev/dri
+        -v /usr/include/rknn_api.h:/usr/include/rknn_api.h
+        -v /usr/lib/librknnrt.so:/usr/lib/librknnrt.so    
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Fetch Go modules
+        run: go mod download
+
+      - name: Download model & image for integration test
+        run: |
+           mkdir -p example/data
+           curl -L \
+             https://raw.githubusercontent.com/swdee/go-rknnlite-data/master/mobilenet_v1-rk3588.rknn \
+             -o example/data/mobilenet_v1-rk3588.rknn
+           curl -L \
+             https://raw.githubusercontent.com/swdee/go-rknnlite-data/master/cat_224x224.jpg \
+             -o example/data/cat_224x224.jpg
+
+      - name: Run integration tests
+        run: |
+          export RKNN_MODEL=example/data/mobilenet_v1-rk3588.rknn
+          export RKNN_IMAGE=example/data/cat_224x224.jpg
+          go test -timeout 5m -tags=integration ./...

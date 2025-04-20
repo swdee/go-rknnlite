@@ -116,8 +116,6 @@ type Demo struct {
 	process YOLOProcessor
 	// labels are the COCO labels the YOLO model was trained on
 	labels []string
-	// inputAttrs are the model tensor input attributes
-	inputAttrs []rknnlite.TensorAttr
 	// limitObjs restricts object detection results to be only those provided
 	limitObjs []string
 	// resizer handles scaling of source image to input tensors
@@ -744,7 +742,7 @@ func main() {
 	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
 
 	if err != nil {
-		log.Printf("Failed to set CPU Affinity: %w", err)
+		log.Printf("Failed to set CPU Affinity: %v\n", err)
 	}
 
 	demo, err := NewDemo(vidSrc, *modelFile, *labelFile, *poolSize,

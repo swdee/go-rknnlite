@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/preprocess"
+	"github.com/swdee/go-rknnlite/render"
 	"gocv.io/x/gocv"
 	"image"
 	"image/color"
@@ -18,15 +20,15 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	modelFile := flag.String("m", "../data/ppocrv4_det-rk3588.rknn", "RKNN compiled model file")
-	imgFile := flag.String("i", "../data/ppocr-det-test.png", "Image file to run inference on")
-	saveFile := flag.String("o", "../data/ppocr-det-out.png", "The output PNG file with object detection markers")
+	modelFile := flag.String("m", "../../data/ppocrv4_det-rk3588.rknn", "RKNN compiled model file")
+	imgFile := flag.String("i", "../../data/ppocr-det-test.png", "Image file to run inference on")
+	saveFile := flag.String("o", "../../data/ppocr-det-out.png", "The output PNG file with object detection markers")
 	flag.Parse()
 
 	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
 
 	if err != nil {
-		log.Printf("Failed to set CPU Affinity: %w", err)
+		log.Printf("Failed to set CPU Affinity: %v\n", err)
 	}
 
 	// create rknn runtime instance
@@ -65,10 +67,16 @@ func main() {
 
 	// resize image to 480x480 and keep aspect ratio, centered with black letterboxing
 	resizedImg := gocv.NewMat()
-	resizeKeepAspectRatio(img, &resizedImg, int(rt.InputAttrs()[0].Dims[2]), int(rt.InputAttrs()[0].Dims[1]))
+
+	resizer := preprocess.NewResizer(img.Cols(), img.Rows(),
+		int(rt.InputAttrs()[0].Dims[2]), int(rt.InputAttrs()[0].Dims[1]),
+	)
+
+	resizer.LetterBoxResize(img, &resizedImg, render.Black)
 
 	defer img.Close()
 	defer resizedImg.Close()
+	defer resizer.Close()
 
 	start := time.Now()
 

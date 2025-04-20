@@ -31,8 +31,8 @@ git clone https://github.com/swdee/go-rknnlite-data.git data
 
 Run the PPOCR Detection example.
 ```
-cd example/ppocr
-go run detect.go common.go
+cd example/ppocr/detect
+go run detect.go
 ```
 
 This will result in the output of:
@@ -80,12 +80,12 @@ then run.
 docker run --rm \
   --device /dev/dri:/dev/dri \
   -v "$(pwd):/go/src/app" \
-  -v "$(pwd)/example/data:/go/src/data" \
+  -v "$(pwd)/example/data:/go/data" \
   -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/ppocr/detect.go ./example/ppocr/common.go
+  go run ./example/ppocr/detect/detect.go
 ```
 
 
@@ -103,8 +103,8 @@ This PPOCR Detect example is a Go conversion of the [C API example](https://gith
 
 Run the PPOCR Recognition example.
 ```
-cd example/ppocr
-go run recognise.go common.go
+cd example/ppocr/recognise
+go run recognise.go
 ```
 
 This will result in the output of:
@@ -142,12 +142,12 @@ then run.
 docker run --rm \
   --device /dev/dri:/dev/dri \
   -v "$(pwd):/go/src/app" \
-  -v "$(pwd)/example/data:/go/src/data" \
+  -v "$(pwd)/example/data:/go/data" \
   -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/ppocr/recognise.go ./example/ppocr/common.go
+  go run ./example/ppocr/recognise/recognise.go
 ```
 
 
@@ -229,7 +229,7 @@ same as those trained on the model (for some unknown reason).  Make the followin
 
 You can now use the compiled RKNN and dictionary keys file to perform OCR on an image.
 ```
-go run recognise.go common.go -k japan_dict.txt -m japanv3-rec_rk3588_unquantized.rknn -i jptext.jpg
+go run recognise.go -k japan_dict.txt -m japanv3-rec_rk3588_unquantized.rknn -i jptext.jpg
 ```
 
 | Input Image                       | Text Recognised | Confidence Score |
@@ -262,8 +262,8 @@ This PPOCR Recognise example is a Go conversion of the [C API example](https://g
 
 Run the PPOCR System example.
 ```
-cd example/ppocr
-go run system.go common.go
+cd example/ppocr/system
+go run system.go
 ```
 
 This will result in the output of:
@@ -333,12 +333,12 @@ then run.
 docker run --rm \
   --device /dev/dri:/dev/dri \
   -v "$(pwd):/go/src/app" \
-  -v "$(pwd)/example/data:/go/src/data" \
+  -v "$(pwd)/example/data:/go/data" \
   -v "/usr/include/rknn_api.h:/usr/include/rknn_api.h" \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/ppocr/system.go ./example/ppocr/common.go
+  go run ./example/ppocr/system/system.go
 ```
 
 
