@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/preprocess"
+	"github.com/swdee/go-rknnlite/render"
 	"gocv.io/x/gocv"
 	"image"
 	"log"
@@ -19,10 +21,10 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	detectModelFile := flag.String("d", "../data/ppocrv4_det-rk3588.rknn", "RKNN compiled model file for OCR Detection")
-	recogniseModelFile := flag.String("r", "../data/ppocrv4_rec-rk3588.rknn", "RKNN compiled model file for OCR Recognition")
-	keysFile := flag.String("k", "../data/ppocr_keys_v1.txt", "Text file containing OCR character keys")
-	imgFile := flag.String("i", "../data/ppocr-det-test.png", "Image file to run inference on")
+	detectModelFile := flag.String("d", "../../data/ppocrv4_det-rk3588.rknn", "RKNN compiled model file for OCR Detection")
+	recogniseModelFile := flag.String("r", "../../data/ppocrv4_rec-rk3588.rknn", "RKNN compiled model file for OCR Recognition")
+	keysFile := flag.String("k", "../../data/ppocr_keys_v1.txt", "Text file containing OCR character keys")
+	imgFile := flag.String("i", "../../data/ppocr-det-test.png", "Image file to run inference on")
 	flag.Parse()
 
 	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
@@ -102,10 +104,16 @@ func main() {
 
 	// resize image to 480x480 and keep aspect ratio, centered with black letterboxing
 	resizedImg := gocv.NewMat()
-	resizeKeepAspectRatio(img, &resizedImg, int(detectRt.InputAttrs()[0].Dims[2]), int(detectRt.InputAttrs()[0].Dims[1]))
+
+	resizer := preprocess.NewResizer(img.Cols(), img.Rows(),
+		int(detectRt.InputAttrs()[0].Dims[2]), int(detectRt.InputAttrs()[0].Dims[1]),
+	)
+
+	resizer.LetterBoxResize(img, &resizedImg, render.Black)
 
 	defer img.Close()
 	defer resizedImg.Close()
+	defer resizer.Close()
 
 	start := time.Now()
 
@@ -188,7 +196,12 @@ func recogniseTextBlock(recogniseRt *rknnlite.Runtime,
 
 	// resize image to 320x48 and keep aspect ratio, centered with black letterboxing
 	resizedImg := gocv.NewMat()
-	resizeKeepAspectRatio(img, &resizedImg, inWidth, inHeight)
+
+	resizer := preprocess.NewResizer(img.Cols(), img.Rows(),
+		inWidth, inHeight,
+	)
+
+	resizer.LetterBoxResize(img, &resizedImg, render.Black)
 
 	// convert image to float32 in 3 channels
 	resizedImg.ConvertTo(&resizedImg, gocv.MatTypeCV32FC3)
@@ -198,6 +211,7 @@ func recogniseTextBlock(recogniseRt *rknnlite.Runtime,
 	resizedImg.DivideFloat(127.5)
 
 	defer resizedImg.Close()
+	defer resizer.Close()
 
 	// perform inference on image file
 	outputs, err := recogniseRt.Inference([]gocv.Mat{resizedImg})

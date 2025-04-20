@@ -7,6 +7,8 @@ import (
 	"flag"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/preprocess"
+	"github.com/swdee/go-rknnlite/render"
 	"gocv.io/x/gocv"
 	"log"
 	"os"
@@ -18,9 +20,9 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	modelFile := flag.String("m", "../data/ppocrv4_rec-rk3588.rknn", "RKNN compiled model file")
-	imgFile := flag.String("i", "../data/ppocr-rec-test.png", "Image file to run inference on")
-	keysFile := flag.String("k", "../data/ppocr_keys_v1.txt", "Text file containing OCR character keys")
+	modelFile := flag.String("m", "../../data/ppocrv4_rec-rk3588.rknn", "RKNN compiled model file")
+	imgFile := flag.String("i", "../../data/ppocr-rec-test.png", "Image file to run inference on")
+	keysFile := flag.String("k", "../../data/ppocr_keys_v1.txt", "Text file containing OCR character keys")
 	flag.Parse()
 
 	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
@@ -77,7 +79,12 @@ func main() {
 
 	// resize image to 320x48 and keep aspect ratio, centered with black letterboxing
 	resizedImg := gocv.NewMat()
-	resizeKeepAspectRatio(img, &resizedImg, int(rt.InputAttrs()[0].Dims[2]), int(rt.InputAttrs()[0].Dims[1]))
+
+	resizer := preprocess.NewResizer(img.Cols(), img.Rows(),
+		int(rt.InputAttrs()[0].Dims[2]), int(rt.InputAttrs()[0].Dims[1]),
+	)
+
+	resizer.LetterBoxResize(img, &resizedImg, render.Black)
 
 	// convert image to float32 in 3 channels
 	resizedImg.ConvertTo(&resizedImg, gocv.MatTypeCV32FC3)
@@ -88,6 +95,7 @@ func main() {
 
 	defer img.Close()
 	defer resizedImg.Close()
+	defer resizer.Close()
 
 	start := time.Now()
 
