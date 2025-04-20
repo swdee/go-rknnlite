@@ -213,19 +213,25 @@ func (r *Runtime) GetOutputs(nOutputs uint32, wantFloat bool) (*Outputs, error) 
 
 		if outputs.Output[i].WantFloat == 1 {
 			// convert buffer to []float32
-			outputs.Output[i].BufFloat = (*[1 << 30]float32)(outputs.cOutputs[i].buf)[:outputs.cOutputs[i].size/4]
+			ptr := unsafe.Pointer(outputs.cOutputs[i].buf)
+			length := int(outputs.cOutputs[i].size / 4)
+			outputs.Output[i].BufFloat = unsafe.Slice((*float32)(ptr), length)
 
 		} else if outputs.Output[i].WantFloat == 0 {
 			// yolov8-pose has output tensors of int8 and fp16, so we need to
 			// handle the fp16 specially
 			if r.outputAttrs[i].Type == TensorFloat16 {
 				// convert float16 buffer to []float32
-				float16Buf := (*[1 << 30]uint16)(outputs.cOutputs[i].buf)[:outputs.cOutputs[i].size/2]
+				ptr := unsafe.Pointer(outputs.cOutputs[i].buf)
+				count := int(outputs.cOutputs[i].size / 2)
+				float16Buf := unsafe.Slice((*uint16)(ptr), count)
 				outputs.Output[i].BufFloat = convertFloat16BufferToFloat32(float16Buf)
 
 			} else {
 				// convert buffer to []int8
-				outputs.Output[i].BufInt = (*[1 << 30]int8)(outputs.cOutputs[i].buf)[:outputs.cOutputs[i].size]
+				ptr := unsafe.Pointer(outputs.cOutputs[i].buf)
+				length := int(outputs.cOutputs[i].size)
+				outputs.Output[i].BufInt = unsafe.Slice((*int8)(ptr), length)
 			}
 		}
 	}
