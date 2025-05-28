@@ -760,7 +760,7 @@ func main() {
 		useCores = rknnlite.RK3576
 
 	case "rk3562", "rk3566", "rk3568":
-		useCores = rknnlite.RK3562
+		useCores = []rknnlite.CoreMask{rknnlite.NPUSkipSetCore}
 
 	default: // "rk3588", "rk3582"
 		useCores = rknnlite.RK3588
