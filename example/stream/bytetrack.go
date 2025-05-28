@@ -704,6 +704,7 @@ func main() {
 	limitLabels := flag.String("x", "", "Comma delimited list of labels (COCO) to restrict object tracking to")
 	renderFormat := flag.String("r", "outline", "The rendering format used for instance segmentation [outline|mask]")
 	codecFormat := flag.String("codec", "mjpg", "Web Camera codec The rendering format [mjpg|yuyv]")
+	rkPlatform := flag.String("p", "rk3588", "Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3588]")
 
 	// Initialize the custom camera resolution flag with a default value
 	cameraRes := &cameraResFlag{value: "1280x720@30"}
@@ -739,14 +740,34 @@ func main() {
 		}
 	}
 
-	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
+	// set CPU affinity on the platforms that have fast and slow cores to run on
+	// fast cores only
+	// TODO: need to add rk3576 here when we can see its core CPU layout
+	platform := strings.ToLower(strings.TrimSpace(*rkPlatform))
 
-	if err != nil {
-		log.Printf("Failed to set CPU Affinity: %v\n", err)
+	if platform == "rk3588" || platform == "rk3582" {
+		err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
+
+		if err != nil {
+			log.Printf("Failed to set CPU Affinity: %v\n", err)
+		}
+	}
+
+	var useCores []rknnlite.CoreMask
+
+	switch platform {
+	case "rk3576":
+		useCores = rknnlite.RK3576
+
+	case "rk3562", "rk3566", "rk3568":
+		useCores = rknnlite.RK3562
+
+	default: // "rk3588", "rk3582"
+		useCores = rknnlite.RK3588
 	}
 
 	demo, err := NewDemo(vidSrc, *modelFile, *labelFile, *poolSize,
-		*modelType, *renderFormat, rknnlite.RK3588)
+		*modelType, *renderFormat, useCores)
 
 	if err != nil {
 		log.Fatalf("Error creating demo: %v", err)
