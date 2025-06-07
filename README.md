@@ -27,7 +27,7 @@ Or to try the examples clone the git code and data repositories.
 ```
 git clone https://github.com/swdee/go-rknnlite.git
 cd go-rknnlite/example
-git clone https://github.com/swdee/go-rknnlite-data.git data
+git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
 Then refer to the Readme files for each example to run on command line.

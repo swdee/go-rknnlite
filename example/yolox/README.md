@@ -8,7 +8,7 @@ You only need to do this once for all examples.
 
 ```
 cd example/
-git clone https://github.com/swdee/go-rknnlite-data.git data
+git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
 Run the YOLOX example.
