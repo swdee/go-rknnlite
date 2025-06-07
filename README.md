@@ -9,11 +9,8 @@ C API interface.  It aims to provide lite bindings in the spirit of the closed s
 Python lite bindings used for running AI Inference models on the Rockchip NPU 
 via the RKNN software stack.
 
-These bindings are tested on the [RK3588](https://www.rock-chips.com/a/en/products/RK35_Series/2022/0926/1660.html)
-(specifically the Radxa Rock Pi 5B) and work with other RK3588 based SBC's.
-
-Other users have reported running the bindings and examples on other models in 
-the RK35xx series supported by the RKNN Toolkit2.
+These bindings are made to work with Rockchips [RK35xx series](https://www.rock-chips.com/a/en/products/RK35_Series/) of processors, 
+specifcally the RK3562, RK3566, RK3568, RK3576, RK3582, and RK3588.
 
 
 ## Usage
@@ -43,9 +40,9 @@ official OS image provided by your SBC vendor these files probably already exist
 Refer to the official documentation on how to install this on your system as it
 will vary based on OS and SBC vendor.
 
-### Rock Pi 5B
+### Verify rknpu Driver
 
-My usage was on the Radxa Rock Pi 5B running the official Debian 11 OS image which
+My usage was on the Radxa Rock Pi 5B running the official Debian 12 OS image which
 has the rknpu2 driver already installed.
 
 To my knowledge [Armbian](https://www.armbian.com/) and 
@@ -59,7 +56,7 @@ dmesg | grep -i rknpu
 
 The output should list the driver and indicate the NPU is initialized.
 ```
-[    5.130935] [drm] Initialized rknpu 0.8.2 20220829 for fdab0000.npu on minor 1
+[    5.726221] [drm] Initialized rknpu 0.9.6 20240322 for fdab0000.npu on minor 1
 ```
 
 ### GoCV
@@ -114,7 +111,9 @@ need to modify this python script for your own Models depending on how they were
 
 Run the `convert.py` script on your x86 workstation to perform the conversion.
 
-
+We also provide a [docker image](toolkit/) with the [rknn-toolkit2](https://github.com/airockchip/rknn-toolkit2/) 
+and the [Model Zoo](https://github.com/airockchip/rknn_model_zoo) installed
+which can be used for compiling your custom models to RKNN format.
 
 
 ## Pooled Runtimes
@@ -127,14 +126,38 @@ the average inference speed down to 1.65ms per image.
 See the [Pool example](example/pool).
 
 
-## Other Rockchip Models
+## Runtime
 
-For other Rockchip models such as the RK3566 which features a single NPU core, initialise
+To initialize a new instance of the rknnlite runtime call.
+
+```
+rt, err := rknnlite.NewRuntime("path/to/model.file", rknnlite.NPUCoreAuto)
+```
+
+You can pin which NPU cores the model runs on by adjusting the second parameter
+above to any of the CoreMask values defined.
+
+For convenience you can also initialize the runtime by passing a string value of
+the platform your running on.
+
+```
+rt, err := rknnlite.NewRuntimeByPlatform("rk3576", "path/to/model.file")
+```
+
+
+### RK356x Platforms
+
+
+Rockchip models such as the RK356x series feature a single NPU core and
+don't support pinning the model to specific NPU cores, so initialise
 the Runtime with the `rknnlite.NPUSkipSetCore` flag as follows.
 
 ```
 rt, err := rknnlite.NewRuntime(*modelFile, rknnlite.NPUSkipSetCore)
 ```
+
+If you use `rknnlite.NewRuntimeByPlatform()` instead this will be automatically 
+set for you.
 
 
 ## CPU Affinity
@@ -156,9 +179,16 @@ if err != nil {
 }
 ```
 
-Constants have been set for RK3588 and RK3582 processors, for other CPU's you
-can define the core mask.
+Constants have been set for each platform as 
+`rknnlite.<platform>FastCores`, `rknnlite.<platform>SlowCores`,
+and `rknnlite.<platform>AllCores`.  You can specify you own custom configuration
+by defining the core mask.
 
+You can also specify the CPU Affinity by passing a string value for the platform
+your running on.
+```
+err := rknnlite.SetCPUAffinityByPlatform("rk3576", rknnlite.FastCores)
+```
 
 
 ### Core Mask

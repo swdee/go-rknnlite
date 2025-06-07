@@ -14,12 +14,13 @@ Along with the [compile-models.sh](compile-models.sh) script the original ONNX m
 in the [examples](../example/) can be easily
 compiled to RKNN format for your target platform: rk3562, rk3566, rk3568, rk3576, or rk3588. 
 
+Note that rk3566 and rk3568 share the same RKNN compiled model, as does rk3582 and rk3588 are the same.
 
 
 ## Compile Example Models
 
 Models compiled to RKNN format used in the [examples](../example/) are already 
-available at [example/data/models/](../example/data/models/), however these are generated 
+available at [example/data/models/](https://github.com/swdee/go-rknnlite-data/tree/master/models), however these are generated 
 as follows on a x86 workstation.
 
 ```
