@@ -9,8 +9,8 @@ C API interface.  It aims to provide lite bindings in the spirit of the closed s
 Python lite bindings used for running AI Inference models on the Rockchip NPU 
 via the RKNN software stack.
 
-These bindings are made to work with Rockchips [RK35xx series](https://www.rock-chips.com/a/en/products/RK35_Series/) of processors, 
-specifcally the RK3562, RK3566, RK3568, RK3576, RK3582, and RK3588.
+These bindings are made to work with Rockchips [RK35xx series](https://www.rock-chips.com/a/en/products/RK35_Series/) of processors,
+specifically the RK3562, RK3566, RK3568, RK3576, RK3582, and RK3588.
 
 
 ## Usage
