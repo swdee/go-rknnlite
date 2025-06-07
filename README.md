@@ -173,6 +173,64 @@ mask := rknnlite.CPUCoreMask([]int{4,5,6,7})
 ```
 
 
+## NPU Clock Speed
+
+Depending on the OS being used the NPU clock speed and governor may not be ideal
+for achieving best performance from the NPU.
+
+First locate the sys path of your NPU by running;
+```
+for d in /sys/class/devfreq/*; do \
+  grep -qi 'rknpu' "$d/device/of_node/compatible" && echo "$d"; \
+done
+```
+
+On the Rock 5B this outputs `/sys/class/devfreq/fdab0000.npu` and Rock 4D outputs
+`/sys/class/devfreq/27700000.npu`.
+
+
+Next check that the `performance` governor is available;
+```
+cat /sys/class/devfreq/27700000.npu/available_governors
+```
+
+Set governor to `performance` to set maximum NPU clock frequency.
+```
+echo performance > /sys/class/devfreq/27700000.npu/governor
+```
+
+
+### Permanent Clock Speed
+
+Setting the governor to `performance` in the above command is not permanent 
+and setting will be lost on next reboot.   To make it permanent setup a udev rule.
+
+Create file `/etc/udev/rules.d/80-npu-governor.rules` with contents;
+```
+# When the RK3576 NPU devfreq device shows up, set its governor to "performance"
+SUBSYSTEM=="devfreq", KERNEL=="27700000.npu", ATTR{governor}="performance"
+```
+
+Then reload udev and load the rule
+```
+sudo udevadm control --reload
+sudo udevadm trigger --action=add /sys/class/devfreq/27700000.npu
+```
+
+Verify governor has changed and frequency is set to the maximum.
+```
+$ sudo cat /sys/class/devfreq/27700000.npu/governor
+performance
+
+$ sudo cat /sys/class/devfreq/27700000.npu/cur_freq 
+950000000
+```
+
+Note: In all of the above commands adjust the sys path to your NPU by 
+replacing `27700000.npu` where appropriate.
+
+
+
 ## PreProcessing
 
 Convenience functions exist for handling preprocessing of images to run inference on. 
