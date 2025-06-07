@@ -64,7 +64,7 @@ jobs:
         run: |
            mkdir -p example/data
            curl -L \
-             https://raw.githubusercontent.com/swdee/go-rknnlite-data/master/mobilenet_v1-rk3588.rknn \
+             https://raw.githubusercontent.com/swdee/go-rknnlite-data/master/models/rk3588/mobilenet_v1-rk3588.rknn \
              -o example/data/mobilenet_v1-rk3588.rknn
            curl -L \
              https://raw.githubusercontent.com/swdee/go-rknnlite-data/master/cat_224x224.jpg \
