@@ -22,23 +22,24 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	modelFile := flag.String("m", "../data/mobilenet_v1-rk3588.rknn", "RKNN compiled model file")
+	modelFile := flag.String("m", "../data/models/rk3588/mobilenet_v1-rk3588.rknn", "RKNN compiled model file")
 	imgDir := flag.String("d", "../data/imagenet/", "A directory of images to run inference on")
 	poolSize := flag.Int("s", 1, "Size of RKNN runtime pool, choose 1, 2, 3, or multiples of 3")
 	repeat := flag.Int("r", 1, "Repeat processing image directory the specified number of times, use this if you don't have enough images")
 	quiet := flag.Bool("q", false, "Run in quiet mode, don't display individual inference results")
 	cpuaff := flag.String("c", "fast", "CPU Affinity, run on [fast|slow] CPU cores")
+	rkPlatform := flag.String("p", "rk3588", "Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588]")
 
 	flag.Parse()
 
 	// set cpu affinity to run on specific CPU cores
-	cpumask := rknnlite.RK3588FastCores
+	cpumask := rknnlite.FastCores
 
 	if strings.ToLower(*cpuaff) == "slow" {
-		cpumask = rknnlite.RK3588SlowCores
+		cpumask = rknnlite.SlowCores
 	}
 
-	err := rknnlite.SetCPUAffinity(cpumask)
+	err := rknnlite.SetCPUAffinityByPlatform(*rkPlatform, cpumask)
 
 	if err != nil {
 		log.Printf("Failed to set CPU Affinity: %v\n", err)
@@ -55,8 +56,14 @@ func main() {
 		log.Fatal("Image path is not a directory")
 	}
 
+	// check if user specified model file or if default is being used.  if default
+	// then pick the default platform model to use.
+	if f := flag.Lookup("m"); f != nil && f.Value.String() == f.DefValue && *rkPlatform != "rk3588" {
+		*modelFile = strings.ReplaceAll(*modelFile, "rk3588", *rkPlatform)
+	}
+
 	// create new pool
-	pool, err := rknnlite.NewPool(*poolSize, *modelFile, rknnlite.RK3588)
+	pool, err := rknnlite.NewPoolByPlatform(*rkPlatform, *poolSize, *modelFile)
 
 	if err != nil {
 		log.Fatalf("Error creating RKNN pool: %v\n", err)
