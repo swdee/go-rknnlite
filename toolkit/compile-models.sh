@@ -28,6 +28,7 @@ MODELS=(
   "PPOCR/PPOCR-Det   convert.py        ../model/ppocrv4_det.onnx          i8    ''          ppocrv4_det"
   "PPOCR/PPOCR-Rec   convert.py        ../model/ppocrv4_rec.onnx          fp    ''          ppocrv4_rec"
   "mobilenet_v1      rknn_convert      /opt/models/mobilenet_v1/model_config.yml    ''    ''    mobilenet_v1"
+  "yolov8            convert.py        /opt/models/license_plate_detector.onnx      i8    ''    lpd-yolov8n"
 )
 
 # compile all entries (or just filter) for one platform

@@ -49,6 +49,10 @@ RUN mkdir -p /opt/models/mobilenet_v1 && \
     wget -O /opt/models/mobilenet_v1/model_config.yml \
       https://raw.githubusercontent.com/airockchip/rknn-toolkit2/refs/heads/master/rknn-toolkit2/examples/tflite/mobilenet_v1_qat/model_config.yml
 
+# download other source models
+RUN wget -O /opt/models/license_plate_detector.onnx \
+      https://github.com/swdee/go-rknnlite-data/raw/refs/heads/master/models/onnx/license_plate_detector.onnx
+
 # Clone the RKNN Model Zoo into /opt/rknn_model_zoo
 RUN git clone --depth 1 https://github.com/airockchip/rknn_model_zoo.git /opt/rknn_model_zoo
 
