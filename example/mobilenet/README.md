@@ -10,10 +10,10 @@ cd example/
 git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
-Run the MobileNet example.
+Run the MobileNet example on RK3588 or replace with your Platform model.
 ```
 cd example/mobilenet/
-go run mobilenet.go 
+go run mobilenet.go -p rk3588
 ```
 
 This will result in the output of:
@@ -35,7 +35,20 @@ done
 
 To use your own RKNN compiled model and images.
 ```
-go run mobilenet.go -m <RKNN model file> -i <image file>
+go run mobilenet.go -m <RKNN model file> -i <image file> -p <platform>
+```
+
+See the help for command line parameters.
+```
+$ go run mobilenet.go --help
+
+Usage of /tmp/go-build2453632432/b001/exe/mobilenet:
+  -i string
+        Image file to run inference on (default "../data/cat_224x224.jpg")
+  -m string
+        RKNN compiled model file (default "../data/models/rk3588/mobilenet_v1-rk3588.rknn")
+  -p string
+        Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588] (default "rk3588")
 ```
 
 ### Docker
@@ -53,7 +66,7 @@ docker run --rm \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/mobilenet/mobilenet.go
+  go run ./example/mobilenet/mobilenet.go -p rk3588
 ```
 
 
