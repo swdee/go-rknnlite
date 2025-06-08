@@ -1,6 +1,8 @@
 package rknnlite
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -39,6 +41,34 @@ func NewPool(size int, modelFile string, cores []CoreMask) (*Pool, error) {
 	}
 
 	return p, nil
+}
+
+// NewPoolByPlatform creates a new runtime pool that pins the runtimes to the
+// NPU cores for the given rockchip platform string of
+// rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588
+func NewPoolByPlatform(platform string, size int, modelFile string) (*Pool, error) {
+
+	platform = strings.TrimSpace(platform)
+	platform = strings.ToLower(platform)
+
+	// default to NPUSkipSetCore
+	var useCores []CoreMask
+
+	switch platform {
+	case "rk3562", "rk3566", "rk3568":
+		useCores = RK3562
+
+	case "rk3576":
+		useCores = RK3576
+
+	case "rk3582", "rk3588":
+		useCores = RK3588
+
+	default:
+		return nil, fmt.Errorf("unknown platform: %s", platform)
+	}
+
+	return NewPool(size, modelFile, useCores)
 }
 
 // Gets a runtime from the pool
