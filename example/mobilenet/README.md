@@ -10,7 +10,7 @@ cd example/
 git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
-Run the MobileNet example on RK3588 or replace with your Platform model.
+Run the MobileNet example on rk3588 or replace with your Platform model.
 ```
 cd example/mobilenet/
 go run mobilenet.go -p rk3588
