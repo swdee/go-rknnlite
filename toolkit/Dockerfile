@@ -49,10 +49,6 @@ RUN mkdir -p /opt/models/mobilenet_v1 && \
     wget -O /opt/models/mobilenet_v1/model_config.yml \
       https://raw.githubusercontent.com/airockchip/rknn-toolkit2/refs/heads/master/rknn-toolkit2/examples/tflite/mobilenet_v1_qat/model_config.yml
 
-# download other source models
-RUN wget -O /opt/models/license_plate_detector.onnx \
-      https://github.com/swdee/go-rknnlite-data/raw/refs/heads/master/models/onnx/license_plate_detector.onnx
-
 # Clone the RKNN Model Zoo into /opt/rknn_model_zoo
 RUN git clone --depth 1 https://github.com/airockchip/rknn_model_zoo.git /opt/rknn_model_zoo
 
@@ -71,6 +67,11 @@ RUN ln -s /opt/models/mobilenetv2-12.onnx  /opt/rknn_model_zoo/examples/mobilene
     ln -s /opt/models/lprnet.onnx  /opt/rknn_model_zoo/examples/LPRNet/model/ && \
     ln -s /opt/models/ppocrv4_det.onnx  /opt/rknn_model_zoo/examples/PPOCR/PPOCR-Det/model/ && \
     ln -s /opt/models/ppocrv4_rec.onnx  /opt/rknn_model_zoo/examples/PPOCR/PPOCR-Rec/model/
+
+# download LPD model and create convert script for it in the model zoo
+RUN git clone --depth 1 https://github.com/swdee/lpd-yolov8.git /opt/lpd-yolov8 && \
+    cp /opt/rknn_model_zoo/examples/yolov8/python/convert.py /opt/rknn_model_zoo/examples/yolov8/python/convert-lpd.py && \
+    sed -i "s|^DATASET_PATH *= *['\"].*['\"]|DATASET_PATH = '/opt/lpd-yolov8/subset.txt'|" /opt/rknn_model_zoo/examples/yolov8/python/convert-lpd.py
 
 # Upgrade pip to the latest version
 RUN pip install --upgrade pip
