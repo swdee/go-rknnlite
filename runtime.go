@@ -8,6 +8,7 @@ import "C"
 import (
 	"fmt"
 	"os"
+	"strings"
 	"unsafe"
 )
 
@@ -37,9 +38,11 @@ var (
 	RK3588 = []CoreMask{NPUCore0, NPUCore1, NPUCore2}
 	RK3582 = []CoreMask{NPUCore0, NPUCore1, NPUCore2}
 	RK3576 = []CoreMask{NPUCore0, NPUCore1}
-	RK3568 = []CoreMask{NPUCore0}
-	RK3566 = []CoreMask{NPUCore0}
-	RK3562 = []CoreMask{NPUCore0}
+	// RK356x is a single NPU core and does not support the setCoreMask() call
+	// so we skip it
+	RK3568 = []CoreMask{NPUSkipSetCore}
+	RK3566 = []CoreMask{NPUSkipSetCore}
+	RK3562 = []CoreMask{NPUSkipSetCore}
 )
 
 // ErrorCodes
@@ -279,4 +282,29 @@ func (r *Runtime) InputAttrs() []TensorAttr {
 // OutputAttrs returns the loaded model's output tensor attributes
 func (r *Runtime) OutputAttrs() []TensorAttr {
 	return r.outputAttrs
+}
+
+// NewRuntimeByPlatform returns a RKNN run time instance and automatically
+// selects the NPU cores to run on the given platform string of
+// rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588
+// Provide the full path and filename of the RKNN compiled model file to run
+func NewRuntimeByPlatform(platform string, modelFile string) (*Runtime, error) {
+
+	platform = strings.TrimSpace(platform)
+	platform = strings.ToLower(platform)
+
+	var useCore CoreMask
+
+	switch platform {
+	case "rk3562", "rk3566", "rk3568":
+		useCore = NPUSkipSetCore
+
+	case "rk3576", "rk3582", "rk3588":
+		useCore = NPUCoreAuto
+
+	default:
+		return nil, fmt.Errorf("unknown platform: %s", platform)
+	}
+
+	return NewRuntime(modelFile, useCore)
 }

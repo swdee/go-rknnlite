@@ -94,9 +94,11 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 # Set working directory
 WORKDIR /go/src/versiontest
 
-# If a go.mod doesn't already exist, initialize a temporary module.
-# (This helps when running "go get" so that a module context is present.)
-RUN go mod init tmp || true
+# Use the go.mod file of go-rknnlite so we can install its dependencies
+COPY go.mod go.sum ./
+
+# Fetch go-rknnlite's dependencies
+RUN go mod download
 
 # Set the GoCV version to build (adjust as needed)
 ENV GOCV_VERSION=v0.41.0

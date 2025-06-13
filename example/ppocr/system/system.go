@@ -13,6 +13,7 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -21,26 +22,36 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	detectModelFile := flag.String("d", "../../data/ppocrv4_det-rk3588.rknn", "RKNN compiled model file for OCR Detection")
-	recogniseModelFile := flag.String("r", "../../data/ppocrv4_rec-rk3588.rknn", "RKNN compiled model file for OCR Recognition")
+	detectModelFile := flag.String("d", "../../data/models/rk3588/ppocrv4_det-rk3588.rknn", "RKNN compiled model file for OCR Detection")
+	recogniseModelFile := flag.String("r", "../../data/models/rk3588/ppocrv4_rec-rk3588.rknn", "RKNN compiled model file for OCR Recognition")
 	keysFile := flag.String("k", "../../data/ppocr_keys_v1.txt", "Text file containing OCR character keys")
 	imgFile := flag.String("i", "../../data/ppocr-det-test.png", "Image file to run inference on")
+	rkPlatform := flag.String("p", "rk3588", "Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588]")
 	flag.Parse()
 
-	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
+	err := rknnlite.SetCPUAffinityByPlatform(*rkPlatform, rknnlite.FastCores)
 
 	if err != nil {
 		log.Printf("Failed to set CPU Affinity: %v\n", err)
 	}
 
+	// check if user specified model file or if default is being used.  if default
+	// then pick the default platform model to use.
+	if f := flag.Lookup("d"); f != nil && f.Value.String() == f.DefValue && *rkPlatform != "rk3588" {
+		*detectModelFile = strings.ReplaceAll(*detectModelFile, "rk3588", *rkPlatform)
+	}
+	if f := flag.Lookup("r"); f != nil && f.Value.String() == f.DefValue && *rkPlatform != "rk3588" {
+		*recogniseModelFile = strings.ReplaceAll(*recogniseModelFile, "rk3588", *rkPlatform)
+	}
+
 	// create rknn runtime instance
-	detectRt, err := rknnlite.NewRuntime(*detectModelFile, rknnlite.NPUCoreAuto)
+	detectRt, err := rknnlite.NewRuntimeByPlatform(*rkPlatform, *detectModelFile)
 
 	if err != nil {
 		log.Fatal("Error initializing Detect RKNN runtime: ", err)
 	}
 
-	recogniseRt, err := rknnlite.NewRuntime(*recogniseModelFile, rknnlite.NPUCoreAuto)
+	recogniseRt, err := rknnlite.NewRuntimeByPlatform(*rkPlatform, *recogniseModelFile)
 
 	if err != nil {
 		log.Fatal("Error initializing Recognise RKNN runtime: ", err)

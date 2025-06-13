@@ -18,7 +18,8 @@ Use the `ultralytics/engine/exporter.py` script in this repository to convert th
 PyTorch model to ONNX.
 
 Then compile from ONNX to RKNN using the [conversion script](https://github.com/airockchip/rknn_model_zoo/blob/main/examples/yolov8/python/convert.py)
-from the Model Zoo.
+from the Model Zoo making sure to provide it a subset of images it was trained
+on for the quantization process.
 
 The LPRNet model used from the RKNN Model Zoo is for Chinese License Plates.
 I don't think it's very good, the input size of 94x24 pixels is too small and 
@@ -35,20 +36,20 @@ You only need to do this once for all examples.
 
 ```
 cd example/
-git clone https://github.com/swdee/go-rknnlite-data.git data
+git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
-Run the ALPR example.
+Run the ALPR example on rk3588 or replace with your Platform model.
 ```
 cd example/alpr
-go run alpr.go
+go run alpr.go -p rk3588
 ```
 
 This will result in the output of:
 ```
-Model first run speed: YOLO inference=25.336366ms, YOLO post processing=137.371µs, Plate recognition=7.908609ms, Plate post processing=456.737µs, Total time=33.839083ms
+Model first run speed: YOLO inference=22.395264ms, YOLO post processing=126.581µs, Plate recognition=4.295597ms, Plate post processing=437.202µs, Total time=27.254644ms
 Saved object detection result to ../data/car-cn-alpr-out.jpg
-Benchmark time=1.629993653s, count=50, average total time=32.599873ms
+Benchmark time=2.976581181s, count=100, average total time=29.765811ms
 done
 ```
 
@@ -61,19 +62,21 @@ license plate detection.
 See help for passing parameters to try your own images.
 ```
 $ go run alpr.go -h
-Usage of /tmp/go-build506851743/b001/exe/alpr:
+Usage of /tmp/go-build3203844595/b001/exe/alpr:
   -f string
         The TTF font to use (default "../data/fzhei-b01s-regular.ttf")
   -i string
         Image file to run object detection on (default "../data/car-cn.jpg")
   -l string
-        RKNN compiled LPRNet model file (default "../data/lprnet-rk3588.rknn")
+        RKNN compiled LPRNet model file (default "../data/models/rk3588/lprnet-rk3588.rknn")
   -m string
-        RKNN compiled YOLO model file (default "../data/lpd-yolov8n-640-640-rk3588.rknn")
+        RKNN compiled YOLO model file (default "../data/models/rk3588/lpd-yolov8n-rk3588.rknn")
   -o string
         The output JPG file with object detection markers (default "../data/car-cn-alpr-out.jpg")
+  -p string
+        Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588] (default "rk3588")
   -t string
-        The text drawing mode [cn|en] (default "cn")
+        The text drawing mode [cn|en] (default "cn")        
 ```
 
 ### Docker
@@ -91,7 +94,21 @@ docker run --rm \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/alpr/alpr.go
+  go run ./example/alpr/alpr.go -p rk3588
 ```
 
+
+## Benchmarks
+
+The following table shows a comparison of the benchmark results across the three distinct platforms.
+
+
+| Platform | Execution Time | Average Inference Time Per Image |
+|----------|----------------|----------------------------------|
+| rk3588   | 2.97s          | 29.76ms                          |
+| rk3576   | 3.20s          | 31.83ms                          |
+| rk3566   | 6.93s          | 69.36ms                          |
+
+Note that these examples are only using a single NPU core to run inference on.  The results
+would be different when running a Pool of models using all NPU cores available.
 

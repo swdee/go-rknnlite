@@ -8,34 +8,49 @@ You only need to do this once for all examples.
 
 ```
 cd example/
-git clone https://github.com/swdee/go-rknnlite-data.git data
+git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
-Run the LPRNet example.
+Run the LPRNet example on rk3588 or replace with your Platform model.
 ```
 cd example/lprnet
-go run lprnet.go
+go run lprnet.go -p rk3588
 ```
 
 
 This will result in the output of:
 ```
-Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Driver Version: 0.9.6, API Version: 2.3.0 (c949ad889d@2024-11-07T11:35:33)
 Model Input Number: 1, Ouput Number: 1
 Input tensors:
   index=0, name=input, n_dims=4, dims=[1, 24, 94, 3], n_elems=6768, size=6768, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=0, scale=0.007843
 Output tensors:
-  index=0, name=output, n_dims=3, dims=[1, 68, 18, 0], n_elems=1224, size=1224, fmt=UNDEFINED, type=INT8, qnt_type=AFFINE, zp=47, scale=0.911201
-Model first run speed: inference=7.787585ms, post processing=25.374µs, total time=7.812959ms
+  index=0, name=output, n_dims=3, dims=[1, 68, 18, 0], n_elems=1224, size=1224, fmt=UNDEFINED, type=INT8, qnt_type=AFFINE, zp=50, scale=0.643529
+Model first run speed: inference=4.203128ms, post processing=30.916µs, total time=4.234044ms
 License plate recognition result: 湘F6CL03
-Benchmark time=61.070751ms, count=10, average total time=6.107075ms
+Benchmark time=350.625899ms, count=100, average total time=3.506258ms
 done
 ```
 
 To use your own RKNN compiled model and images.
 ```
-go run lprnet.go -m <RKNN model file> -i <image file>
+go run lprnet.go -m <RKNN model file> -i <image file> -p <platform>
 ```
+
+
+See the help for command line parameters.
+```
+$ go run lprnet.go --help
+
+Usage of /tmp/go-build233788912/b001/exe/lprnet:
+  -i string
+        Image file to run inference on (default "../data/lplate.jpg")
+  -m string
+        RKNN compiled model file (default "../data/models/rk3588/lprnet-rk3588.rknn")
+  -p string
+        Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588] (default "rk3588")
+```
+
 
 ### Docker
 
@@ -52,7 +67,7 @@ docker run --rm \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/lprnet/lprnet.go
+  go run ./example/lprnet/lprnet.go -p rk3588
 ```
 
 
@@ -62,6 +77,23 @@ This example makes use of the [Chinese License Plate Recognition LPRNet](https:/
 You can train your own LPRNet's for other countries but need to initialize
 the `postprocess.NewLPRNet` with your specific `LPRNetParams` containing the
 maximum length of your countries number plates and character set used.
+
+
+
+## Benchmarks
+
+The following table shows a comparison of the benchmark results across the three distinct platforms.
+
+
+| Platform | Execution Time | Average Inference Time Per Image |
+|----------|----------------|----------------------------------|
+| rk3588   | 0.35s          | 3.50ms                           |
+| rk3576   | 0.49s          | 4.96ms                           |
+| rk3566   | 1.63s          | 16.32ms                          |
+
+Note that these examples are only using a single NPU core to run inference on.  The results
+would be different when running a Pool of models using all NPU cores available.
+
 
 
 ## Background

@@ -42,6 +42,12 @@ RUN mkdir -p /opt/models && \
     wget -O /opt/models/ppocrv4_rec.onnx \
       https://ftrg.zbox.filez.com/v2/delivery/data/95f00b0fc900458ba134f8b180b3f7a1/examples/PPOCR/ppocrv4_rec.onnx
 
+# download the tflite model data
+RUN mkdir -p /opt/models/mobilenet_v1 && \
+    wget -O /opt/models/mobilenet_v1/mobilenet_v1_1.0_224_quant.tflite \
+      https://github.com/airockchip/rknn-toolkit2/raw/refs/heads/master/rknn-toolkit2/examples/tflite/mobilenet_v1_qat/mobilenet_v1_1.0_224_quant.tflite && \
+    wget -O /opt/models/mobilenet_v1/model_config.yml \
+      https://raw.githubusercontent.com/airockchip/rknn-toolkit2/refs/heads/master/rknn-toolkit2/examples/tflite/mobilenet_v1_qat/model_config.yml
 
 # Clone the RKNN Model Zoo into /opt/rknn_model_zoo
 RUN git clone --depth 1 https://github.com/airockchip/rknn_model_zoo.git /opt/rknn_model_zoo
@@ -62,6 +68,10 @@ RUN ln -s /opt/models/mobilenetv2-12.onnx  /opt/rknn_model_zoo/examples/mobilene
     ln -s /opt/models/ppocrv4_det.onnx  /opt/rknn_model_zoo/examples/PPOCR/PPOCR-Det/model/ && \
     ln -s /opt/models/ppocrv4_rec.onnx  /opt/rknn_model_zoo/examples/PPOCR/PPOCR-Rec/model/
 
+# download LPD model and create convert script for it in the model zoo
+RUN git clone --depth 1 https://github.com/swdee/lpd-yolov8.git /opt/lpd-yolov8 && \
+    cp /opt/rknn_model_zoo/examples/yolov8/python/convert.py /opt/rknn_model_zoo/examples/yolov8/python/convert-lpd.py && \
+    sed -i "s|^DATASET_PATH *= *['\"].*['\"]|DATASET_PATH = '/opt/lpd-yolov8/subset.txt'|" /opt/rknn_model_zoo/examples/yolov8/python/convert-lpd.py
 
 # Upgrade pip to the latest version
 RUN pip install --upgrade pip
@@ -73,6 +83,11 @@ RUN pip install -r \
 # Install the RKNN-Toolkit2 wheel
 RUN pip install \
     "https://github.com/airockchip/rknn-toolkit2/raw/refs/tags/v2.3.2/rknn-toolkit2/packages/x86_64/rknn_toolkit2-2.3.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+
+# install extra python deps for converting tflite models
+RUN pip install --no-cache-dir \
+    pyyaml \
+    "tensorflow<=2.16.0rc0"
 
 # By default do nothing
 CMD ["bash"]

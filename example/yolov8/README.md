@@ -8,18 +8,18 @@ You only need to do this once for all examples.
 
 ```
 cd example/
-git clone https://github.com/swdee/go-rknnlite-data.git data
+git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
-Run the YOLOv8 example.
+Run the YOLOv8 example on rk3588 or replace with your Platform model.
 ```
 cd example/yolov8
-go run yolov8.go
+go run yolov8.go -p rk3588
 ```
 
 This will result in the output of:
 ```
-Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Driver Version: 0.9.6, API Version: 2.3.0 (c949ad889d@2024-11-07T11:35:33)
 Model Input Number: 1, Ouput Number: 9
 Input tensors:
   index=0, name=images, n_dims=4, dims=[1, 640, 640, 3], n_elems=1228800, size=1228800, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
@@ -34,13 +34,13 @@ Output tensors:
   index=7, name=onnx::ReduceSum_365, n_dims=4, dims=[1, 80, 20, 20], n_elems=32000, size=32000, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003817
   index=8, name=369, n_dims=4, dims=[1, 1, 20, 20], n_elems=400, size=400, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003835
 person @ (109 237 225 535) 0.896928
-bus @ (93 136 548 439) 0.881662
-person @ (475 232 559 521) 0.881662
+bus @ (92 136 548 439) 0.885478
+person @ (475 233 559 521) 0.881662
 person @ (211 241 285 510) 0.832044
 person @ (80 326 123 517) 0.596252
-Model first run speed: inference=49.146842ms, post processing=4.291201ms, rendering=1.419804ms, total time=54.857847ms
+Model first run speed: inference=41.492251ms, post processing=1.968418ms, rendering=714.861µs, total time=44.17553ms
 Saved object detection result to ../data/bus-yolov8-out.jpg
-Benchmark time=805.490284ms, count=20, average total time=40.274514ms
+Benchmark time=3.926217098s, count=100, average total time=39.26217ms
 done
 ```
 
@@ -51,11 +51,30 @@ The saved JPG image with object detection markers.
 
 To use your own RKNN compiled model and images.
 ```
-go run yolov8.go -m <RKNN model file> -i <image file> -l <labels txt file> -o <output jpg file>
+go run yolov8.go -m <RKNN model file> -i <image file> -l <labels txt file> -o <output jpg file> -p <platform>
 ```
 
 The labels file should be a text file containing the labels the Model was trained on.
 It should have one label per line.
+
+
+See the help for command line parameters.
+```
+$ go run yolov8.go --help
+
+Usage of /tmp/go-build156306685/b001/exe/yolov8:
+  -i string
+        Image file to run object detection on (default "../data/bus.jpg")
+  -l string
+        Text file containing model labels (default "../data/coco_80_labels_list.txt")
+  -m string
+        RKNN compiled YOLO model file (default "../data/models/rk3588/yolov8s-rk3588.rknn")
+  -o string
+        The output JPG file with object detection markers (default "../data/bus-yolov8-out.jpg")
+  -p string
+        Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588] (default "rk3588")
+```
+
 
 
 ### Docker
@@ -73,7 +92,7 @@ docker run --rm \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/yolov8/yolov8.go
+  go run ./example/yolov8/yolov8.go -p rk3588
 ```
 
 
@@ -88,6 +107,24 @@ with your own `YOLOv8Params`.
 
 In the file `postprocess/yolov8.go` see function `YOLOv8COCOParams` for how to
 configure your own custom parameters.
+
+
+
+## Benchmarks
+
+The following table shows a comparison of the benchmark results across the three distinct platforms.
+
+
+| Platform | Execution Time | Average Inference Time Per Image |
+|----------|----------------|----------------------------------|
+| rk3588   | 3.92s          | 39.26ms                          |
+| rk3576   | 3.94s          | 39.48ms                     |
+| rk3566   | 8.86s          | 88.66ms                          |
+
+Note that these examples are only using a single NPU core to run inference on.  The results
+would be different when running a Pool of models using all NPU cores available.  Secondly
+the Rock 4D (rk3576) has DDR5 memory versus the Rock 5B (rk3588) with slower DDR4 memory.
+
 
 
 ## Background

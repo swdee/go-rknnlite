@@ -12,6 +12,7 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -20,19 +21,26 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	modelFile := flag.String("m", "../../data/ppocrv4_det-rk3588.rknn", "RKNN compiled model file")
+	modelFile := flag.String("m", "../../data/models/rk3588/ppocrv4_det-rk3588.rknn", "RKNN compiled model file")
 	imgFile := flag.String("i", "../../data/ppocr-det-test.png", "Image file to run inference on")
 	saveFile := flag.String("o", "../../data/ppocr-det-out.png", "The output PNG file with object detection markers")
+	rkPlatform := flag.String("p", "rk3588", "Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588]")
 	flag.Parse()
 
-	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
+	err := rknnlite.SetCPUAffinityByPlatform(*rkPlatform, rknnlite.FastCores)
 
 	if err != nil {
 		log.Printf("Failed to set CPU Affinity: %v\n", err)
 	}
 
+	// check if user specified model file or if default is being used.  if default
+	// then pick the default platform model to use.
+	if f := flag.Lookup("m"); f != nil && f.Value.String() == f.DefValue && *rkPlatform != "rk3588" {
+		*modelFile = strings.ReplaceAll(*modelFile, "rk3588", *rkPlatform)
+	}
+
 	// create rknn runtime instance
-	rt, err := rknnlite.NewRuntime(*modelFile, rknnlite.NPUCoreAuto)
+	rt, err := rknnlite.NewRuntimeByPlatform(*rkPlatform, *modelFile)
 
 	if err != nil {
 		log.Fatal("Error initializing RKNN runtime: ", err)

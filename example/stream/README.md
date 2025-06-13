@@ -43,20 +43,19 @@ You only need to do this once for all examples.
 
 ```
 cd example/
-git clone https://github.com/swdee/go-rknnlite-data.git data
+git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
 Start the Stream server on port `8080` and run the example using a pool 
-of `3` YOLO models and limiting object detection to `person`.
+of `3` YOLO models and limiting object detection to `person`
+on rk3588 or replace with your Platform model.
 ```
 cd example/stream/
-go run bytetrack.go -a :8080 -s 3 -x person
+go run bytetrack.go -a :8080 -s 3 -x person -p rk3588
 ```
 
 This will result in output of:
 ```
-Model Input Tensor Dimensions 640x640
-Scale factor: Width=2.000, Height=1.125
 Limiting object detection class to: person
 Open browser and view video at http://:8080/stream
 ```
@@ -86,7 +85,7 @@ docker run --rm -it \
   -w /go/src/app \
   -p 8080:8080 \
   swdee/go-rknnlite:latest \
-  go run ./example/stream/bytetrack.go -a :8080 -s 3 -x person
+  go run ./example/stream/bytetrack.go -a :8080 -s 3 -x person -p rk3588
 ```
 
 
@@ -100,6 +99,7 @@ go run bytetrack.go --help
 
 This outputs options of:
 ```
+Usage of /tmp/go-build3419105702/b001/exe/bytetrack:
   -a string
         HTTP Address to run server on, format address:port (default "localhost:8080")
   -c value
@@ -109,7 +109,9 @@ This outputs options of:
   -l string
         Text file containing model labels (default "../data/coco_80_labels_list.txt")
   -m string
-        RKNN compiled YOLO model file (default "../data/yolov5s-640-640-rk3588.rknn")
+        RKNN compiled YOLO model file (default "../data/models/rk3588/yolov5s-rk3588.rknn")
+  -p string
+        Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588] (default "rk3588")
   -r string
         The rendering format used for instance segmentation [outline|mask] (default "outline")
   -s int
@@ -125,16 +127,16 @@ This outputs options of:
 The default mode is to use the YOLOv5 model, however you can change to other models with.
 ```
 # YOLOv8
-go run bytetrack.go -a :8080 -s 3 -x person -m ../data/yolov8s-640-640-rk3588.rknn -t v8
+go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/yolov8s-rk3588.rknn -t v8
 
 # YOLOv10
-go run bytetrack.go -a :8080 -s 3 -x person -m ../data/yolov10s-640-640-rk3588.rknn -t v10
+go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/yolov10s-rk3588.rknn -t v10
 
 # YOLOv11
-go run bytetrack.go -a :8080 -s 3 -x person -m ../data/yolov11s-640-640-rk3588.rknn -t v11
+go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/yolov11s-rk3588.rknn -t v11
 
 # YOLOX
-go run bytetrack.go -a :8080 -s 3 -x person -m ../data/yoloxs-640-640-rk3588.rknn -t x
+go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/yoloxs-rk3588.rknn -t x
 ```
 
 The YOLO models used are the original ones from the RKNN Model Zoo and are not tuned 
@@ -182,7 +184,7 @@ resolution and frame rate of `-c 1280x720@30` on the command line to represent
 `/dev/video1` and a resolution of `1280x720` running at `30`FPS.
 
 ```
-go run bytetrack.go -a :8080 -s 6 -v 1 -c 640x480@30 -codec MJPG -m ../data/yolov8n-pose-640-640-rk3588.rknn -t v8pose
+go run bytetrack.go -a :8080 -s 6 -v 1 -c 640x480@30 -codec MJPG -m ../data/yolov8n-pose-rk3588.rknn -t v8pose -p rk3588
 ```
 
 
@@ -269,7 +271,7 @@ The YOLOv8-pose processor has been added to this Stream example, use the followi
 video to view example.
 
 ```
-go run bytetrack.go -a :8080 -s 3 -v ../data/dance.mp4 -t v8pose -m ../data/yolov8n-pose-640-640-rk3588.rknn
+go run bytetrack.go -a :8080 -s 3 -v ../data/dance.mp4 -t v8pose -m ../data/yolov8n-pose-rk3588.rknn -p rk3588
 ```
 
 Tracking trails have been turned off as the trails distract from the skeleton.
@@ -281,7 +283,7 @@ Using the YOLOv8-obb processor and example has been added for object detection
 using oriented bounding boxes.
 
 ```
-go run bytetrack.go -a :8080 -s 3 -v ../data/aerial.mp4 -t v8obb -m ../data/yolov8n-obb-640-640-rk3588.rknn -l ../data/yolov8_obb_labels_list.txt
+go run bytetrack.go -a :8080 -s 3 -v ../data/aerial.mp4 -t v8obb -m ../data/yolov8n-obb-rk3588.rknn -l ../data/yolov8_obb_labels_list.txt -p rk3588
 ```
 
 

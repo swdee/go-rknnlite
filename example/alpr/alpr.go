@@ -62,7 +62,7 @@ type ALPR struct {
 
 // NewALPR returns an Automatic License Plate Recognition instance used for
 // License plate detection using a YOLOv8n and LPRNet model
-func NewALPR(yoloModelFile string, lprModelFile string, ttfFont string) (*ALPR, error) {
+func NewALPR(yoloModelFile string, lprModelFile string, ttfFont string, platform string) (*ALPR, error) {
 
 	var err error
 	a := &ALPR{
@@ -70,7 +70,7 @@ func NewALPR(yoloModelFile string, lprModelFile string, ttfFont string) (*ALPR, 
 	}
 
 	// create rknn runtimes
-	a.yoloRT, err = rknnlite.NewRuntime(yoloModelFile, rknnlite.NPUCoreAuto)
+	a.yoloRT, err = rknnlite.NewRuntimeByPlatform(platform, yoloModelFile)
 
 	if err != nil {
 		return nil, fmt.Errorf("error initializing YOLOv8n RKNN runtime: %w", err)
@@ -80,7 +80,7 @@ func NewALPR(yoloModelFile string, lprModelFile string, ttfFont string) (*ALPR, 
 	a.yoloRT.SetWantFloat(false)
 
 	// create rknn runtime instance
-	a.lprRT, err = rknnlite.NewRuntime(lprModelFile, rknnlite.NPUCoreAuto)
+	a.lprRT, err = rknnlite.NewRuntimeByPlatform(platform, lprModelFile)
 
 	if err != nil {
 		return nil, fmt.Errorf("error initializing LPRNet RKNN runtime: %w", err)
@@ -426,22 +426,35 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	yoloModelFile := flag.String("m", "../data/lpd-yolov8n-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
-	lprModelFile := flag.String("l", "../data/lprnet-rk3588.rknn", "RKNN compiled LPRNet model file")
+	yoloModelFile := flag.String("m", "../data/models/rk3588/lpd-yolov8n-rk3588.rknn", "RKNN compiled YOLO model file")
+	lprModelFile := flag.String("l", "../data/models/rk3588/lprnet-rk3588.rknn", "RKNN compiled LPRNet model file")
 	imgFile := flag.String("i", "../data/car-cn.jpg", "Image file to run object detection on")
 	saveFile := flag.String("o", "../data/car-cn-alpr-out.jpg", "The output JPG file with object detection markers")
 	ttfFont := flag.String("f", "../data/fzhei-b01s-regular.ttf", "The TTF font to use")
 	textMode := flag.String("t", "cn", "The text drawing mode [cn|en]")
+	rkPlatform := flag.String("p", "rk3588", "Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588]")
 
 	flag.Parse()
 
-	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
+	err := rknnlite.SetCPUAffinityByPlatform(*rkPlatform, rknnlite.FastCores)
 
 	if err != nil {
 		log.Printf("Failed to set CPU Affinity: %v\n", err)
 	}
 
-	alpr, err := NewALPR(*yoloModelFile, *lprModelFile, *ttfFont)
+	// check if user specified model file or if default is being used.  if default
+	// then pick the default platform model to use.
+	if f := flag.Lookup("m"); f != nil && f.Value.String() == f.DefValue && *rkPlatform != "rk3588" {
+		*yoloModelFile = strings.ReplaceAll(*yoloModelFile, "rk3588", *rkPlatform)
+	}
+
+	// check if user specified model file or if default is being used.  if default
+	// then pick the default platform model to use.
+	if f := flag.Lookup("l"); f != nil && f.Value.String() == f.DefValue && *rkPlatform != "rk3588" {
+		*lprModelFile = strings.ReplaceAll(*lprModelFile, "rk3588", *rkPlatform)
+	}
+
+	alpr, err := NewALPR(*yoloModelFile, *lprModelFile, *ttfFont, *rkPlatform)
 
 	if err != nil {
 		log.Fatal("Error initializing ALPR: ", err)
@@ -494,7 +507,7 @@ func main() {
 
 func runBenchmark(alpr *ALPR, img gocv.Mat) {
 
-	count := 50
+	count := 100
 	start := time.Now()
 
 	// create Mat for annotated image
