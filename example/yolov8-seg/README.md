@@ -14,15 +14,15 @@ cd example/
 git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
-Run the YOLOv8-seg example.
+Run the YOLOv8-seg example on rk3588 or replace with your Platform model.
 ```
 cd example/yolov8-seg
-go run yolov8-seg.go
+go run yolov8-seg.go -p rk3588
 ```
 
 This will result in the output of:
 ```
-Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Driver Version: 0.9.6, API Version: 2.3.0 (c949ad889d@2024-11-07T11:35:33)
 Model Input Number: 1, Ouput Number: 13
 Input tensors:
   index=0, name=images, n_dims=4, dims=[1, 640, 640, 3], n_elems=1228800, size=1228800, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
@@ -40,14 +40,14 @@ Output tensors:
   index=10, name=426, n_dims=4, dims=[1, 1, 20, 20], n_elems=400, size=400, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
   index=11, name=368, n_dims=4, dims=[1, 32, 20, 20], n_elems=12800, size=12800, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=43, scale=0.019919
   index=12, name=347, n_dims=4, dims=[1, 32, 160, 160], n_elems=819200, size=819200, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-119, scale=0.032336
+Model first run speed: inference=53.334871ms, post processing=47.551235ms, rendering=1.356806ms, total time=102.242912ms
 cat @ (712 98 903 332) 0.918907
 cat @ (24 117 200 291) 0.860259
 dog @ (173 89 359 296) 0.857901
 dog @ (311 98 528 312) 0.831211
 cat @ (523 142 719 299) 0.789163
-Model first run speed: inference=51.016974ms, post processing=71.36584ms, rendering=6.949688ms, total time=129.332502ms
 Saved object detection result to ../data/catdog-yolov8-seg-out.jpg
-Benchmark time=2.324119083s, count=20, average total time=116.205954ms
+Benchmark time=8.332262773s, count=100, average total time=83.322627ms
 done
 ```
 
@@ -60,15 +60,17 @@ See the help for command line parameters.
 ```
 $ go run yolov8-seg.go --help
 
-Usage of /tmp/go-build401282281/b001/exe/yolov8-seg:
+Usage of /tmp/go-build652765382/b001/exe/yolov8-seg:
   -i string
         Image file to run object detection on (default "../data/catdog.jpg")
   -l string
         Text file containing model labels (default "../data/coco_80_labels_list.txt")
   -m string
-        RKNN compiled YOLO model file (default "../data/yolov8s-seg-640-640-rk3588.rknn")
+        RKNN compiled YOLO model file (default "../data/models/rk3588/yolov8s-seg-rk3588.rknn")
   -o string
         The output JPG file with object detection markers (default "../data/catdog-yolov8-seg-out.jpg")
+  -p string
+        Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588] (default "rk3588")
   -r string
         The rendering format used for instance segmentation [outline|mask|dump] (default "outline")
 ```
@@ -90,7 +92,7 @@ docker run --rm \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/yolov8-seg/yolov8-seg.go
+  go run ./example/yolov8-seg/yolov8-seg.go -p rk3588
 ```
 
 
@@ -106,7 +108,7 @@ the object and provides a single transparent overlay to indicate the segment mas
 
 This can be output with the following flag.
 ```
-go run yolov8-seg.go -r mask
+go run yolov8-seg.go -p rk3588 -r mask
 ```
 
 ![catdog-mask.jpg](catdog-mask.jpg)
@@ -114,7 +116,7 @@ go run yolov8-seg.go -r mask
 For visualisation and debugging purposes the segmentation mask can also be dumped
 to an image.
 ```
-go run yolov8-seg.go -r dump
+go run yolov8-seg.go -p rk3588 -r dump
 ```
 
 ![catdog-dump.jpg](catdog-dump.jpg)
@@ -139,6 +141,24 @@ yParams.PrototypeWeight = 320
 // create YOLO Processor instance	
 yoloProcesser := postprocess.NewYOLOv8Seg(yParams)
 ```
+
+
+## Benchmarks
+
+The following table shows a comparison of the benchmark results across the three distinct platforms.
+
+
+| Platform | Execution Time | Average Inference Time Per Image |
+|----------|----------------|----------------------------------|
+| rk3588   | 8.33s          | 83.32ms                          |
+| rk3576   | 10.23s         | 102.33ms                         |
+| rk3566   | 36.02s         | 360.23ms                         |
+
+Note that these examples are only using a single NPU core to run inference on.  The results
+would be different when running a Pool of models using all NPU cores available.  Secondly
+the Rock 4D (rk3576) has DDR5 memory versus the Rock 5B (rk3588) with slower DDR4 memory.
+
+
 
 
 ## Background
