@@ -131,7 +131,7 @@ type Demo struct {
 // NewDemo returns and instance of Demo, a streaming HTTP server showing
 // video with object detection
 func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
-	modelType string, renderFormat string, cores []rknnlite.CoreMask) (*Demo, error) {
+	modelType string, renderFormat string, rkPlatform string) (*Demo, error) {
 
 	var err error
 
@@ -150,7 +150,7 @@ func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
 	}
 
 	// create new pool
-	d.pool, err = rknnlite.NewPool(poolSize, modelFile, cores)
+	d.pool, err = rknnlite.NewPoolByPlatform(rkPlatform, poolSize, modelFile)
 
 	if err != nil {
 		log.Fatalf("Error creating RKNN pool: %v\n", err)
@@ -211,6 +211,13 @@ func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
 
 	d.modelType = modelType
 	d.renderFormat = renderFormat
+
+	// RK356x platforms only have 1 TOPS NPU, so limit their FPS to a third
+	if strings.EqualFold(rkPlatform[:5], "rk356") {
+		FPS = FPS / 3
+		FPSinterval = time.Duration(float64(time.Second) / float64(FPS))
+		log.Printf("***WARNING*** %s only has 1 TOPS NPU, downgraded to %d FPS\n", rkPlatform, FPS)
+	}
 
 	// load in Model class names
 	d.labels, err = rknnlite.LoadLabels(labelFile)
@@ -695,7 +702,7 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	modelFile := flag.String("m", "../data/yolov5s-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
+	modelFile := flag.String("m", "../data/models/rk3588/yolov5s-rk3588.rknn", "RKNN compiled YOLO model file")
 	modelType := flag.String("t", "v5", "Version of YOLO model [v5|v8|v10|v11|x|v5seg|v8seg|v8pose]")
 	vidFile := flag.String("v", "../data/palace.mp4", "Video file to run object detection and tracking on or device of web camera when used with -c flag")
 	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
@@ -704,6 +711,7 @@ func main() {
 	limitLabels := flag.String("x", "", "Comma delimited list of labels (COCO) to restrict object tracking to")
 	renderFormat := flag.String("r", "outline", "The rendering format used for instance segmentation [outline|mask]")
 	codecFormat := flag.String("codec", "mjpg", "Web Camera codec The rendering format [mjpg|yuyv]")
+	rkPlatform := flag.String("p", "rk3588", "Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588]")
 
 	// Initialize the custom camera resolution flag with a default value
 	cameraRes := &cameraResFlag{value: "1280x720@30"}
@@ -739,14 +747,20 @@ func main() {
 		}
 	}
 
-	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
+	err := rknnlite.SetCPUAffinityByPlatform(*rkPlatform, rknnlite.FastCores)
 
 	if err != nil {
 		log.Printf("Failed to set CPU Affinity: %v\n", err)
 	}
 
+	// check if user specified model file or if default is being used.  if default
+	// then pick the default platform model to use.
+	if f := flag.Lookup("m"); f != nil && f.Value.String() == f.DefValue && *rkPlatform != "rk3588" {
+		*modelFile = strings.ReplaceAll(*modelFile, "rk3588", *rkPlatform)
+	}
+
 	demo, err := NewDemo(vidSrc, *modelFile, *labelFile, *poolSize,
-		*modelType, *renderFormat, rknnlite.RK3588)
+		*modelType, *renderFormat, *rkPlatform)
 
 	if err != nil {
 		log.Fatalf("Error creating demo: %v", err)
