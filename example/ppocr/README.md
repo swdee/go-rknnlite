@@ -29,39 +29,39 @@ git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 
 ### Usage
 
-Run the PPOCR Detection example.
+Run the PPOCR Detection example on rk3588 or replace with your Platform model.
 ```
 cd example/ppocr/detect
-go run detect.go
+go run detect.go -p rk3588
 ```
 
 This will result in the output of:
 ```
-Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Driver Version: 0.9.6, API Version: 2.3.0 (c949ad889d@2024-11-07T11:35:33)
 Model Input Number: 1, Ouput Number: 1
 Input tensors:
   index=0, name=x, n_dims=4, dims=[1, 480, 480, 3], n_elems=691200, size=691200, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=-14, scale=0.018658
 Output tensors:
   index=0, name=sigmoid_0.tmp_0, n_dims=4, dims=[1, 1, 480, 480], n_elems=230400, size=230400, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
-Model first run speed: inference=27.746374ms, post processing=2.968795ms, total time=30.715169ms
-[0]: [(27, 459), (136, 459), (136, 478), (27, 478)] 0.991298
-[1]: [(27, 428), (371, 427), (371, 444), (27, 445)] 0.912538
-[2]: [(28, 398), (361, 397), (361, 413), (28, 414)] 0.953752
-[3]: [(368, 368), (476, 368), (476, 388), (368, 388)] 0.989887
-[4]: [(27, 365), (282, 365), (282, 384), (27, 384)] 0.975041
-[5]: [(26, 334), (342, 334), (342, 352), (26, 352)] 0.956719
-[6]: [(26, 303), (253, 303), (253, 320), (26, 320)] 0.974053
-[7]: [(25, 270), (179, 270), (179, 289), (25, 289)] 0.990559
-[8]: [(26, 240), (242, 240), (242, 259), (26, 259)] 0.986159
-[9]: [(413, 233), (429, 233), (429, 305), (413, 305)] 0.970001
-[10]: [(26, 209), (235, 209), (235, 227), (26, 227)] 0.995540
-[11]: [(26, 178), (300, 179), (300, 196), (26, 195)] 0.991055
-[12]: [(28, 143), (280, 144), (280, 164), (28, 163)] 0.974824
-[13]: [(27, 112), (333, 113), (333, 135), (27, 134)] 0.899956
-[14]: [(26, 81), (172, 81), (172, 103), (26, 103)] 0.994091
-[15]: [(28, 38), (302, 39), (302, 71), (28, 70)] 0.960498
-Saved image to ../data/ppocr-det-out.png
-Benchmark time=3.540086219s, count=100, average total time=35.400862ms
+Model first run speed: inference=49.443453ms, post processing=4.237269ms, total time=53.680722ms
+Saved image to ../../data/ppocr-det-out.png
+[0]: [(27, 459), (136, 459), (136, 478), (27, 478)] 0.978851
+[1]: [(29, 430), (370, 429), (370, 443), (29, 444)] 0.936015
+[2]: [(26, 396), (362, 396), (362, 414), (26, 414)] 0.949735
+[3]: [(369, 368), (476, 368), (476, 388), (369, 388)] 0.977374
+[4]: [(27, 366), (282, 365), (282, 384), (27, 385)] 0.908594
+[5]: [(25, 334), (343, 334), (343, 352), (25, 352)] 0.953618
+[6]: [(26, 303), (252, 303), (252, 320), (26, 320)] 0.977526
+[7]: [(25, 270), (179, 270), (179, 289), (25, 289)] 0.990133
+[8]: [(25, 240), (242, 240), (242, 259), (25, 259)] 0.988332
+[9]: [(413, 233), (429, 233), (429, 304), (413, 304)] 0.967471
+[10]: [(26, 209), (235, 209), (235, 227), (26, 227)] 0.998661
+[11]: [(26, 178), (301, 178), (301, 195), (26, 195)] 0.992206
+[12]: [(28, 143), (280, 144), (280, 163), (28, 162)] 0.957155
+[13]: [(27, 112), (332, 113), (332, 134), (27, 133)] 0.902135
+[14]: [(26, 81), (171, 81), (171, 103), (26, 103)] 0.995144
+[15]: [(28, 38), (302, 39), (302, 71), (28, 70)] 0.959944
+Benchmark time=3.270392909s, count=100, average total time=32.703929ms
 done
 ```
 
@@ -85,9 +85,24 @@ docker run --rm \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/ppocr/detect/detect.go
+  go run ./example/ppocr/detect/detect.go -p rk3588
 ```
 
+
+### Benchmarks
+
+The following table shows a comparison of the benchmark results across the three distinct platforms.
+
+
+| Platform | Execution Time | Average Inference Time Per Image |
+|----------|----------------|----------------------------------|
+| rk3588   | 3.27s          | 32.70ms                          |
+| rk3576   | 2.95s          | 29.52ms                          |
+| rk3566   | 5.75s          | 57.51ms                          |
+
+Note that these examples are only using a single NPU core to run inference on.  The results
+would be different when running a Pool of models using all NPU cores available.  Secondly
+the Rock 4D (rk3576) has DDR5 memory versus the Rock 5B (rk3588) with slower DDR4 memory.
 
 
 ### Background
@@ -101,23 +116,23 @@ This PPOCR Detect example is a Go conversion of the [C API example](https://gith
 
 ### Usage
 
-Run the PPOCR Recognition example.
+Run the PPOCR Recognition example on rk3588 or replace with your Platform model.
 ```
 cd example/ppocr/recognise
-go run recognise.go
+go run recognise.go -p rk3588
 ```
 
 This will result in the output of:
 ```
-Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Driver Version: 0.9.6, API Version: 2.3.0 (c949ad889d@2024-11-07T11:35:33)
 Model Input Number: 1, Ouput Number: 1
 Input tensors:
   index=0, name=x, n_dims=4, dims=[1, 48, 320, 3], n_elems=46080, size=92160, fmt=NHWC, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
 Output tensors:
   index=0, name=softmax_11.tmp_0, n_dims=3, dims=[1, 40, 6625, 0], n_elems=265000, size=530000, fmt=UNDEFINED, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
-Model first run speed: inference=26.486118ms, post processing=461.404µs, total time=26.947522ms
+Model first run speed: inference=31.240498ms, post processing=494.659µs, total time=31.735157ms
 Recognize result: JOINT, score=0.71
-Benchmark time=2.528564774s, count=100, average total time=25.285647ms
+Benchmark time=1.655360827s, count=100, average total time=16.553608ms
 done
 ```
 
@@ -147,7 +162,7 @@ docker run --rm \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/ppocr/recognise/recognise.go
+  go run ./example/ppocr/recognise/recognise.go -p rk3588
 ```
 
 
@@ -246,6 +261,23 @@ is a [discussion](https://github.com/PaddlePaddle/PaddleOCR/issues/11859) on how
 to improve the situation.  Hopefully the other languages get updates to v4 models
 in the future.
 
+
+### Benchmarks
+
+The following table shows a comparison of the benchmark results across the three distinct platforms.
+
+
+| Platform | Execution Time | Average Inference Time Per Image |
+|----------|----------------|----------------------------------|
+| rk3588   | 1.65s          | 16.55ms                          |
+| rk3576   | 2.34s          | 23.40ms                          |
+| rk3566   | 5.93s          | 59.35ms                          |
+
+Note that these examples are only using a single NPU core to run inference on.  The results
+would be different when running a Pool of models using all NPU cores available.
+
+
+
 ### Background
 
 This PPOCR Recognise example is a Go conversion of the [C API example](https://github.com/airockchip/rknn_model_zoo/blob/main/examples/PPOCR/PPOCR-Rec/cpp/main.cc).
@@ -260,62 +292,62 @@ This PPOCR Recognise example is a Go conversion of the [C API example](https://g
 
 ### Usage
 
-Run the PPOCR System example.
+Run the PPOCR System example on rk3588 or replace with your Platform model.
 ```
 cd example/ppocr/system
-go run system.go
+go run system.go -p rk3588
 ```
 
 This will result in the output of:
 ```
-Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Driver Version: 0.9.6, API Version: 2.3.0 (c949ad889d@2024-11-07T11:35:33)
 Model Input Number: 1, Ouput Number: 1
 Input tensors:
   index=0, name=x, n_dims=4, dims=[1, 48, 320, 3], n_elems=46080, size=92160, fmt=NHWC, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
 Output tensors:
   index=0, name=softmax_11.tmp_0, n_dims=3, dims=[1, 40, 6625, 0], n_elems=265000, size=530000, fmt=UNDEFINED, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
-Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Driver Version: 0.9.6, API Version: 2.3.0 (c949ad889d@2024-11-07T11:35:33)
 Model Input Number: 1, Ouput Number: 1
 Input tensors:
   index=0, name=x, n_dims=4, dims=[1, 480, 480, 3], n_elems=691200, size=691200, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=-14, scale=0.018658
 Output tensors:
   index=0, name=sigmoid_0.tmp_0, n_dims=4, dims=[1, 1, 480, 480], n_elems=230400, size=230400, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
-[0]: [(28, 38), (302, 39), (302, 71), (28, 70)] 0.960498
+[0]: [(28, 38), (302, 39), (302, 71), (28, 70)] 0.959944
 Recognize result: 纯臻营养护发素, score=0.71
-[1]: [(26, 81), (172, 81), (172, 103), (26, 103)] 0.994091
+[1]: [(26, 81), (171, 81), (171, 103), (26, 103)] 0.995144
+[2]: [(27, 112), (332, 113), (332, 134), (27, 133)] 0.902135
 Recognize result: 产品信息/参数, score=0.71
-[2]: [(27, 112), (333, 113), (333, 135), (27, 134)] 0.899956
 Recognize result: （45元/每公斤，100公斤起订）, score=0.69
-[3]: [(28, 143), (280, 144), (280, 164), (28, 163)] 0.974824
-Recognize result: 每瓶22元，1000瓶起订）, score=0.70
-[4]: [(26, 178), (300, 179), (300, 196), (26, 195)] 0.991055
-Recognize result: （品牌】：代加工方式/OEMODM, score=0.67
-[5]: [(26, 209), (235, 209), (235, 227), (26, 227)] 0.995540
-Recognize result: 【品名】：纯臻营养护发素, score=0.70
-[6]: [(26, 240), (242, 240), (242, 259), (26, 259)] 0.986159
+[3]: [(28, 143), (280, 144), (280, 163), (28, 162)] 0.957155
+Recognize result: 每瓶22元，1000瓶起订）, score=0.68
+[4]: [(26, 178), (301, 178), (301, 195), (26, 195)] 0.992206
+Recognize result: 【品牌】：代加工方式/OEMODM, score=0.64
+[5]: [(26, 209), (235, 209), (235, 227), (26, 227)] 0.998661
+Recognize result: 【品名】：纯臻营养护发素, score=0.71
+[6]: [(25, 240), (242, 240), (242, 259), (25, 259)] 0.988332
+[7]: [(413, 233), (429, 233), (429, 304), (413, 304)] 0.967471
 Recognize result: 【产品编号】：YM-X-3011, score=0.71
-[7]: [(413, 233), (429, 233), (429, 305), (413, 305)] 0.970001
-Recognize result: ODMOEM, score=0.71
-[8]: [(25, 270), (179, 270), (179, 289), (25, 289)] 0.990559
+[8]: [(25, 270), (179, 270), (179, 289), (25, 289)] 0.990133
+Recognize result: ODMOEM, score=0.70
+[9]: [(26, 303), (252, 303), (252, 320), (26, 320)] 0.977526
 Recognize result: 【净含量】：220ml, score=0.71
-[9]: [(26, 303), (253, 303), (253, 320), (26, 320)] 0.974053
 Recognize result: 【适用人群】：适合所有肤质, score=0.71
-[10]: [(26, 334), (342, 334), (342, 352), (26, 352)] 0.956719
-Recognize result: （主要成分》:皖蜡硬脂醇、燕麦-葡聚, score=0.59
-[11]: [(27, 365), (282, 365), (282, 384), (27, 384)] 0.975041
-Recognize result: 糖、椰油酰胺丙基甜菜碱、泛酸, score=0.68
-[12]: [(368, 368), (476, 368), (476, 388), (368, 388)] 0.989887
-Recognize result: （成品包材）, score=0.71
-[13]: [(28, 398), (361, 397), (361, 413), (28, 414)] 0.953752
-Recognize result: 干型功能:可降较以发确员，从而大有, score=0.41
-[14]: [(27, 428), (371, 427), (371, 444), (27, 445)] 0.912538
-Recognize result: 即时语久改基发光器的双果，给干强的头, score=0.47
-[15]: [(27, 459), (136, 459), (136, 478), (27, 478)] 0.991298
+[10]: [(25, 334), (343, 334), (343, 352), (25, 352)] 0.953618
+[11]: [(27, 366), (282, 365), (282, 384), (27, 385)] 0.908594
+Recognize result: 【主要成分】:皖蜡硬脂醇、燕麦β-葡聚, score=0.62
+[12]: [(369, 368), (476, 368), (476, 388), (369, 388)] 0.977374
+Recognize result: 糖、椰油酰胺丙基甜菜碱、泛酯, score=0.67
+Recognize result: （成品包材）, score=0.70
+[13]: [(26, 396), (362, 396), (362, 414), (26, 414)] 0.949735
+[14]: [(29, 430), (370, 429), (370, 443), (29, 444)] 0.936015
+Recognize result: 【主要功能】：可紧致头发磷层，从而达到, score=0.66
+[15]: [(27, 459), (136, 459), (136, 478), (27, 478)] 0.978851
+Recognize result: RA V型S发研至NW果 治 N2, score=0.27
 Recognize result: 发足够的滋养, score=0.71
 Run speed:
-  Detect processing=32.056505ms
-  Recognise processing=362.731907ms
-  Total time=394.788412ms
+  Detect processing=58.256248ms
+  Recognise processing=264.197813ms
+  Total time=322.454061ms
 done
 ```
 
@@ -338,9 +370,8 @@ docker run --rm \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/ppocr/system/system.go
+  go run ./example/ppocr/system/system.go -p rk3588
 ```
-
 
 
 ### Background
