@@ -14,15 +14,15 @@ cd example/
 git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
-Run the YOLOv5-seg example.
+Run the YOLOv5-seg example on rk3588 or replace with your Platform model.
 ```
 cd example/yolov5-seg
-go run yolov5-seg.go
+go run yolov5-seg.go -p rk3588
 ```
 
 This will result in the output of:
 ```
-Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Driver Version: 0.9.6, API Version: 2.3.0 (c949ad889d@2024-11-07T11:35:33)
 Model Input Number: 1, Ouput Number: 7
 Input tensors:
   index=0, name=images, n_dims=4, dims=[1, 640, 640, 3], n_elems=1228800, size=1228800, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
@@ -39,9 +39,9 @@ cat @ (714 101 900 336) 0.706588
 dog @ (312 93 526 304) 0.693387
 cat @ (28 113 171 292) 0.641764
 cat @ (530 141 712 299) 0.616804
-Model first run speed: inference=53.284047ms, post processing=46.035115ms, rendering=7.266431ms, total time=106.585593ms
+Model first run speed: inference=45.977719ms, post processing=46.101967ms, rendering=1.395305ms, total time=93.474991ms
 Saved object detection result to ../data/catdog-yolov5-seg-out.jpg
-Benchmark time=1.998158455s, count=20, average total time=99.907922ms
+Benchmark time=7.346591785s, count=100, average total time=73.465917ms
 done
 ```
 
@@ -54,15 +54,17 @@ See the help for command line parameters.
 ```
 $ go run yolov5-seg.go --help
 
-Usage of /tmp/go-build401282281/b001/exe/yolov5-seg:
+Usage of /tmp/go-build2169893350/b001/exe/yolov5-seg:
   -i string
         Image file to run object detection on (default "../data/catdog.jpg")
   -l string
         Text file containing model labels (default "../data/coco_80_labels_list.txt")
   -m string
-        RKNN compiled YOLO model file (default "../data/yolov5s-seg-640-640-rk3588.rknn")
+        RKNN compiled YOLO model file (default "../data/yolov5s-seg-rk3588.rknn")
   -o string
         The output JPG file with object detection markers (default "../data/catdog-yolov5-seg-out.jpg")
+  -p string
+        Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588] (default "rk3588")
   -r string
         The rendering format used for instance segmentation [outline|mask|dump] (default "outline")
 ```
@@ -82,7 +84,7 @@ docker run --rm \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/yolov5-seg/yolov5-seg.go
+  go run ./example/yolov5-seg/yolov5-seg.go -p rk3588
 ```
 
 
@@ -99,7 +101,7 @@ the object and provides a single transparent overlay to indicate the segment mas
 
 This can be output with the following flag.
 ```
-go run yolov5-seg.go -r mask
+go run yolov5-seg.go -p rk3588 -r mask
 ```
 
 ![catdog-mask.jpg](catdog-mask.jpg)
@@ -107,7 +109,7 @@ go run yolov5-seg.go -r mask
 For visualisation and debugging purposes the segmentation mask can also be dumped
 to an image.
 ```
-go run yolov5-seg.go -r dump
+go run yolov5-seg.go -p rk3588 -r dump
 ```
 
 ![catdog-dump.jpg](catdog-dump.jpg)
@@ -132,6 +134,23 @@ yParams.PrototypeWeight = 320
 // create YOLO Processor instance	
 yoloProcesser := postprocess.NewYOLOv5Seg(yParams)
 ```
+
+
+
+## Benchmarks
+
+The following table shows a comparison of the benchmark results across the three distinct platforms.
+
+
+| Platform | Execution Time | Average Inference Time Per Image |
+|----------|----------------|----------------------------------|
+| rk3588   | 7.34s          | 73.46ms                          |
+| rk3576   | 8.91s          | 89.14ms                          |
+| rk3566   | 32.64s         | 326.44ms                         |
+
+Note that these examples are only using a single NPU core to run inference on.  The results
+would be different when running a Pool of models using all NPU cores available.  Secondly
+the Rock 4D (rk3576) has DDR5 memory versus the Rock 5B (rk3588) with slower DDR4 memory.
 
 
 
