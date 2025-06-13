@@ -14,6 +14,7 @@ import (
 	"gocv.io/x/gocv"
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -23,21 +24,28 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	modelFile := flag.String("m", "../data/yolov8n-obb-640-640-rk3588.rknn", "RKNN compiled YOLO model file")
+	modelFile := flag.String("m", "../data/models/rk3588/yolov8n-obb-rk3588.rknn", "RKNN compiled YOLO model file")
 	imgFile := flag.String("i", "../data/intersection.jpg", "Image file to run object detection on")
 	labelFile := flag.String("l", "../data/yolov8_obb_labels_list.txt", "Text file containing model labels")
 	saveFile := flag.String("o", "../data/intersection-out.jpg", "The output JPG file with pose detection markers")
+	rkPlatform := flag.String("p", "rk3588", "Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588]")
 
 	flag.Parse()
 
-	err := rknnlite.SetCPUAffinity(rknnlite.RK3588FastCores)
+	err := rknnlite.SetCPUAffinityByPlatform(*rkPlatform, rknnlite.FastCores)
 
 	if err != nil {
 		log.Printf("Failed to set CPU Affinity: %v\n", err)
 	}
 
+	// check if user specified model file or if default is being used.  if default
+	// then pick the default platform model to use.
+	if f := flag.Lookup("m"); f != nil && f.Value.String() == f.DefValue && *rkPlatform != "rk3588" {
+		*modelFile = strings.ReplaceAll(*modelFile, "rk3588", *rkPlatform)
+	}
+
 	// create rknn runtime instance
-	rt, err := rknnlite.NewRuntime(*modelFile, rknnlite.NPUCoreAuto)
+	rt, err := rknnlite.NewRuntimeByPlatform(*rkPlatform, *modelFile)
 
 	if err != nil {
 		log.Fatal("Error initializing RKNN runtime: ", err)
@@ -149,7 +157,7 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv8obb,
 	mats []gocv.Mat, classNames []string, resizer *preprocess.Resizer,
 	srcImg gocv.Mat) {
 
-	count := 20
+	count := 100
 	start := time.Now()
 
 	for i := 0; i < count; i++ {

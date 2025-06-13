@@ -20,15 +20,15 @@ cd example/
 git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 ```
 
-Run the YOLOv8-obb example.
+Run the YOLOv8-obb example on rk3588 or replace with your Platform model.
 ```
 cd example/yolov8-obb
-go run yolov8-obb.go
+go run yolov8-obb.go -p rk3588
 ```
 
 This will result in the output of:
 ```
-Driver Version: 0.8.2, API Version: 1.6.0 (9a7b5d24c@2023-12-13T17:31:11)
+Driver Version: 0.9.6, API Version: 2.3.0 (c949ad889d@2024-11-07T11:35:33)
 Model Input Number: 1, Ouput Number: 4
 Input tensors:
   index=0, name=images, n_dims=4, dims=[1, 640, 640, 3], n_elems=1228800, size=1228800, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
@@ -63,9 +63,9 @@ small vehicle @ (774 396 66 32 angle=0.544957) 0.603226
 large vehicle @ (793 248 72 30 angle=0.573063) 0.599939
 small vehicle @ (725 146 71 34 angle=0.563694) 0.552175
 small vehicle @ (943 512 68 29 angle=0.516851) 0.500000
-Model first run speed: inference=29.918049ms, post processing=7.956524ms, rendering=3.191652ms, total time=41.066225ms
+Model first run speed: inference=23.698907ms, post processing=3.55243ms, rendering=1.746757ms, total time=28.998094ms
 Saved object detection result to ../data/intersection-out.jpg
-Benchmark time=582.914292ms, count=20, average total time=29.145714ms
+Benchmark time=3.269129715s, count=100, average total time=32.691297ms
 done
 ```
 
@@ -81,15 +81,17 @@ See the help for command line parameters.
 ```
 $ go run yolov8-obb.go --help
 
-Usage of /tmp/go-build3751821681/b001/exe/yolov8-obb:
+Usage of /tmp/go-build1092312274/b001/exe/yolov8-obb:
   -i string
         Image file to run object detection on (default "../data/intersection.jpg")
   -l string
         Text file containing model labels (default "../data/yolov8_obb_labels_list.txt")
   -m string
-        RKNN compiled YOLO model file (default "../data/yolov8n-obb-640-640-rk3588.rknn")
+        RKNN compiled YOLO model file (default "../data/models/rk3588/yolov8n-obb-rk3588.rknn")
   -o string
         The output JPG file with pose detection markers (default "../data/intersection-out.jpg")
+  -p string
+        Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588] (default "rk3588")
 ```
 
 
@@ -108,8 +110,24 @@ docker run --rm \
   -v "/usr/lib/librknnrt.so:/usr/lib/librknnrt.so" \
   -w /go/src/app \
   swdee/go-rknnlite:latest \
-  go run ./example/yolov8-obb/yolov8-obb.go
+  go run ./example/yolov8-obb/yolov8-obb.go -p rk3588
 ```
+
+
+## Benchmarks
+
+The following table shows a comparison of the benchmark results across the three distinct platforms.
+
+
+| Platform | Execution Time | Average Inference Time Per Image |
+|----------|----------------|----------------------------------|
+| rk3588   | 3.26s          | 32.69ms                          |
+| rk3576   | 2.67s          | 26.78ms                          |
+| rk3566   | 5.95s          | 59.59ms                          |
+
+Note that these examples are only using a single NPU core to run inference on.  The results
+would be different when running a Pool of models using all NPU cores available.  Secondly
+the Rock 4D (rk3576) has DDR5 memory versus the Rock 5B (rk3588) with slower DDR4 memory.
 
 
 
