@@ -13,7 +13,7 @@ type RetinaFace struct {
 	Params RetinaFaceParams
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
-	idGen *idGenerator
+	idGen *result.IDGenerator
 }
 
 // RetinaFaceParams defines the struct containing the RetinaFace parameters to use
@@ -57,7 +57,7 @@ func WiderFaceParams() RetinaFaceParams {
 func NewRetinaFace(p RetinaFaceParams) *RetinaFace {
 	return &RetinaFace{
 		Params: p,
-		idGen:  NewIDGenerator(),
+		idGen:  result.NewIDGenerator(),
 	}
 }
 

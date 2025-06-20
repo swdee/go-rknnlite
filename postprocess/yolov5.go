@@ -12,7 +12,7 @@ type YOLOv5 struct {
 	Params YOLOv5Params
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
-	idGen *idGenerator
+	idGen *result.IDGenerator
 }
 
 // YOLOv5Params defines the struct containing the YOLOv5 parameters to use
@@ -94,7 +94,7 @@ func YOLOv5COCOParams() YOLOv5Params {
 func NewYOLOv5(p YOLOv5Params) *YOLOv5 {
 	return &YOLOv5{
 		Params: p,
-		idGen:  NewIDGenerator(),
+		idGen:  result.NewIDGenerator(),
 	}
 }
 

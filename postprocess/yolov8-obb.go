@@ -14,7 +14,7 @@ type YOLOv8obb struct {
 	Params YOLOv8obbParams
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
-	idGen *idGenerator
+	idGen *result.IDGenerator
 }
 
 // YOLOv8obbParams defines the struct containing the YOLOv8-obb parameters to use
@@ -54,7 +54,7 @@ func YOLOv8obbDOTAv1Params() YOLOv8obbParams {
 func NewYOLOv8obb(p YOLOv8obbParams) *YOLOv8obb {
 	return &YOLOv8obb{
 		Params: p,
-		idGen:  NewIDGenerator(),
+		idGen:  result.NewIDGenerator(),
 	}
 }
 

@@ -215,25 +215,6 @@ func computeDFL(tensor []float32, dflLen int) []float32 {
 	return box
 }
 
-// idGenerator is a struct to hold a counter for generating the next incremental
-// ID number
-type idGenerator struct {
-	id int64
-	sync.Mutex
-}
-
-func NewIDGenerator() *idGenerator {
-	return &idGenerator{}
-}
-
-// Getnext next incremental number
-func (id *idGenerator) GetNext() int64 {
-	id.Lock()
-	defer id.Unlock()
-	id.id++
-	return id.id
-}
-
 // resizeByOpenCVUint8 takes image data in uint8 format and resizes it using GoCV
 func resizeByOpenCVUint8(inputImage []uint8, inputWidth, inputHeight, boxesNum int,
 	outputImage []uint8, targetWidth, targetHeight int) {

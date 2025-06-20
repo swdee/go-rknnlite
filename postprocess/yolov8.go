@@ -12,7 +12,7 @@ type YOLOv8 struct {
 	Params YOLOv8Params
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
-	idGen *idGenerator
+	idGen *result.IDGenerator
 }
 
 // YOLOv8Params defines the struct containing the YOLOv8 parameters to use
@@ -52,7 +52,7 @@ func YOLOv8COCOParams() YOLOv8Params {
 func NewYOLOv8(p YOLOv8Params) *YOLOv8 {
 	return &YOLOv8{
 		Params: p,
-		idGen:  NewIDGenerator(),
+		idGen:  result.NewIDGenerator(),
 	}
 }
 

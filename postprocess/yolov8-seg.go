@@ -21,7 +21,7 @@ type YOLOv8Seg struct {
 	Params YOLOv8SegParams
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
-	idGen *idGenerator
+	idGen *result.IDGenerator
 	// protoSize is the Prototype tensor size of the Segment Mask
 	protoSize int
 	// buffer pools to stop allocation contention
@@ -83,7 +83,7 @@ func YOLOv8SegCOCOParams() YOLOv8SegParams {
 func NewYOLOv8Seg(p YOLOv8SegParams) *YOLOv8Seg {
 	return &YOLOv8Seg{
 		Params:    p,
-		idGen:     NewIDGenerator(),
+		idGen:     result.NewIDGenerator(),
 		protoSize: p.PrototypeChannel * p.PrototypeHeight * p.PrototypeWeight,
 		bufPool:   NewBufferPool(),
 	}

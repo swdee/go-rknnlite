@@ -13,7 +13,7 @@ type YOLOX struct {
 	Params YOLOXParams
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
-	idGen *idGenerator
+	idGen *result.IDGenerator
 }
 
 // YOLOXParams defines the struct containing the YOLOX parameters to use
@@ -79,7 +79,7 @@ func YOLOXCOCOParams() YOLOXParams {
 func NewYOLOX(p YOLOXParams) *YOLOX {
 	return &YOLOX{
 		Params: p,
-		idGen:  NewIDGenerator(),
+		idGen:  result.NewIDGenerator(),
 	}
 }
 
