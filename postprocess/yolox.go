@@ -111,7 +111,7 @@ func (y *YOLOX) DetectObjects(outputs *rknnlite.Outputs,
 
 	if validCount <= 0 {
 		// no object detected
-		return nil
+		return YOLOXResult{}
 	}
 
 	// indexArray is used to keep and index of detect objects contained in
