@@ -2,6 +2,7 @@ package postprocess
 
 import (
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/postprocess/result"
 	"github.com/swdee/go-rknnlite/preprocess"
 	"github.com/swdee/go-rknnlite/tracker"
 )
@@ -90,13 +91,13 @@ func NewYOLOv8Seg(p YOLOv8SegParams) *YOLOv8Seg {
 
 // YOLOv8SegResult defines a struct used for object detection results
 type YOLOv8SegResult struct {
-	DetectResults []DetectResult
+	DetectResults []result.DetectResult
 	SegmentData   SegmentData
 }
 
 // GetDetectResults returns the object detection results containing bounding
 // boxes
-func (r YOLOv8SegResult) GetDetectResults() []DetectResult {
+func (r YOLOv8SegResult) GetDetectResults() []result.DetectResult {
 	return r.DetectResults
 }
 
@@ -107,7 +108,7 @@ func (r YOLOv8SegResult) GetSegmentData() SegmentData {
 // DetectObjects takes the RKNN outputs and runs the object detection process
 // then returns the results
 func (y *YOLOv8Seg) DetectObjects(outputs *rknnlite.Outputs,
-	resizer *preprocess.Resizer) DetectionResult {
+	resizer *preprocess.Resizer) result.DetectionResult {
 
 	data := newStrideDataSeg(outputs, y.protoSize)
 
@@ -157,7 +158,7 @@ func (y *YOLOv8Seg) DetectObjects(outputs *rknnlite.Outputs,
 	}
 
 	// collate objects into a result for returning
-	group := make([]DetectResult, 0)
+	group := make([]result.DetectResult, 0)
 	lastCount := 0
 
 	for i := 0; i < validCount; i++ {
@@ -178,8 +179,8 @@ func (y *YOLOv8Seg) DetectObjects(outputs *rknnlite.Outputs,
 				data.filterSegments[n*y.Params.PrototypeChannel+k])
 		}
 
-		result := DetectResult{
-			Box: BoxRect{
+		result := result.DetectResult{
+			Box: result.BoxRect{
 				Left:   int(clamp(x1, 0, data.width)),
 				Top:    int(clamp(y1, 0, data.height)),
 				Right:  int(clamp(x2, 0, data.width)),
@@ -333,7 +334,7 @@ func (y *YOLOv8Seg) processStride(outputs *rknnlite.Outputs, inputID int,
 }
 
 // SegmentMask creates segment mask data for object detection results
-func (y *YOLOv8Seg) SegmentMask(detectObjs DetectionResult,
+func (y *YOLOv8Seg) SegmentMask(detectObjs result.DetectionResult,
 	resizer *preprocess.Resizer) SegMask {
 
 	segData := detectObjs.(YOLOv8SegResult).GetSegmentData()
@@ -461,7 +462,7 @@ func (y *YOLOv8Seg) SegmentMask(detectObjs DetectionResult,
 }
 
 // TrackMask creates segment mask data for tracked objects
-func (y *YOLOv8Seg) TrackMask(detectObjs DetectionResult,
+func (y *YOLOv8Seg) TrackMask(detectObjs result.DetectionResult,
 	trackObjs []*tracker.STrack, resizer *preprocess.Resizer) SegMask {
 
 	detRes := detectObjs.(YOLOv8SegResult).GetDetectResults()

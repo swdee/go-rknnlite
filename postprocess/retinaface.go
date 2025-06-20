@@ -2,6 +2,7 @@ package postprocess
 
 import (
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/postprocess/result"
 	"github.com/swdee/go-rknnlite/preprocess"
 	"math"
 )
@@ -62,25 +63,25 @@ func NewRetinaFace(p RetinaFaceParams) *RetinaFace {
 
 // RetinaFaceResult defines a struct used for retina face detection results
 type RetinaFaceResult struct {
-	DetectResults []DetectResult
-	KeyPoints     [][]KeyPoint
+	DetectResults []result.DetectResult
+	KeyPoints     [][]result.KeyPoint
 }
 
 // GetDetectResults returns the object detection results containing bounding
 // boxes
-func (r RetinaFaceResult) GetDetectResults() []DetectResult {
+func (r RetinaFaceResult) GetDetectResults() []result.DetectResult {
 	return r.DetectResults
 }
 
 // GetKeyPoints returns the keypoints of the detected faces landmark features
-func (r RetinaFaceResult) GetKeyPoints() [][]KeyPoint {
+func (r RetinaFaceResult) GetKeyPoints() [][]result.KeyPoint {
 	return r.KeyPoints
 }
 
 // DetectFaces takes the RKNN outputs and runs the face detection process
 // then returns the result
 func (r *RetinaFace) DetectFaces(outputs *rknnlite.Outputs,
-	resizer *preprocess.Resizer) DetectionResult {
+	resizer *preprocess.Resizer) result.DetectionResult {
 
 	location := outputs.Output[0].BufFloat
 	scores := outputs.Output[1].BufFloat
@@ -118,8 +119,8 @@ func (r *RetinaFace) DetectFaces(outputs *rknnlite.Outputs,
 		resizer.SrcWidth(), resizer.SrcHeight())
 
 	// collate objects into a result for returning
-	group := make([]DetectResult, 0)
-	allKeyPoints := make([][]KeyPoint, 0)
+	group := make([]result.DetectResult, 0)
+	allKeyPoints := make([][]result.KeyPoint, 0)
 	lastCount := 0
 
 	for i := 0; i < validCount; i++ {
@@ -138,14 +139,14 @@ func (r *RetinaFace) DetectFaces(outputs *rknnlite.Outputs,
 		x2 := location[n*4+2]*float32(modelWidth) - float32(resizer.XPad())
 		y2 := location[n*4+3]*float32(modelHeight) - float32(resizer.YPad())
 
-		keyPtData := make([]KeyPoint, 0)
+		keyPtData := make([]result.KeyPoint, 0)
 
 		// Process facial landmark points
 		for j := 0; j < r.Params.KeyPointsNumber; j++ {
 			pointX := landms[n*10+2*j]*float32(modelWidth) - float32(resizer.XPad())
 			pointY := landms[n*10+2*j+1]*float32(modelHeight) - float32(resizer.YPad())
 
-			kp := KeyPoint{
+			kp := result.KeyPoint{
 				X: int(clamp(pointX, 0, modelWidth) / resizer.ScaleFactor()),
 				Y: int(clamp(pointY, 0, modelHeight) / resizer.ScaleFactor()),
 			}
@@ -155,8 +156,8 @@ func (r *RetinaFace) DetectFaces(outputs *rknnlite.Outputs,
 
 		allKeyPoints = append(allKeyPoints, keyPtData)
 
-		result := DetectResult{
-			Box: BoxRect{
+		result := result.DetectResult{
+			Box: result.BoxRect{
 				Left:   int(clamp(x1, 0, modelWidth) / resizer.ScaleFactor()),
 				Top:    int(clamp(y1, 0, modelHeight) / resizer.ScaleFactor()),
 				Right:  int(clamp(x2, 0, modelWidth) / resizer.ScaleFactor()),
@@ -269,6 +270,6 @@ func (r *RetinaFace) nms(validCount int, outputLocations []float32, order []int,
 }
 
 // GetFaceLandmarks returns the landmark keypoints for the detected faces
-func (r *RetinaFace) GetFaceLandmarks(detectObjs DetectionResult) [][]KeyPoint {
+func (r *RetinaFace) GetFaceLandmarks(detectObjs result.DetectionResult) [][]result.KeyPoint {
 	return detectObjs.(RetinaFaceResult).GetKeyPoints()
 }

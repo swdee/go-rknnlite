@@ -2,7 +2,7 @@ package render
 
 import (
 	"fmt"
-	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/postprocess/result"
 	"github.com/swdee/go-rknnlite/tracker"
 	"gocv.io/x/gocv"
 	"image"
@@ -11,7 +11,7 @@ import (
 )
 
 // DetectionBoxes renders the bounding boxes around the object detected
-func DetectionBoxes(img *gocv.Mat, detectResults []postprocess.DetectResult,
+func DetectionBoxes(img *gocv.Mat, detectResults []result.DetectResult,
 	classNames []string, font Font, lineThickness int) {
 
 	// keep a record of all box labels for later rendering
@@ -139,7 +139,7 @@ func TrackerBoxes(img *gocv.Mat, trackResults []*tracker.STrack,
 
 // OrientedBoundingBoxes renders the oriented bounding boxes around the object
 // detected
-func OrientedBoundingBoxes(img *gocv.Mat, detectResults []postprocess.DetectResult,
+func OrientedBoundingBoxes(img *gocv.Mat, detectResults []result.DetectResult,
 	classNames []string, font Font, lineThickness int) {
 
 	// keep a record of all box labels for later rendering
@@ -242,7 +242,7 @@ func drawBoxLabels(img *gocv.Mat, boxLabels []boxLabel, font Font) {
 }
 
 func TrackerOrientedBoundingBoxes(img *gocv.Mat, trackResults []*tracker.STrack,
-	detectResults []postprocess.DetectResult, classNames []string, font Font,
+	detectResults []result.DetectResult, classNames []string, font Font,
 	lineThickness int) {
 
 	// keep a record of all box labels for later rendering
@@ -279,7 +279,7 @@ func TrackerOrientedBoundingBoxes(img *gocv.Mat, trackResults []*tracker.STrack,
 
 // getDetectResultByID returns the detection result from the Detection ID
 func getDetectResultByID(detectID int64,
-	detectResults []postprocess.DetectResult) postprocess.DetectResult {
+	detectResults []result.DetectResult) result.DetectResult {
 
 	for _, detResult := range detectResults {
 		if detectID == detResult.ID {
@@ -287,7 +287,7 @@ func getDetectResultByID(detectID int64,
 		}
 	}
 
-	return postprocess.DetectResult{}
+	return result.DetectResult{}
 }
 
 // obbToCorners converts oritented bounding box to corners
