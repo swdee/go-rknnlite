@@ -7,7 +7,7 @@ as they are scaled down for input to the tensor size of the inference model.  A
 YOLO model typically has a tensor input size of 640x640 so with in a large 4k 
 (3840x2160) image few objects will be detected.
 
-Running the [YOLOv5 example](../example/yolov5) on the 4k 
+Running the [YOLOv5 example](../yolov5) on the 4k 
 [input image](https://github.com/swdee/go-rknnlite-data/raw/master/protest.jpg) results in
 only a few detections at the front of the scene.
 
@@ -20,7 +20,7 @@ an output for the full sized 4k image as seen below.
 
 ![Protest SAHI Output](https://github.com/swdee/go-rknnlite-data/raw/master/docimg/protest-sahi-out-scaled.jpg)
 
-This image was sliced up into 24 separate tiles, this example makes use of a [Pool](../example/pool)
+This image was sliced up into 24 separate tiles and made use of a [Pool](../pool)
 to process these tiles concurrently.
 
 
