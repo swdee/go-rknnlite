@@ -98,6 +98,9 @@ See the [example](example) directory.
   * [PPOCR System](example/ppocr#ppocr-system) - Combines both Detect and Recognise.
 * Streaming
   * [HTTP Stream with ByteTrack Tracking](example/stream) - Demo that streams a video over HTTP with YOLO object detection and ByteTrack object tracking.  
+* Slicing Aided Hyper Inference
+  * [SAHI YOLO Demo](example/sahi) - YOLO Object detection using SAHI on a 4k image with Pooled inferencing. 
+
 
 
 ## Converting Inference Models

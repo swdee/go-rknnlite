@@ -11,6 +11,31 @@ See the [commit log](https://github.com/swdee/go-rknnlite/commits/master/) for g
 Some notes on breaking changes.
 
 
+### June 21, 2025
+
+[PR #40](https://github.com/swdee/go-rknnlite/pull/40/files)
+
+Created the SAHI preprocessor.  This required moving the `postprocess/detect.go` file
+into its own package at `postprocess/result/detect.go` to avoid a cyclic import. 
+The `postprocess.NewIDGenerator()` also needed to be shifted to the `result` package.
+
+These changes only effect the internal's of the API code, so there will be no
+breaking changes if your usage follows those provided in the [examples](examples/). 
+
+However if you are doing something custom outside of the code examples then these changes
+could result in code breakage and would require the following updates.
+
+| Previous API naming          | New API naming          |
+|------------------------------|-------------------------|
+| postprocess.NewIDGenerator() | result.NewIDGenerator() |
+| postprocess.DetectionResult  | result.DetectionResult  |
+| postprocess.BoxRectMode      | result.BoxRectMode  |
+| postprocess.BoxRect          | result.BoxRect  |
+| postprocess.DetectResult     | result.DetectResult  |
+| postprocess.KeyPoint         | result.KeyPoint  |
+
+
+
 ### Apr 2, 2025 
 
 [PR #31](https://github.com/swdee/go-rknnlite/pull/31/files)
