@@ -89,6 +89,8 @@ func main() {
 
 	// run inference on all the slices
 	for _, slice := range slices {
+		// Pin the current slice in a new variable
+		sl := slice
 
 		wg.Add(1)
 
@@ -96,21 +98,21 @@ func main() {
 		var sb strings.Builder
 
 		sb.WriteString(fmt.Sprintf("\nProcessing Slice (%d %d %d %d) with box size (%d %d)\n",
-			slice.X, slice.Y, slice.X2, slice.Y2, slice.X2-slice.X, slice.Y2-slice.Y),
+			sl.X, sl.Y, sl.X2, sl.Y2, sl.X2-sl.X, sl.Y2-sl.Y),
 		)
 
 		// pool.Get() blocks if no runtimes are available in the pool
 		rt := pool.Get()
 
-		go func() {
+		go func(sl preprocess.Slice, rt *rknnlite.Runtime) {
 			// perform inference on image file
-			outputs, err := rt.Inference([]gocv.Mat{*slice.Mat()})
+			outputs, err := rt.Inference([]gocv.Mat{*sl.Mat()})
 
 			if err != nil {
 				log.Fatal("Runtime inferencing failed with error: ", err)
 			}
 
-			detectObjs := yoloProcesser.DetectObjects(outputs, slice.Resizer())
+			detectObjs := yoloProcesser.DetectObjects(outputs, sl.Resizer())
 			detectResults := detectObjs.GetDetectResults()
 
 			// output detection boxes to stdout
@@ -123,11 +125,11 @@ func main() {
 				)
 			}
 
-			sahi.AddResult(slice, detectResults)
+			sahi.AddResult(sl, detectResults)
 
 			// free outputs allocated in C memory after you have finished post processing
 			err = outputs.Free()
-			slice.Free()
+			sl.Free()
 
 			// print slice object detection results
 			printMu.Lock()
@@ -136,7 +138,7 @@ func main() {
 
 			pool.Return(rt)
 			wg.Done()
-		}()
+		}(sl, rt)
 	}
 
 	wg.Wait()
