@@ -248,45 +248,6 @@ func min(a, b int) int {
 	return b
 }
 
-// NMS runs non-maximum suppression on a sorted slice of detections
-// Assumes detections are sorted descending by Probability.
-func (s *SAHI) nms(detections []result.DetectResult,
-	iouThreshold, smallBoxOverlapThresh float32) []result.DetectResult {
-
-	keep := make([]result.DetectResult, 0, len(detections))
-
-	// track by class, so we don’t suppress across different classes
-	for _, det := range detections {
-		skip := false
-
-		for _, kept := range keep {
-			if det.Class != kept.Class {
-				continue
-			}
-
-			// do IoU check
-			if s.iou(det.Box, kept.Box) > iouThreshold {
-				skip = true
-				break
-			}
-
-			// do partial box check, if the intersection covers most of the small box
-			inter := s.intersectionArea(det.Box, kept.Box)
-			areaDet := s.boxArea(det.Box)
-			if areaDet > 0 && float32(inter)/float32(areaDet) > smallBoxOverlapThresh {
-				skip = true
-				break
-			}
-		}
-
-		if !skip {
-			keep = append(keep, det)
-		}
-	}
-
-	return keep
-}
-
 // nmsCluster picks one box per overlapping cluster (class‐agnostic),
 // choosing the larghest area (tie‐break on confidence), and uses both IoU
 // and small‐box overlap tests to form clusters.
