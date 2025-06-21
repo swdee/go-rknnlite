@@ -20,7 +20,7 @@ into its own package at `postprocess/result/detect.go` to avoid a cyclic import.
 The `postprocess.NewIDGenerator()` also needed to be shifted to the `result` package.
 
 These changes only effect the internal's of the API code, so there will be no
-breaking changes if your usage follows those provided in the [examples](examples/). 
+breaking changes if your usage follows those provided in the [examples](example/). 
 
 However if you are doing something custom outside of the code examples then these changes
 could result in code breakage and would require the following updates.
