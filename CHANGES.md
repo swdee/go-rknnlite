@@ -13,7 +13,7 @@ Some notes on breaking changes.
 
 ### June 21, 2025
 
-[PR #40](https://github.com/swdee/go-rknnlite/pull/40/files)
+[PR #41](https://github.com/swdee/go-rknnlite/pull/41/files)
 
 Created the SAHI preprocessor.  This required moving the `postprocess/detect.go` file
 into its own package at `postprocess/result/detect.go` to avoid a cyclic import. 
