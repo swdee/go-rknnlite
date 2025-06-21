@@ -1,17 +1,20 @@
 package postprocess
 
-import "github.com/swdee/go-rknnlite/tracker"
+import (
+	"github.com/swdee/go-rknnlite/postprocess/result"
+	"github.com/swdee/go-rknnlite/tracker"
+)
 
 // DetectionsToObjects takes a postprocess object detection results and
 // converts it into a tracker object
-func DetectionsToObjects(dets []DetectResult) []tracker.Object {
+func DetectionsToObjects(dets []result.DetectResult) []tracker.Object {
 
 	var objs []tracker.Object
 	var x, y, width, height float32
 
 	for _, det := range dets {
 
-		if det.Box.Mode == ModeXYWH {
+		if det.Box.Mode == result.ModeXYWH {
 			x = float32(det.Box.X)
 			y = float32(det.Box.Y)
 			width = float32(det.Box.Width)

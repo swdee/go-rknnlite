@@ -2,6 +2,7 @@ package postprocess
 
 import (
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/postprocess/result"
 	"github.com/swdee/go-rknnlite/preprocess"
 	"github.com/swdee/go-rknnlite/tracker"
 )
@@ -12,7 +13,7 @@ type YOLOv5Seg struct {
 	Params YOLOv5SegParams
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
-	idGen *idGenerator
+	idGen *result.IDGenerator
 	// protoSize is the Prototype tensor size of the Segment Mask
 	protoSize int
 	// buffer pools to stop allocation contention
@@ -113,7 +114,7 @@ func YOLOv5SegCOCOParams() YOLOv5SegParams {
 func NewYOLOv5Seg(p YOLOv5SegParams) *YOLOv5Seg {
 	return &YOLOv5Seg{
 		Params:    p,
-		idGen:     NewIDGenerator(),
+		idGen:     result.NewIDGenerator(),
 		protoSize: p.PrototypeChannel * p.PrototypeHeight * p.PrototypeWeight,
 		bufPool:   NewBufferPool(),
 	}
@@ -144,7 +145,7 @@ func newStrideDataSeg(outputs *rknnlite.Outputs, protoSize int) *strideData {
 // YOLOv5SegResult defines a struct used for the results of YOLO segmentation
 // models
 type YOLOv5SegResult struct {
-	DetectResults []DetectResult
+	DetectResults []result.DetectResult
 	SegmentData   SegmentData
 }
 
@@ -161,7 +162,7 @@ type SegmentData struct {
 
 // GetDetectResults returns the object detection results containing bounding
 // boxes
-func (r YOLOv5SegResult) GetDetectResults() []DetectResult {
+func (r YOLOv5SegResult) GetDetectResults() []result.DetectResult {
 	return r.DetectResults
 }
 
@@ -172,7 +173,7 @@ func (r YOLOv5SegResult) GetSegmentData() SegmentData {
 // DetectObjects takes the RKNN outputs and runs the object detection process
 // then returns the results
 func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
-	resizer *preprocess.Resizer) DetectionResult {
+	resizer *preprocess.Resizer) result.DetectionResult {
 
 	// strides in protoype code
 	data := newStrideDataSeg(outputs, y.protoSize)
@@ -192,7 +193,7 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 
 	if validCount <= 0 {
 		// no object detected
-		return nil
+		return YOLOv5SegResult{}
 	}
 
 	// indexArray is used to keep and index of detect objects contained in
@@ -219,7 +220,7 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 	}
 
 	// collate objects into a result for returning
-	group := make([]DetectResult, 0)
+	group := make([]result.DetectResult, 0)
 	lastCount := 0
 
 	for i := 0; i < validCount; i++ {
@@ -240,8 +241,8 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 				data.filterSegments[n*y.Params.PrototypeChannel+k])
 		}
 
-		result := DetectResult{
-			Box: BoxRect{
+		result := result.DetectResult{
+			Box: result.BoxRect{
 				// have left the clamps on here versus C code original
 				Left:   int(clamp(x1, 0, data.width)),
 				Top:    int(clamp(y1, 0, data.height)),
@@ -287,7 +288,7 @@ func (y *YOLOv5Seg) DetectObjects(outputs *rknnlite.Outputs,
 }
 
 // SegmentMask creates segment mask data for object detection results
-func (y *YOLOv5Seg) SegmentMask(detectObjs DetectionResult,
+func (y *YOLOv5Seg) SegmentMask(detectObjs result.DetectionResult,
 	resizer *preprocess.Resizer) SegMask {
 
 	// handle segment masks
@@ -416,7 +417,7 @@ func (y *YOLOv5Seg) SegmentMask(detectObjs DetectionResult,
 }
 
 // TrackMask creates segment mask data for tracked objects
-func (y *YOLOv5Seg) TrackMask(detectObjs DetectionResult,
+func (y *YOLOv5Seg) TrackMask(detectObjs result.DetectionResult,
 	trackObjs []*tracker.STrack, resizer *preprocess.Resizer) SegMask {
 
 	// handle segment masks

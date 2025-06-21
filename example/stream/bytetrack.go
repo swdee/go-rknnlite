@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/swdee/go-rknnlite"
 	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/postprocess/result"
 	"github.com/swdee/go-rknnlite/preprocess"
 	"github.com/swdee/go-rknnlite/render"
 	"github.com/swdee/go-rknnlite/tracker"
@@ -51,7 +52,7 @@ type ResultFrame struct {
 // models used for object detection
 type YOLOProcessor interface {
 	DetectObjects(outputs *rknnlite.Outputs,
-		resizer *preprocess.Resizer) postprocess.DetectionResult
+		resizer *preprocess.Resizer) result.DetectionResult
 }
 
 type VideoFormat string
@@ -505,7 +506,7 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	// objects can be different to the object detection results so need to
 	// strip those objects from the mask
 	var segMask postprocess.SegMask
-	var keyPoints [][]postprocess.KeyPoint
+	var keyPoints [][]result.KeyPoint
 
 	if d.modelType == "v5seg" {
 		segMask = d.process.(*postprocess.YOLOv5Seg).TrackMask(detectObjs,
@@ -570,9 +571,9 @@ func (d *Demo) LimitResults(trackResults []*tracker.STrack) []*tracker.STrack {
 
 // AnnotateImg draws the detection boxes and processing statistics on the given
 // image Mat
-func (d *Demo) AnnotateImg(img gocv.Mat, detectResults []postprocess.DetectResult,
+func (d *Demo) AnnotateImg(img gocv.Mat, detectResults []result.DetectResult,
 	trackResults []*tracker.STrack,
-	segMask postprocess.SegMask, keyPoints [][]postprocess.KeyPoint,
+	segMask postprocess.SegMask, keyPoints [][]result.KeyPoint,
 	trail *tracker.Trail, fps float64,
 	frameNum int, timing *Timing) {
 
@@ -646,7 +647,7 @@ func (d *Demo) AnnotateImg(img gocv.Mat, detectResults []postprocess.DetectResul
 // DetectObjects takes a raw video frame and runs YOLO inference on it to detect
 // objects
 func (d *Demo) DetectObjects(img gocv.Mat, frameNum int,
-	timing *Timing) (postprocess.DetectionResult, error) {
+	timing *Timing) (result.DetectionResult, error) {
 
 	timing.DetObjStart = time.Now()
 

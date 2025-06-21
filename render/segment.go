@@ -2,7 +2,7 @@ package render
 
 import (
 	"fmt"
-	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/postprocess/result"
 	"github.com/swdee/go-rknnlite/tracker"
 	"gocv.io/x/gocv"
 	"image"
@@ -85,7 +85,7 @@ func isContourInsideTrackerRect(contourRect image.Rectangle,
 // it to be used, this is needed to filter out small amounts of noise/artifacts
 // contained in the mask from inferencing.
 func SegmentOutline(img *gocv.Mat, segMask []uint8,
-	detectResults []postprocess.DetectResult, minArea float64,
+	detectResults []result.DetectResult, minArea float64,
 	classNames []string, font Font, lineThickness int) error {
 
 	width := img.Cols()
@@ -234,7 +234,7 @@ func PaintSegmentToFile(filename string, height, width int,
 
 // getSegMaskIDFromDetectionID
 func getSegMaskIDFromDetectionID(detectID int64,
-	detectResults []postprocess.DetectResult) int {
+	detectResults []result.DetectResult) int {
 
 	for segMaskID, detectResult := range detectResults {
 		if detectID == detectResult.ID {
@@ -253,7 +253,7 @@ func getSegMaskIDFromDetectionID(detectID int64,
 // contained in the mask from inferencing.  The epsilon value effects the shape
 // of the polygon outline.   The higher the value the more round it becomes.
 func TrackerOutlines(img *gocv.Mat, segMask []uint8,
-	trackResults []*tracker.STrack, detectResults []postprocess.DetectResult,
+	trackResults []*tracker.STrack, detectResults []result.DetectResult,
 	minArea float64, classNames []string, font Font, lineThickness int,
 	epsilon float64) error {
 
@@ -407,7 +407,7 @@ func TrackerOutlines(img *gocv.Mat, segMask []uint8,
 // top of the whole image.  alpha is the amount of opacity to apply to the mask
 // overlay.
 func TrackerMask(img *gocv.Mat, segMask []uint8,
-	trackResults []*tracker.STrack, detectResults []postprocess.DetectResult,
+	trackResults []*tracker.STrack, detectResults []result.DetectResult,
 	alpha float32) {
 
 	boxesNum := len(trackResults)

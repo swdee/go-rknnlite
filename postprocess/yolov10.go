@@ -2,6 +2,7 @@ package postprocess
 
 import (
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/postprocess/result"
 	"github.com/swdee/go-rknnlite/preprocess"
 )
 
@@ -11,7 +12,7 @@ type YOLOv10 struct {
 	Params YOLOv10Params
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
-	idGen *idGenerator
+	idGen *result.IDGenerator
 }
 
 // YOLOv10Params defines the struct containing the YOLOv10 parameters to use
@@ -56,25 +57,25 @@ func YOLOv10COCOParams() YOLOv10Params {
 func NewYOLOv10(p YOLOv10Params) *YOLOv10 {
 	return &YOLOv10{
 		Params: p,
-		idGen:  NewIDGenerator(),
+		idGen:  result.NewIDGenerator(),
 	}
 }
 
 // YOLOv10Result defines a struct used for object detection results
 type YOLOv10Result struct {
-	DetectResults []DetectResult
+	DetectResults []result.DetectResult
 }
 
 // GetDetectResults returns the object detection results containing bounding
 // boxes
-func (r YOLOv10Result) GetDetectResults() []DetectResult {
+func (r YOLOv10Result) GetDetectResults() []result.DetectResult {
 	return r.DetectResults
 }
 
 // DetectObjects takes the RKNN outputs and runs the object detection process
 // then returns the results
 func (y *YOLOv10) DetectObjects(outputs *rknnlite.Outputs,
-	resizer *preprocess.Resizer) DetectionResult {
+	resizer *preprocess.Resizer) result.DetectionResult {
 
 	data := newStrideData(outputs)
 
@@ -122,7 +123,7 @@ func (y *YOLOv10) DetectObjects(outputs *rknnlite.Outputs,
 
 	if validCount <= 0 {
 		// no object detected
-		return nil
+		return YOLOv10Result{}
 	}
 
 	// indexArray is used to keep and index of detect objects contained in
@@ -136,7 +137,7 @@ func (y *YOLOv10) DetectObjects(outputs *rknnlite.Outputs,
 	quickSortIndiceInverse(data.objProbs, 0, validCount-1, indexArray)
 
 	// collate objects into a result for returning
-	group := make([]DetectResult, 0)
+	group := make([]result.DetectResult, 0)
 	lastCount := 0
 
 	for i := 0; i < validCount; i++ {
@@ -152,8 +153,8 @@ func (y *YOLOv10) DetectObjects(outputs *rknnlite.Outputs,
 		id := data.classID[n]
 		objConf := data.objProbs[i]
 
-		result := DetectResult{
-			Box: BoxRect{
+		result := result.DetectResult{
+			Box: result.BoxRect{
 				Left:   int(clamp(x1, 0, data.width) / resizer.ScaleFactor()),
 				Top:    int(clamp(y1, 0, data.height) / resizer.ScaleFactor()),
 				Right:  int(clamp(x2, 0, data.width) / resizer.ScaleFactor()),

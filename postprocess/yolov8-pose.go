@@ -2,6 +2,7 @@ package postprocess
 
 import (
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/postprocess/result"
 	"github.com/swdee/go-rknnlite/preprocess"
 )
 
@@ -11,7 +12,7 @@ type YOLOv8Pose struct {
 	Params YOLOv8PoseParams
 	// nextID is a counter that increments and provides the next number
 	// for each detection result ID
-	idGen *idGenerator
+	idGen *result.IDGenerator
 }
 
 // YOLOv8PoseParams defines the struct containing the YOLOv8 parameters to use
@@ -56,30 +57,30 @@ func YOLOv8PoseCOCOParams() YOLOv8PoseParams {
 func NewYOLOv8Pose(p YOLOv8PoseParams) *YOLOv8Pose {
 	return &YOLOv8Pose{
 		Params: p,
-		idGen:  NewIDGenerator(),
+		idGen:  result.NewIDGenerator(),
 	}
 }
 
 // YOLOv8PoseResult defines a struct used for object detection results
 type YOLOv8PoseResult struct {
-	DetectResults []DetectResult
-	KeyPoints     [][]KeyPoint
+	DetectResults []result.DetectResult
+	KeyPoints     [][]result.KeyPoint
 }
 
 // GetDetectResults returns the object detection results containing bounding
 // boxes
-func (r YOLOv8PoseResult) GetDetectResults() []DetectResult {
+func (r YOLOv8PoseResult) GetDetectResults() []result.DetectResult {
 	return r.DetectResults
 }
 
-func (r YOLOv8PoseResult) GetKeyPoints() [][]KeyPoint {
+func (r YOLOv8PoseResult) GetKeyPoints() [][]result.KeyPoint {
 	return r.KeyPoints
 }
 
 // DetectObjects takes the RKNN outputs and runs the object detection process
 // then returns the results
 func (y *YOLOv8Pose) DetectObjects(outputs *rknnlite.Outputs,
-	resizer *preprocess.Resizer) DetectionResult {
+	resizer *preprocess.Resizer) result.DetectionResult {
 
 	data := newStrideData(outputs)
 
@@ -106,7 +107,7 @@ func (y *YOLOv8Pose) DetectObjects(outputs *rknnlite.Outputs,
 
 	if validCount <= 0 {
 		// no object detected
-		return nil
+		return YOLOv8PoseResult{}
 	}
 
 	// indexArray is used to keep and index of detect objects contained in
@@ -133,8 +134,8 @@ func (y *YOLOv8Pose) DetectObjects(outputs *rknnlite.Outputs,
 	}
 
 	// collate objects into a result for returning
-	group := make([]DetectResult, 0)
-	allKeyPoints := make([][]KeyPoint, 0)
+	group := make([]result.DetectResult, 0)
+	allKeyPoints := make([][]result.KeyPoint, 0)
 	lastCount := 0
 
 	for i := 0; i < validCount; i++ {
@@ -149,7 +150,7 @@ func (y *YOLOv8Pose) DetectObjects(outputs *rknnlite.Outputs,
 		y2 := y1 + data.filterBoxes[n*5+3]
 		keyPointsIdx := data.filterBoxes[n*5+4]
 
-		keyPtData := make([]KeyPoint, 0)
+		keyPtData := make([]result.KeyPoint, 0)
 
 		for j := 0; j < y.Params.KeyPointsNumber; j++ {
 			/*
@@ -169,7 +170,7 @@ func (y *YOLOv8Pose) DetectObjects(outputs *rknnlite.Outputs,
 			kpY := outputs.Output[3].BufFloat[j*3*8400+1*8400+int(keyPointsIdx)]
 			kpScore := outputs.Output[3].BufFloat[j*3*8400+2*8400+int(keyPointsIdx)]
 
-			kp := KeyPoint{
+			kp := result.KeyPoint{
 				X:     int(float32(int(kpX)-resizer.XPad()) / resizer.ScaleFactor()),
 				Y:     int(float32(int(kpY)-resizer.YPad()) / resizer.ScaleFactor()),
 				Score: float32(kpScore),
@@ -184,8 +185,8 @@ func (y *YOLOv8Pose) DetectObjects(outputs *rknnlite.Outputs,
 		id := data.classID[n]
 		objConf := data.objProbs[i]
 
-		result := DetectResult{
-			Box: BoxRect{
+		result := result.DetectResult{
+			Box: result.BoxRect{
 				Left:   int(clamp(x1, 0, data.width) / resizer.ScaleFactor()),
 				Top:    int(clamp(y1, 0, data.height) / resizer.ScaleFactor()),
 				Right:  int(clamp(x2, 0, data.width) / resizer.ScaleFactor()),
@@ -283,6 +284,6 @@ func (y *YOLOv8Pose) processStride(boxTensor []int8, boxZP int32, boxScale float
 
 // GetPoseEstimation returns the keypoints for the detection objects used in
 // pose estimation
-func (y *YOLOv8Pose) GetPoseEstimation(detectObjs DetectionResult) [][]KeyPoint {
+func (y *YOLOv8Pose) GetPoseEstimation(detectObjs result.DetectionResult) [][]result.KeyPoint {
 	return detectObjs.(YOLOv8PoseResult).GetKeyPoints()
 }

@@ -1,7 +1,7 @@
 package render
 
 import (
-	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/postprocess/result"
 	"gocv.io/x/gocv"
 	"image"
 )
@@ -36,7 +36,7 @@ var (
 )
 
 // PoseKeyPoints renders the provided pose estimation keypoints for all objects
-func PoseKeyPoints(img *gocv.Mat, keyPoints [][]postprocess.KeyPoint,
+func PoseKeyPoints(img *gocv.Mat, keyPoints [][]result.KeyPoint,
 	lineThickness int) {
 
 	// for each object
@@ -65,7 +65,7 @@ func PoseKeyPoints(img *gocv.Mat, keyPoints [][]postprocess.KeyPoint,
 
 // FaceKeyPoints renders the provided face landmark keypoints for all
 // faces detected
-func FaceKeyPoints(img *gocv.Mat, keyPoints [][]postprocess.KeyPoint) {
+func FaceKeyPoints(img *gocv.Mat, keyPoints [][]result.KeyPoint) {
 
 	// for each object
 	for i := 0; i < len(keyPoints); i++ {

@@ -1,4 +1,4 @@
-package postprocess
+package result
 
 type DetectionResult interface {
 	GetDetectResults() []DetectResult
