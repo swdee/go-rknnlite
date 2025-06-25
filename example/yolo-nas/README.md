@@ -1,4 +1,4 @@
-# YOLONAS Example
+# YOLO-NAS Example
 
 
 ## Usage
