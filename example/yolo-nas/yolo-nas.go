@@ -19,8 +19,7 @@ func main() {
 	log.SetFlags(0)
 
 	// read in cli flags
-	//modelFile := flag.String("m", "../data/models/rk3588/yolov8s-rk3588.rknn", "RKNN compiled YOLO model file")
-	modelFile := flag.String("m", "/home/rock/devel/yolo_nas_s_manual.rknn", "RKNN compiled YOLO model file")
+	modelFile := flag.String("m", "../data/models/rk3588/yolonas-s-rk3588.rknn", "RKNN compiled YOLO model file")
 	imgFile := flag.String("i", "../data/bus.jpg", "Image file to run object detection on")
 	labelFile := flag.String("l", "../data/coco_80_labels_list.txt", "Text file containing model labels")
 	saveFile := flag.String("o", "../data/bus-yolo-nas-out.jpg", "The output JPG file with object detection markers")
