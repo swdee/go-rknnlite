@@ -73,11 +73,14 @@ RUN git clone --depth 1 https://github.com/swdee/lpd-yolov8.git /opt/lpd-yolov8 
     cp /opt/rknn_model_zoo/examples/yolov8/python/convert.py /opt/rknn_model_zoo/examples/yolov8/python/convert-lpd.py && \
     sed -i "s|^DATASET_PATH *= *['\"].*['\"]|DATASET_PATH = '/opt/lpd-yolov8/subset.txt'|" /opt/rknn_model_zoo/examples/yolov8/python/convert-lpd.py
 
+# download other onnx models
+RUN git clone --depth 1 https://github.com/swdee/go-rknnlite-build.git /opt/go-rknnlite-build
+
 # Upgrade pip to the latest version
 RUN pip install --upgrade pip
 
 # Install the Python dependencies
-RUN pip install -r \
+RUN pip install --timeout 300 --retries 10 -r \
     "https://raw.githubusercontent.com/airockchip/rknn-toolkit2/refs/tags/v2.3.2/rknn-toolkit2/packages/x86_64/requirements_cp312-2.3.2.txt"
 
 # Install the RKNN-Toolkit2 wheel
