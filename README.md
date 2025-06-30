@@ -75,6 +75,7 @@ See the [example](example) directory.
 * Image Classification
   * [MobileNet Demo](example/mobilenet)
   * [Pooled Runtime Usage](example/pool)
+  * [Batch Input Usage](example/batch)
 * Object Detection
   * [YOLOv5 Demo](example/yolov5)  
   * [YOLOv8 Demo](example/yolov8)
@@ -162,6 +163,24 @@ rt, err := rknnlite.NewRuntime(*modelFile, rknnlite.NPUSkipSetCore)
 
 If you use `rknnlite.NewRuntimeByPlatform()` instead this will be automatically 
 set for you.
+
+
+## Runtime Inference
+
+Once a Runtime has been created inference is performed by passing the input 
+tensors.
+
+```
+rt.Inference([]gocv.Mat{})
+```
+
+The `Inference()` function takes a slice of gocv.Mat's where the number of
+elements in the slice corresponds to the total number of input tensors the
+Model has.  Typically most models only have a single input tensor so only a single
+gocv.Mat would be passed here.
+
+If you want to pass multiple images in a single `Inference()` call, then you need
+to use [Batching](example/batch).
 
 
 ## CPU Affinity
