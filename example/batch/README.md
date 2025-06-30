@@ -197,3 +197,34 @@ docker run --rm \
   swdee/go-rknnlite:latest \
   go run ./example/batch/batch.go -p rk3588 -s 3
 ```
+
+
+## API
+
+A convenience function `rknnlite.NewBatch()` is provided to concatenate individual
+images into a single input tensor for the Model and then extract their results 
+from the combined outputs.
+
+```
+// create a new batch processor
+batch := rt.NewBatch(batchSize, height, width, channels)
+defer batch.Close()
+
+
+for idx, file := range files {
+
+    // add files to the batch at the given index
+    batch.AddAt(idx, file)
+    
+    // OR you can add images incrementally without specifying an index
+    batch.Add(file)
+}
+
+// pass the concatenated Mat to the runtime for inference
+outputs, err := rt.Inference([]gocv.Mat{batch.Mat()})
+
+// then get a single image result by index
+output, err := batch.GetOutputInt(4, outputs.Output[0], int(outputs.OutputAttributes().DimForDFL))
+```
+
+See the full example code for more details.
