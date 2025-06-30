@@ -30,6 +30,7 @@ MODELS=(
   "mobilenet_v1      rknn_convert      /opt/models/mobilenet_v1/model_config.yml    ''    ''    mobilenet_v1"
   "yolov8            convert-lpd.py    /opt/lpd-yolov8/lpd-yolov8n.onnx             i8    ''    lpd-yolov8n"
   "yolov8            convert.py        /opt/go-rknnlite-build/yolonas-s.onnx        i8    ''    yolonas-s"
+  "mobilenet         mobilenet-rknn-batch.py      ../model/mobilenetv2-12.onnx      i8    --model     mobilenetv2-batch8"
 )
 
 # compile all entries (or just filter) for one platform
