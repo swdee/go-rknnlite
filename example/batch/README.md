@@ -136,7 +136,7 @@ git clone --depth=1 https://github.com/swdee/go-rknnlite-data.git data
 
 Run the batch example on rk3588 or replace with your Platform model.
 ```
-cd example/bacth
+cd example/batch
 go run batch.go -s 3 -p rk3588
 ```
 
