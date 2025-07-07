@@ -158,7 +158,7 @@ func (r *reID) processObjects(objects []Object, frame gocv.Mat) ([][]float32, er
 	// if any error, just bail
 	for e := range errCh {
 		if e != nil {
-			return nil, fmt.Errorf("ReID error:", e)
+			return nil, fmt.Errorf("ReID error: %w", e)
 		}
 	}
 
