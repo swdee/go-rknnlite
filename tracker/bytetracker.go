@@ -25,6 +25,10 @@ type BYTETracker struct {
 	lostStracks []*STrack
 	// List of removed objects
 	removedStracks []*STrack
+	// reid supported tracking
+	reid *reID
+	// useReid is a flag to indicate if ReID supported tracking is to be used
+	useReid bool
 }
 
 // NewBYTETracker initializes and returns a new BYTETracker
@@ -62,6 +66,10 @@ func (bt *BYTETracker) Update(objects []Object) ([]*STrack, error) {
 		strack := NewSTrack(NewRect(object.Rect.X(), object.Rect.Y(), object.Rect.Width(), object.Rect.Height()),
 			object.Prob, object.ID, object.Label)
 
+		if bt.useReid {
+			strack.WithFeature(object.Feature, 0.9, 30)
+		}
+
 		if object.Prob >= bt.trackThresh {
 			detStracks = append(detStracks, strack)
 		} else {
@@ -87,11 +95,18 @@ func (bt *BYTETracker) Update(objects []Object) ([]*STrack, error) {
 		strack.Predict()
 	}
 
-	// Step 2: First association, with IoU
+	// Step 2: First association, using IoU or feature distance matching
 	var currentTrackedStracks, remainTrackedStracks, remainDetStracks, refindStracks []*STrack
+	var costMatrix [][]float32
+
+	if bt.useReid {
+		costMatrix = bt.calcFeatureDistance(strackPool, detStracks)
+	} else {
+		costMatrix = bt.calcIouDistance(strackPool, detStracks)
+	}
 
 	matchesIdx, unmatchTrackIdx, unmatchDetectionIdx, err := bt.linearAssignment(
-		bt.calcIouDistance(strackPool, detStracks),
+		costMatrix,
 		len(strackPool), len(detStracks), bt.matchThresh,
 	)
 
@@ -126,7 +141,8 @@ func (bt *BYTETracker) Update(objects []Object) ([]*STrack, error) {
 		}
 	}
 
-	// Step 3: Second association, using low score dets
+	// Step 3: IoU fallback matching for unmatched tracks,
+	// using low score IOU detections
 	var currentLostStracks []*STrack
 
 	matchesIdx, unmatchTrackIdx, unmatchDetectionIdx, err = bt.linearAssignment(
@@ -162,6 +178,7 @@ func (bt *BYTETracker) Update(objects []Object) ([]*STrack, error) {
 	}
 
 	// Step 4: Init new stracks
+	// Match non-active to unmatched remainingDetStracks (high confidence only)
 	var currentRemovedStracks []*STrack
 
 	matchesIdx, unmatchUnconfirmedIdx, unmatchDetectionIdx, err := bt.linearAssignment(
@@ -197,7 +214,7 @@ func (bt *BYTETracker) Update(objects []Object) ([]*STrack, error) {
 		currentTrackedStracks = append(currentTrackedStracks, track)
 	}
 
-	// Step 5: Update state
+	// Step 5: Update state - Time-based removal of old lost tracks
 	for _, lostStrack := range bt.lostStracks {
 		if bt.frameID-lostStrack.GetFrameID() > bt.maxTimeLost {
 			lostStrack.MarkAsRemoved()
@@ -507,4 +524,22 @@ func (bt *BYTETracker) execLapjv(cost [][]float32, extendCost bool,
 	}
 
 	return rowsol, colsol, opt, nil
+}
+
+// calcFeatureDistance calculates the distance between two embedded features
+// of the specified STracks
+func (bt *BYTETracker) calcFeatureDistance(tracks, detections []*STrack) [][]float32 {
+
+	cost := make([][]float32, len(tracks))
+
+	for i, tr := range tracks {
+
+		cost[i] = make([]float32, len(detections))
+
+		for j, det := range detections {
+			cost[i][j] = tr.BestMatchDistance(det.feature)
+		}
+	}
+
+	return cost
 }

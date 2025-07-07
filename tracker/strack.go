@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"fmt"
+	"github.com/swdee/go-rknnlite/postprocess/reid"
 	"gonum.org/v1/gonum/mat"
 )
 
@@ -47,6 +48,18 @@ type STrack struct {
 	detectionID int64
 	// label is the object label/class from yolo inference
 	label int
+	// feature embedding used for ReID
+	feature []float32
+	// smoothFeature an EMA smoothed feature embedding used for ReID
+	smoothFeature []float32
+	// featureQueue is a history of features
+	featureQueue [][]float32
+	// maxQueueSize is the featureQueue maximum size, eg: 30
+	maxQueueSize int
+	// alpha value use in EMA smoothing calculation
+	alpha float32
+	// hasFeature is a flag to indicate if WithFeature() has been set
+	hasFeature bool
 }
 
 // NewSTrack creates a new STrack
@@ -66,6 +79,15 @@ func NewSTrack(rect Rect, score float32, detectionID int64, label int) *STrack {
 		detectionID:  detectionID,
 		label:        label,
 	}
+}
+
+// WithFeature adds an objects embedded feature from ReID inference to the STrack
+func (s *STrack) WithFeature(feature []float32, alpha float32, qsize int) {
+	s.hasFeature = true
+	s.alpha = alpha
+	s.maxQueueSize = qsize
+	s.featureQueue = make([][]float32, 0, qsize)
+	s.UpdateFeatures(feature)
 }
 
 // GetRect returns the bounding box of the tracked object
@@ -155,6 +177,8 @@ func (s *STrack) ReActivate(newTrack *STrack, frameID, newTrackID int) {
 
 	s.frameID = frameID
 	s.trackletLen = 0
+
+	s.UpdateFeatures(newTrack.feature)
 }
 
 // Predict predicts the next state of the track
@@ -185,6 +209,8 @@ func (s *STrack) Update(newTrack *STrack, frameID int) error {
 	s.frameID = frameID
 	s.trackletLen++
 
+	s.UpdateFeatures(newTrack.feature)
+
 	return nil
 }
 
@@ -204,4 +230,59 @@ func (s *STrack) updateRect() {
 	s.rect.SetHeight(s.mean[3])
 	s.rect.SetX(s.mean[0] - s.rect.Width()/2)
 	s.rect.SetY(s.mean[1] - s.rect.Height()/2)
+}
+
+// UpdateFeatures updates an STracks ReID embedded features
+func (s *STrack) UpdateFeatures(feat []float32) {
+
+	if !s.hasFeature {
+		return
+	}
+
+	normFeat := reid.NormalizeVec(feat)
+	s.feature = normFeat
+
+	if s.smoothFeature == nil {
+		s.smoothFeature = make([]float32, len(normFeat))
+		copy(s.smoothFeature, normFeat)
+
+	} else {
+		for i := range normFeat {
+			s.smoothFeature[i] = s.alpha*s.smoothFeature[i] + (1-s.alpha)*normFeat[i]
+		}
+		s.smoothFeature = reid.NormalizeVec(s.smoothFeature)
+	}
+
+	// Enqueue the feature
+	s.featureQueue = append(s.featureQueue, normFeat)
+
+	if len(s.featureQueue) > s.maxQueueSize {
+		s.featureQueue = s.featureQueue[1:]
+	}
+}
+
+// BestMatchDistance compares a new detection against all stored past features
+func (s *STrack) BestMatchDistance(detFeat []float32) float32 {
+
+	if !s.hasFeature {
+		// feature not set so return max distance
+		return 1.0
+	}
+
+	if len(s.featureQueue) == 0 {
+		return 1.0 // max distance
+	}
+
+	detNorm := reid.NormalizeVec(detFeat)
+	best := float32(1.0)
+
+	for _, f := range s.featureQueue {
+		d := reid.EuclideanDistance(f, detNorm)
+
+		if d < best {
+			best = d
+		}
+	}
+
+	return best
 }
