@@ -25,7 +25,7 @@ func (r *Runtime) Query(w io.Writer) error {
 		return fmt.Errorf("Error querying IO Numbers: %w", err)
 	}
 
-	fmt.Fprintf(w, "Model Input Number: %d, Ouput Number: %d\n", num.NumberInput, num.NumberOutput)
+	fmt.Fprintf(w, "Model Input Number: %d, Output Number: %d\n", num.NumberInput, num.NumberOutput)
 
 	// query Input tensors
 	inputAttrs, err := r.QueryInputTensors()
