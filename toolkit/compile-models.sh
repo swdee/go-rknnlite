@@ -30,6 +30,8 @@ MODELS=(
   "mobilenet_v1      rknn_convert      /opt/models/mobilenet_v1/model_config.yml    ''    ''    mobilenet_v1"
   "yolov8            convert-lpd.py    /opt/lpd-yolov8/lpd-yolov8n.onnx             i8    ''    lpd-yolov8n"
   "yolov8            convert.py        /opt/go-rknnlite-build/yolonas-s.onnx        i8    ''    yolonas-s"
+  "mobilenet         mobilenet-rknn-batch.py      ../model/mobilenetv2-12.onnx      i8    --model     mobilenetv2-batch8"
+  "osnet-market1501  build|onnx_to_rknn.py        osnet_x1_0_market_256x128.onnx    i8    ''          osnet-market1501-batch8"
 )
 
 # compile all entries (or just filter) for one platform
@@ -75,6 +77,7 @@ compile_for_platform() {
     fi
 
     echo "-> building $outprefix for $platform"
+    local out="/opt/rkmodels/${platform}/${outprefix}-${platform}.rknn"
 
     if [[ "$script" == "rknn_convert" ]]; then
       # mobilenet_v1 special: use the CLI and then rename
@@ -83,13 +86,23 @@ compile_for_platform() {
         -i "$model" \
         -o "/opt/rkmodels/$platform/"
       mv "/opt/rkmodels/$platform/${outprefix}.rknn" \
-         "/opt/rkmodels/$platform/${outprefix}-${platform}.rknn"
+         "$out"
+      continue
+    fi
+
+    # build the go-rknnlite-build models
+    if [[ "$script" == build\|* ]]; then
+      # strip everything up to (and including) the first pipe to get script name
+      scriptName="${script#*|}"
+      # go into the go-rknnlite-build tree
+      pushd "/opt/go-rknnlite-build/${subdir}" >/dev/null
+        python "$scriptName" "$model" "$platform" "$dtype" "$out"
+      popd >/dev/null
       continue
     fi
 
     # the old examples
     pushd "/opt/rknn_model_zoo/examples/${subdir}/python/" >/dev/null
-    local out="/opt/rkmodels/${platform}/${outprefix}-${platform}.rknn"
 
     if [[ "$subdir" == "mobilenet" ]]; then
       python "$script" $extra "$model" \

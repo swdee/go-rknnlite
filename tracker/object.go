@@ -11,6 +11,8 @@ type Object struct {
 	// ID is a unique ID to give this object which can be used to match
 	// the input detection object and tracked object
 	ID int64
+	// Feature is a ReID embedding feature
+	Feature []float32
 }
 
 // NewObject is a constructor function for the Object struct

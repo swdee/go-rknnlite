@@ -73,9 +73,6 @@ RUN git clone --depth 1 https://github.com/swdee/lpd-yolov8.git /opt/lpd-yolov8 
     cp /opt/rknn_model_zoo/examples/yolov8/python/convert.py /opt/rknn_model_zoo/examples/yolov8/python/convert-lpd.py && \
     sed -i "s|^DATASET_PATH *= *['\"].*['\"]|DATASET_PATH = '/opt/lpd-yolov8/subset.txt'|" /opt/rknn_model_zoo/examples/yolov8/python/convert-lpd.py
 
-# download other onnx models
-RUN git clone --depth 1 https://github.com/swdee/go-rknnlite-build.git /opt/go-rknnlite-build
-
 # Upgrade pip to the latest version
 RUN pip install --upgrade pip
 
@@ -91,6 +88,15 @@ RUN pip install \
 RUN pip install --no-cache-dir \
     pyyaml \
     "tensorflow<=2.16.0rc0"
+
+# download other onnx models
+RUN git clone --depth 1 https://github.com/swdee/go-rknnlite-build.git /opt/go-rknnlite-build && \
+    git -C /opt/go-rknnlite-build fetch --depth 1 origin ce8b5ce1dc53b1c38324e7506374731ad21070c8 && \
+    git -C /opt/go-rknnlite-build checkout FETCH_HEAD
+
+# copy our modified mobilenet.py script into the rknn_model_zoo directory
+RUN cp /opt/go-rknnlite-build/mobilenet-batch/mobilenet-rknn.py /opt/rknn_model_zoo/examples/mobilenet/python/mobilenet-rknn-batch.py
+
 
 # By default do nothing
 CMD ["bash"]

@@ -313,6 +313,19 @@ itself is not 100%.   Whilst this demo shows a complete solution, you would stil
 need to do work to train a better model and testing for your own use case. 
 
 
+## Re-Identification (ReID)
+
+Experimental ReID has been added which follows the implementation of the 
+[FairMOT](https://github.com/FoundationVision/ByteTrack/tree/main/tutorials/fairmot) tracker,
+however this makes use of the OSNet model trained with the Market1501 dataset.
+
+Usage of ReID is expensive and typically takes around 200ms per frame to complete
+on the RK3588 NPU.   There is little accuracy improvement over straight ByteTrack
+which adds little overhead to the YOLO object detection.
+
+We need to wait for Rockchips next generation RK36xx SoC before this may be useful.
+
+
 ## Background
 
 The ByteTrack code is a Go conversion of the [C++ project](https://github.com/ifzhang/ByteTrack). 

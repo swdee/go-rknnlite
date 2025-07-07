@@ -60,7 +60,7 @@ func (r *Runtime) Inference(mats []gocv.Mat) (*Outputs, error) {
 				Index: uint32(idx),
 				Type:  TensorFloat32,
 				// multiply by 4 for size of float32
-				Size:        uint32(mat.Cols() * mat.Rows() * mat.Channels() * 4),
+				Size:        uint32(len(data) * 4), // bytes = elements * 4
 				Fmt:         TensorNHWC,
 				Buf:         unsafe.Pointer(&data[0]),
 				PassThrough: false,
@@ -77,7 +77,7 @@ func (r *Runtime) Inference(mats []gocv.Mat) (*Outputs, error) {
 			inputs[idx] = Input{
 				Index:       uint32(idx),
 				Type:        TensorUint8,
-				Size:        uint32(mat.Cols() * mat.Rows() * mat.Channels()),
+				Size:        uint32(len(data)), // bytes = elements
 				Fmt:         TensorNHWC,
 				Buf:         unsafe.Pointer(&data[0]),
 				PassThrough: false,

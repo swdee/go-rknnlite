@@ -127,18 +127,27 @@ type Demo struct {
 	// renderFormat indicates which rendering type to use with instance
 	// segmentation, outline or mask
 	renderFormat string
+	// reidModelFile is the model to use ReID with
+	reidModelFile string
+	// reid is a flag to inidicate if reid is being used or not
+	reid bool
+	// reidPool of rknnlite runtimes to perform inference in parallel
+	reidPool *rknnlite.Pool
 }
 
 // NewDemo returns and instance of Demo, a streaming HTTP server showing
 // video with object detection
 func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
-	modelType string, renderFormat string, rkPlatform string) (*Demo, error) {
+	modelType string, renderFormat string, rkPlatform string,
+	reidModelFile string, useReid bool) (*Demo, error) {
 
 	var err error
 
 	d := &Demo{
-		vidSrc:    vidSrc,
-		limitObjs: make([]string, 0),
+		vidSrc:        vidSrc,
+		limitObjs:     make([]string, 0),
+		reidModelFile: reidModelFile,
+		reid:          useReid,
 	}
 
 	if vidSrc.Format == VideoFile {
@@ -220,11 +229,33 @@ func NewDemo(vidSrc *VideoSource, modelFile, labelFile string, poolSize int,
 		log.Printf("***WARNING*** %s only has 1 TOPS NPU, downgraded to %d FPS\n", rkPlatform, FPS)
 	}
 
+	if d.reid {
+		if strings.EqualFold(rkPlatform[:5], "rk356") {
+			log.Fatal("***WARNING*** ReID is unavailable for RK356x platforms as the 1 TOPS NPU is not powerful enough")
+		}
+		FPS = 4
+		FPSinterval = time.Duration(float64(time.Second) / float64(FPS))
+		log.Println("***WARNING*** ReID is experimental and requires alot of NPU, downgraded to 4 FPS")
+	}
+
 	// load in Model class names
 	d.labels, err = rknnlite.LoadLabels(labelFile)
 
 	if err != nil {
 		return nil, fmt.Errorf("Error loading model labels: %w", err)
+	}
+
+	// create pool for ReID
+	if d.reid {
+		d.reidPool, err = rknnlite.NewPool(poolSize, reidModelFile,
+			[]rknnlite.CoreMask{rknnlite.NPUCoreAuto})
+
+		if err != nil {
+			log.Fatalf("Error creating ReID RKNN pool: %v\n", err)
+		}
+
+		// set runtime to leave output tensors as int8
+		d.reidPool.SetWantFloat(false)
 	}
 
 	return d, nil
@@ -360,6 +391,10 @@ func (d *Demo) Stream(w http.ResponseWriter, r *http.Request) {
 	// record of past object detections for tracking
 	byteTrack := tracker.NewBYTETracker(FPS, FPS*10, 0.5, 0.6, 0.8)
 
+	if d.reid {
+		byteTrack.UseReID(d.reidPool, tracker.Euclidean, 0.51)
+	}
+
 	// create a trails history
 	trail := tracker.NewTrail(90)
 
@@ -491,9 +526,18 @@ func (d *Demo) ProcessFrame(img gocv.Mat, retChan chan<- ResultFrame,
 	// track detected objects
 	timing.TrackerStart = time.Now()
 
-	trackObjs, err := byteTrack.Update(
-		postprocess.DetectionsToObjects(detectResults),
-	)
+	var trackObjs []*tracker.STrack
+
+	if d.reid {
+		trackObjs, err = byteTrack.UpdateWithFrame(
+			postprocess.DetectionsToObjects(detectResults),
+			resImg,
+		)
+	} else {
+		trackObjs, err = byteTrack.Update(
+			postprocess.DetectionsToObjects(detectResults),
+		)
+	}
 
 	timing.TrackerEnd = time.Now()
 
@@ -713,6 +757,8 @@ func main() {
 	renderFormat := flag.String("r", "outline", "The rendering format used for instance segmentation [outline|mask]")
 	codecFormat := flag.String("codec", "mjpg", "Web Camera codec The rendering format [mjpg|yuyv]")
 	rkPlatform := flag.String("p", "rk3588", "Rockchip CPU Model number [rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588]")
+	reidModelFile := flag.String("rm", "../data/models/rk3588/osnet-market1501-batch8-rk3588.rknn", "RKNN compiled OSNet/Re-Identification model file")
+	useReid := flag.Bool("reid", false, "Enable Re-Identification enhanced tracking")
 
 	// Initialize the custom camera resolution flag with a default value
 	cameraRes := &cameraResFlag{value: "1280x720@30"}
@@ -760,8 +806,12 @@ func main() {
 		*modelFile = strings.ReplaceAll(*modelFile, "rk3588", *rkPlatform)
 	}
 
+	if f := flag.Lookup("rm"); f != nil && f.Value.String() == f.DefValue && *rkPlatform != "rk3588" {
+		*reidModelFile = strings.ReplaceAll(*reidModelFile, "rk3588", *rkPlatform)
+	}
+
 	demo, err := NewDemo(vidSrc, *modelFile, *labelFile, *poolSize,
-		*modelType, *renderFormat, *rkPlatform)
+		*modelType, *renderFormat, *rkPlatform, *reidModelFile, *useReid)
 
 	if err != nil {
 		log.Fatalf("Error creating demo: %v", err)
