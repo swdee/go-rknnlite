@@ -109,6 +109,11 @@ func (p *Pool) SetWantFloat(val bool) {
 	}
 }
 
+// Size returns the Pool size
+func (p *Pool) Size() int {
+	return p.size
+}
+
 // getRuntimeCore takes an integer and returns the core mask value to use from
 // the coremask list
 func getRuntimeCore(i int, cores []CoreMask) CoreMask {
