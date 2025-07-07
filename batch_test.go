@@ -134,7 +134,7 @@ func BenchmarkBatchSize(b *testing.B) {
 			}
 
 			// pre-allocate the batch container
-			batch := rt.NewBatch(tc.batchSize, height, width, channels)
+			batch := NewBatch(tc.batchSize, height, width, channels, rt.inputTypeFloat32)
 			defer batch.Close()
 
 			b.ResetTimer()
@@ -175,7 +175,7 @@ func TestBatchAddAndOverflow(t *testing.T) {
 
 	r := &Runtime{inputTypeFloat32: false}
 
-	batch := r.NewBatch(2, 2, 3, 1)
+	batch := NewBatch(2, 2, 3, 1, r.inputTypeFloat32)
 	defer batch.Close()
 
 	// create Mats with known data
@@ -240,7 +240,7 @@ func TestBatchAddAtAndClear(t *testing.T) {
 
 	r := &Runtime{inputTypeFloat32: false}
 
-	batch := r.NewBatch(3, 2, 2, 1)
+	batch := NewBatch(3, 2, 2, 1, r.inputTypeFloat32)
 	defer batch.Close()
 
 	m := gocv.NewMatWithSize(2, 2, gocv.MatTypeCV8U)
@@ -281,7 +281,7 @@ func TestGetOutputIntAndF32(t *testing.T) {
 
 	r := &Runtime{inputTypeFloat32: false}
 
-	batch := r.NewBatch(2, 2, 2, 1)
+	batch := NewBatch(2, 2, 2, 1, r.inputTypeFloat32)
 	defer batch.Close()
 
 	// Test GetOutputInt bounds
