@@ -30,12 +30,12 @@ type Batch struct {
 
 // NewBatch creates a batch of concatenated Mats for the given input tensor
 // and batch size
-func (r *Runtime) NewBatch(batchSize, height, width, channels int) *Batch {
+func NewBatch(batchSize, height, width, channels int, inputTypeFloat32 bool) *Batch {
 
 	// Choose output Mat type
 	var matType gocv.MatType
 
-	if r.inputTypeFloat32 {
+	if inputTypeFloat32 {
 		matType = gocv.MatTypeCV32F
 	} else {
 		matType = gocv.MatTypeCV8U
@@ -49,7 +49,7 @@ func (r *Runtime) NewBatch(batchSize, height, width, channels int) *Batch {
 		width:            width,
 		channels:         channels,
 		mat:              gocv.NewMatWithSizes(shape, matType),
-		inputTypeFloat32: r.inputTypeFloat32,
+		inputTypeFloat32: inputTypeFloat32,
 		matType:          matType,
 		matCnt:           0,
 		imgSize:          height * width * channels,

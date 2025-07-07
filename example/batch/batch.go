@@ -160,7 +160,8 @@ func main() {
 func processBatch(rt *rknnlite.Runtime, paths []string, quiet bool) {
 
 	// create batch
-	batch := rt.NewBatch(batchSize, height, width, channels)
+	batch := rknnlite.NewBatch(batchSize, height, width, channels,
+		rt.GetInputTypeFloat32())
 	defer batch.Close()
 
 	// for each image path, load & preprocess, then Add to batch
