@@ -98,6 +98,8 @@ See the [example](example) directory.
   * [PPOCR Detect](example/ppocr#ppocr-detect) - Takes an image and detects areas of text.
   * [PPOCR Recognise](example/ppocr#ppocr-recognise) - Takes an area of text and performs OCR on it.
   * [PPOCR System](example/ppocr#ppocr-system) - Combines both Detect and Recognise.
+* Tracking
+  * [Re-Identification Demo](example/reid) - Re-Identify (ReID) similar objects for tracking, uses batch processing. 
 * Streaming
   * [HTTP Stream with ByteTrack Tracking](example/stream) - Demo that streams a video over HTTP with YOLO object detection and ByteTrack object tracking.  
 * Slicing Aided Hyper Inference
