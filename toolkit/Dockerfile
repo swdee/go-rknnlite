@@ -91,7 +91,7 @@ RUN pip install --no-cache-dir \
 
 # download other onnx models
 RUN git clone --depth 1 https://github.com/swdee/go-rknnlite-build.git /opt/go-rknnlite-build && \
-    git -C /opt/go-rknnlite-build fetch --depth 1 origin 15dd75d4bc23486931e860f8ddd5e505c4003aba && \
+    git -C /opt/go-rknnlite-build fetch --depth 1 origin ce8b5ce1dc53b1c38324e7506374731ad21070c8 && \
     git -C /opt/go-rknnlite-build checkout FETCH_HEAD
 
 # copy our modified mobilenet.py script into the rknn_model_zoo directory
