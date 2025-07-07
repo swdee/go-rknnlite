@@ -127,16 +127,16 @@ Usage of /tmp/go-build3419105702/b001/exe/bytetrack:
 The default mode is to use the YOLOv5 model, however you can change to other models with.
 ```
 # YOLOv8
-go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/yolov8s-rk3588.rknn -t v8
+go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/models/rk3588/yolov8s-rk3588.rknn -t v8
 
 # YOLOv10
-go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/yolov10s-rk3588.rknn -t v10
+go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/models/rk3588/yolov10s-rk3588.rknn -t v10
 
 # YOLOv11
-go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/yolov11s-rk3588.rknn -t v11
+go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/models/rk3588/yolov11s-rk3588.rknn -t v11
 
 # YOLOX
-go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/yoloxs-rk3588.rknn -t x
+go run bytetrack.go -a :8080 -s 3 -x person -p rk3588 -m ../data/models/rk3588/yoloxs-rk3588.rknn -t x
 ```
 
 The YOLO models used are the original ones from the RKNN Model Zoo and are not tuned 
@@ -184,7 +184,7 @@ resolution and frame rate of `-c 1280x720@30` on the command line to represent
 `/dev/video1` and a resolution of `1280x720` running at `30`FPS.
 
 ```
-go run bytetrack.go -a :8080 -s 6 -v 1 -c 640x480@30 -codec MJPG -m ../data/yolov8n-pose-rk3588.rknn -t v8pose -p rk3588
+go run bytetrack.go -a :8080 -s 6 -v 1 -c 640x480@30 -codec MJPG -m ../data/models/rk3588/yolov8n-pose-rk3588.rknn -t v8pose -p rk3588
 ```
 
 
@@ -271,7 +271,7 @@ The YOLOv8-pose processor has been added to this Stream example, use the followi
 video to view example.
 
 ```
-go run bytetrack.go -a :8080 -s 3 -v ../data/dance.mp4 -t v8pose -m ../data/yolov8n-pose-rk3588.rknn -p rk3588
+go run bytetrack.go -a :8080 -s 3 -v ../data/dance.mp4 -t v8pose -m ../data/models/rk3588/yolov8n-pose-rk3588.rknn -p rk3588
 ```
 
 Tracking trails have been turned off as the trails distract from the skeleton.
@@ -283,7 +283,7 @@ Using the YOLOv8-obb processor and example has been added for object detection
 using oriented bounding boxes.
 
 ```
-go run bytetrack.go -a :8080 -s 3 -v ../data/aerial.mp4 -t v8obb -m ../data/yolov8n-obb-rk3588.rknn -l ../data/yolov8_obb_labels_list.txt -p rk3588
+go run bytetrack.go -a :8080 -s 3 -v ../data/aerial.mp4 -t v8obb -m ../data/models/rk3588/yolov8n-obb-rk3588.rknn -l ../data/yolov8_obb_labels_list.txt -p rk3588
 ```
 
 
