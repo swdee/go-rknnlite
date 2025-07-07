@@ -241,6 +241,11 @@ func (r *Runtime) SetInputTypeFloat32(val bool) {
 	r.inputTypeFloat32 = val
 }
 
+// GetInputTypeFloat32 returns the input type if set as Float32 (true) or Int8 (false)
+func (r *Runtime) GetInputTypeFloat32() bool {
+	return r.inputTypeFloat32
+}
+
 // SDKVersion represents the C.rknn_sdk_version struct
 type SDKVersion struct {
 	DriverVersion string
