@@ -183,6 +183,6 @@ they are different people.
 
 ## Postprocessing
 
-[Convenience functions](https://github.com/swdee/go-rknnlite-data/raw/master/postprocess/reid.go) 
+[Convenience functions](https://github.com/swdee/go-rknnlite/blob/master/postprocess/reid/reid.go) 
 are provided for calculating the Euclidean Distance or Cosine Similarity 
 depending on how the Model has been trained.
