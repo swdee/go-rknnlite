@@ -32,6 +32,7 @@ MODELS=(
   "yolov8            convert.py        /opt/go-rknnlite-build/yolonas-s.onnx        i8    ''    yolonas-s"
   "mobilenet         mobilenet-rknn-batch.py      ../model/mobilenetv2-12.onnx      i8    --model     mobilenetv2-batch8"
   "osnet-market1501  build|onnx_to_rknn.py        osnet_x1_0_market_256x128.onnx    i8    ''          osnet-market1501-batch8"
+  "midas             build|onnx_to_rknn.py        dpt_swin2_tiny_256.onnx           i8    ''          dpt_swin2_tiny_256"
 )
 
 # compile all entries (or just filter) for one platform
