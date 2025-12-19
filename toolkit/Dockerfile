@@ -8,6 +8,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       wget \
       git \
+      git-lfs \
+      ca-certificates \
       libgl1-mesa-glx && \
     rm -rf /var/lib/apt/lists/*
 
@@ -89,10 +91,15 @@ RUN pip install --no-cache-dir \
     pyyaml \
     "tensorflow<=2.16.0rc0"
 
+# fixes for python package conflicts, we are forcing specific versions.
+RUN pip install --no-cache-dir \
+    "ml-dtypes==0.5.4" "onnx==1.18.0" "onnxruntime==1.18.1"
+
 # download other onnx models
 RUN git clone --depth 1 https://github.com/swdee/go-rknnlite-build.git /opt/go-rknnlite-build && \
-    git -C /opt/go-rknnlite-build fetch --depth 1 origin ce8b5ce1dc53b1c38324e7506374731ad21070c8 && \
-    git -C /opt/go-rknnlite-build checkout FETCH_HEAD
+    git -C /opt/go-rknnlite-build fetch --depth 1 origin 8380b2265b4becf2dda4c7ff52b9d57f8c718f09 && \
+    git -C /opt/go-rknnlite-build checkout FETCH_HEAD && \
+    git -C /opt/go-rknnlite-build lfs pull
 
 # copy our modified mobilenet.py script into the rknn_model_zoo directory
 RUN cp /opt/go-rknnlite-build/mobilenet-batch/mobilenet-rknn.py /opt/rknn_model_zoo/examples/mobilenet/python/mobilenet-rknn-batch.py
