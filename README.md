@@ -104,7 +104,8 @@ See the [example](example) directory.
   * [HTTP Stream with ByteTrack Tracking](example/stream) - Demo that streams a video over HTTP with YOLO object detection and ByteTrack object tracking.  
 * Slicing Aided Hyper Inference
   * [SAHI YOLO Demo](example/sahi) - YOLO Object detection using SAHI on a 4k image with Pooled inferencing. 
-
+* Depth Estimation
+  * [MiDaS v3.1 Demo](example/midas) 
 
 
 ## Converting Inference Models
