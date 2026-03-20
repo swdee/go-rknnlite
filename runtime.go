@@ -123,49 +123,69 @@ type Runtime struct {
 // NewRuntime returns a RKNN run time instance.  Provide the full path and
 // filename of the RKNN compiled model file to run.
 func NewRuntime(modelFile string, core CoreMask) (*Runtime, error) {
-
 	r := &Runtime{
 		wantFloat: true,
 	}
 
-	err := r.init(modelFile)
-
-	if err != nil {
+	if err := r.init(modelFile); err != nil {
 		return nil, err
 	}
+
+	if err := r.setup(core); err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// NewRuntimeFromBytes returns a RKNN run time instance. Provide the model as a byte buffer.
+func NewRuntimeFromBytes(modelBuffer []byte, core CoreMask) (*Runtime, error) {
+	r := &Runtime{
+		wantFloat: true,
+	}
+
+	if err := r.initFromBytes(modelBuffer); err != nil {
+		return nil, err
+	}
+
+	if err := r.setup(core); err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// setup performs the common initialization steps for the RKNN runtime
+func (r *Runtime) setup(core CoreMask) error {
+	var err error
 
 	// setCoreMask is only supported on RK3588, allow skipping for other Rockchip models
 	// like RK3566
 	if core != NPUSkipSetCore {
-		err = r.setCoreMask(core)
-
-		if err != nil {
-			return nil, err
+		if err = r.setCoreMask(core); err != nil {
+			return err
 		}
 	}
 
 	// cache IONumber
 	r.ioNum, err = r.QueryModelIONumber()
-
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// query Input tensors
 	r.inputAttrs, err = r.QueryInputTensors()
-
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// query Output tensors
 	r.outputAttrs, err = r.QueryOutputTensors()
-
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return r, nil
+	return nil
 }
 
 // init wraps C.rknn_init which initializes the RKNN context with the given
@@ -191,6 +211,24 @@ func (r *Runtime) init(modelFile string) error {
 
 	// call the C function.
 	ret := C.rknn_init(&r.ctx, unsafe.Pointer(cModelFile), 0, 0, nil)
+
+	if ret != C.RKNN_SUCC {
+		return fmt.Errorf("C.rknn_init call failed with code %d, error: %s",
+			ret, ErrorCodes(ret).String())
+	}
+
+	return nil
+}
+
+func (r *Runtime) initFromBytes(modelBytes []byte) error {
+
+	if len(modelBytes) == 0 {
+		return fmt.Errorf("bytes is empty")
+	}
+
+	ptr := unsafe.Pointer(&modelBytes[0])
+	size := C.uint32_t(len(modelBytes))
+	ret := C.rknn_init(&r.ctx, ptr, size, 0, nil)
 
 	if ret != C.RKNN_SUCC {
 		return fmt.Errorf("C.rknn_init call failed with code %d, error: %s",
@@ -294,22 +332,35 @@ func (r *Runtime) OutputAttrs() []TensorAttr {
 // rk3562|rk3566|rk3568|rk3576|rk3582|rk3582|rk3588
 // Provide the full path and filename of the RKNN compiled model file to run
 func NewRuntimeByPlatform(platform string, modelFile string) (*Runtime, error) {
+	useCore, err := getCoreMaskByPlatform(platform)
+	if err != nil {
+		return nil, err
+	}
+	return NewRuntime(modelFile, useCore)
+}
 
+// NewRuntimeByPlatformFromBytes returns a RKNN run time instance and automatically
+// selects the NPU cores to run on the given platform string.
+func NewRuntimeByPlatformFromBytes(platform string, modelBytes []byte) (*Runtime, error) {
+	useCore, err := getCoreMaskByPlatform(platform)
+	if err != nil {
+		return nil, err
+	}
+	return NewRuntimeFromBytes(modelBytes, useCore)
+}
+
+func getCoreMaskByPlatform(platform string) (CoreMask, error) {
 	platform = strings.TrimSpace(platform)
 	platform = strings.ToLower(platform)
 
-	var useCore CoreMask
-
 	switch platform {
 	case "rk3562", "rk3566", "rk3568":
-		useCore = NPUSkipSetCore
+		return NPUSkipSetCore, nil
 
 	case "rk3576", "rk3582", "rk3588":
-		useCore = NPUCoreAuto
+		return NPUCoreAuto, nil
 
 	default:
-		return nil, fmt.Errorf("unknown platform: %s", platform)
+		return 0, fmt.Errorf("unknown platform: %s", platform)
 	}
-
-	return NewRuntime(modelFile, useCore)
 }
