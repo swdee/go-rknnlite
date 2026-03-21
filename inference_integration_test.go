@@ -11,6 +11,24 @@ import (
 )
 
 func TestMobileNetTop5(t *testing.T) {
+	testMobileNetTop5Common(t, func(modelFile string) (*Runtime, error) {
+		return NewRuntime(modelFile, NPUCoreAuto)
+	})
+}
+
+func TestMobileNetTop5FromBytes(t *testing.T) {
+	testMobileNetTop5Common(t, func(modelFile string) (*Runtime, error) {
+		modelBytes, err := os.ReadFile(modelFile)
+		if err != nil {
+			return nil, err
+		}
+
+		return NewRuntimeFromBytes(modelBytes, NPUCoreAuto)
+	})
+}
+
+func testMobileNetTop5Common(t *testing.T, newRuntime func(modelFile string) (*Runtime, error)) {
+	t.Helper()
 
 	modelFile := os.Getenv("RKNN_MODEL")
 
@@ -25,10 +43,10 @@ func TestMobileNetTop5(t *testing.T) {
 	}
 
 	// Initialize runtime
-	rt, err := NewRuntime(modelFile, NPUCoreAuto)
+	rt, err := newRuntime(modelFile)
 
 	if err != nil {
-		t.Fatalf("NewRuntime failed: %v", err)
+		t.Fatalf("runtime init failed: %v", err)
 	}
 
 	defer rt.Close()
@@ -80,8 +98,10 @@ func TestMobileNetTop5(t *testing.T) {
 		}
 
 		if i > 0 && p.Probability > top5[i-1].Probability {
-			t.Errorf("probabilities not descending: index %d has %v > previous %v",
-				i, p.Probability, top5[i-1].Probability)
+			t.Errorf(
+				"probabilities not descending: index %d has %v > previous %v",
+				i, p.Probability, top5[i-1].Probability,
+			)
 		}
 	}
 
@@ -90,13 +110,16 @@ func TestMobileNetTop5(t *testing.T) {
 
 	for i, p := range top5 {
 		if int(p.LabelIndex) < 0 || int(p.LabelIndex) >= numClasses {
-			t.Errorf("entry %d: label index %d out of range [0,%d)", i, p.LabelIndex, numClasses)
+			t.Errorf(
+				"entry %d: label index %d out of range [0,%d)",
+				i, p.LabelIndex, numClasses,
+			)
 		}
 	}
 
 	// Sanity check: at least one probability above a tiny epsilon
 	const eps = 1e-3
-	var found bool
+	found := false
 
 	for _, p := range top5 {
 		if p.Probability > eps {
