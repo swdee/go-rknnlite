@@ -84,6 +84,7 @@ See the [example](example) directory.
   * [YOLOX Demo](example/yolox) 
   * [RetinaFace](example/retinaface) - Detect human faces and identify landmark features (eyes, nose, and mouth).
   * [YOLO-NAS Demo](example/yolo-nas)
+  * [YOLO26 Demo](example/yolo26)
 * Instance Segmentation
   * [YOLOv5-seg Demo](example/yolov5-seg)
   * [YOLOv8-seg Demo](example/yolov8-seg)
