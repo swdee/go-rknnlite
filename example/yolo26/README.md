@@ -125,9 +125,9 @@ yolo export model=yolo26s.pt format=rknn opset=19
 ```
 
 Then use [rknn-toolkit2](https://github.com/airockchip/rknn-toolkit2) to convert the `yolo26s.onnx` to RKNN format
-with the conversion script provided, eg:
+with the conversion script provided in the yolo26_rknn_ultralytics repository, eg:
 ```
-python convert.py --model-path yolo26s.onnx --platform rk3588 --dtype i8
+python rknn_export/convert.py --model-path yolo26s.onnx --platform rk3588 --dtype i8
 ```
 
 ## Benchmarks
@@ -137,9 +137,9 @@ The following table shows a comparison of the benchmark results across the three
 
 | Platform | Execution Time | Average Inference Time Per Image |
 |----------|----------------|----------------------------------|
-| rk3588   | 4.05s          | 40.54ms                     |
-| rk3576   | s          | ms                          |
-| rk3566   | s          | ms                          |
+| rk3588   | 4.05s          | 40.54ms                          |
+| rk3576   | 4.21s          | 42.16ms                          |
+| rk3566   | 14.21s         | 142.15ms                         |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available.  Secondly
