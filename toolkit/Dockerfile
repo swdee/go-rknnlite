@@ -97,7 +97,7 @@ RUN pip install --no-cache-dir \
 
 # download other onnx models
 RUN git clone --depth 1 https://github.com/swdee/go-rknnlite-build.git /opt/go-rknnlite-build && \
-    git -C /opt/go-rknnlite-build fetch --depth 1 origin 8380b2265b4becf2dda4c7ff52b9d57f8c718f09 && \
+    git -C /opt/go-rknnlite-build fetch --depth 1 origin 779c06560e3b64fdb70109401c0f8991c3c576a9 && \
     git -C /opt/go-rknnlite-build checkout FETCH_HEAD && \
     git -C /opt/go-rknnlite-build lfs pull
 
