@@ -325,7 +325,7 @@ docker build --progress=plain -t swdee/go-rknnlite:latest .
 
 Check version after build is complete.
 ```
-docker run --rm go-rknnlite:latest
+docker run --rm swdee/go-rknnlite:latest
 ```
 
 
