@@ -95,6 +95,9 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir \
     "ml-dtypes==0.5.4" "onnx==1.18.0" "onnxruntime==1.18.1"
 
+# for older version of setuptools which contains pkg_resources needed by rknn-toolkit
+RUN pip install setuptools==81.0.0
+
 # download other onnx models
 RUN git clone --depth 1 https://github.com/swdee/go-rknnlite-build.git /opt/go-rknnlite-build && \
     git -C /opt/go-rknnlite-build fetch --depth 1 origin 779c06560e3b64fdb70109401c0f8991c3c576a9 && \
