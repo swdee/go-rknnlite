@@ -6,6 +6,26 @@
 See the [commit log](https://github.com/swdee/go-rknnlite/commits/master/) for general changes.
 
 
+## Performance Changes
+
+### 22 May, 2026
+
+The YOLOv5 and YOLOv8 Segmentation post processing code has been refactored and gained 
+significant improvement with post processing performance being 75% faster.  Total overhead
+including inference, post processing, and rendering had a 40.9% gain on RK3588 platform reducing
+per frame processing time from 115ms to 68ms.
+
+This was achieved with the following optimizations:
+
+1) Optimized matmul algorithm: remove sigmoid + channel-contiguous accumulation.
+
+2) Wrote optimized NEON/SIMD matmul function using improvements from (1). 
+
+3) Changed segmentation mask resizing to work on per object ROI mask size instead of full frame image resizing.
+
+
+
+
 ## Breaking Changes
 
 Some notes on breaking changes.
