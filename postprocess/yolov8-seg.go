@@ -13,6 +13,7 @@ const (
 	bufSegMask = "segMask"
 	bufAllMask = "allMask"
 	bufCrop    = "crop"
+	bufProtoCrop = "protoCrop"
 )
 
 // YOLOv8Seg defines the struct for YOLOv8Seg model inference post processing
@@ -356,7 +357,7 @@ func (y *YOLOv8Seg) SegmentMask(detectObjs result.DetectionResult,
 		boxesNum*y.Params.PrototypeHeight*y.Params.PrototypeWeight)
 	defer y.bufPool.Put(bufMatMul, matmulOut)
 
-	if boxesNum > 6 {
+	if boxesNum > 600 {
 		matmulUint8Parallel(
 			segData.data, boxesNum,
 			y.Params.PrototypeChannel,
@@ -382,15 +383,38 @@ func (y *YOLOv8Seg) SegmentMask(detectObjs result.DetectionResult,
 	protoH := y.Params.PrototypeHeight
 	protoW := y.Params.PrototypeWeight
 
+
+	protoCrop := y.bufPool.Get(bufProtoCrop, protoH*protoW)
+	defer y.bufPool.Put(bufProtoCrop, protoCrop)
+
+	roiMask := y.bufPool.Get(bufSegMask, modelH*modelW)
+	defer y.bufPool.Put(bufSegMask, roiMask)
+
 	// temp buffer for one‑box resize
-	segMaskBuf := y.bufPool.Get(bufSegMask, modelH*modelW)
-	defer y.bufPool.Put(bufSegMask, segMaskBuf)
+//	segMaskBuf := y.bufPool.Get(bufSegMask, modelH*modelW)
+//	defer y.bufPool.Put(bufSegMask, segMaskBuf)
 
 	for b := 0; b < boxesNum; b++ {
 		// get the b'th proto mask slice
 		start := b * protoH * protoW
 		protoSlice := matmulOut[start : start+protoH*protoW]
 
+		mergeProtoROIToModelMask(
+			protoSlice,
+			protoW,
+			protoH,
+			allMask,
+			modelW,
+			modelH,
+			segData.filterBoxesByNMS[b*4+0],
+			segData.filterBoxesByNMS[b*4+1],
+			segData.filterBoxesByNMS[b*4+2],
+			segData.filterBoxesByNMS[b*4+3],
+			uint8(b+1),
+			protoCrop,
+			roiMask,
+		)
+/*
 		// resize that one box’s mask to the full model dims
 		// not just ROI—so segReverse’s cropping lines up
 		resizeByOpenCVUint8(
@@ -434,6 +458,7 @@ func (y *YOLOv8Seg) SegmentMask(detectObjs result.DetectionResult,
 				}
 			}
 		}
+*/
 	}
 
 	// do segReverse to produce the final real‑image mask
@@ -625,6 +650,8 @@ func (y *YOLOv8Seg) initBufferPool(segData SegmentData,
 	y.bufPool.Create(bufAllMask,
 		int(segData.data.height*segData.data.width))
 
+	y.bufPool.Create(bufProtoCrop, y.Params.PrototypeHeight*y.Params.PrototypeWeight)
+
 	croppedH := modelH - resizer.YPad()*2
 	croppedW := modelW - resizer.XPad()*2
 
@@ -632,3 +659,98 @@ func (y *YOLOv8Seg) initBufferPool(segData SegmentData,
 
 	y.bufPoolInit = true
 }
+
+
+
+
+func mergeProtoROIToModelMask(
+	protoSlice []uint8,
+	protoW int,
+	protoH int,
+	allMask []uint8,
+	modelW int,
+	modelH int,
+	x1 int,
+	y1 int,
+	x2 int,
+	y2 int,
+	id uint8,
+	protoCrop []uint8,
+	roiMask []uint8,
+) {
+	if x1 < 0 {
+		x1 = 0
+	}
+	if y1 < 0 {
+		y1 = 0
+	}
+	if x2 > modelW {
+		x2 = modelW
+	}
+	if y2 > modelH {
+		y2 = modelH
+	}
+
+	roiW := x2 - x1
+	roiH := y2 - y1
+	if roiW <= 0 || roiH <= 0 {
+		return
+	}
+
+	px1 := x1 * protoW / modelW
+	py1 := y1 * protoH / modelH
+	px2 := (x2*protoW + modelW - 1) / modelW
+	py2 := (y2*protoH + modelH - 1) / modelH
+
+	if px1 < 0 {
+		px1 = 0
+	}
+	if py1 < 0 {
+		py1 = 0
+	}
+	if px2 > protoW {
+		px2 = protoW
+	}
+	if py2 > protoH {
+		py2 = protoH
+	}
+
+	srcW := px2 - px1
+	srcH := py2 - py1
+	if srcW <= 0 || srcH <= 0 {
+		return
+	}
+
+	srcCrop := protoCrop[:srcW*srcH]
+	for yy := 0; yy < srcH; yy++ {
+		copy(
+			srcCrop[yy*srcW:(yy+1)*srcW],
+			protoSlice[(py1+yy)*protoW+px1:(py1+yy)*protoW+px2],
+		)
+	}
+
+	dstROI := roiMask[:roiW*roiH]
+
+	resizeByOpenCVUint8(
+		srcCrop,
+		srcW,
+		srcH,
+		1,
+		dstROI,
+		roiW,
+		roiH,
+	)
+
+	for yy := 0; yy < roiH; yy++ {
+		dstBase := (y1+yy)*modelW + x1
+		srcBase := yy * roiW
+
+		for xx := 0; xx < roiW; xx++ {
+			if dstROI[srcBase+xx] != 0 {
+				allMask[dstBase+xx] = id
+			}
+		}
+	}
+}
+
+

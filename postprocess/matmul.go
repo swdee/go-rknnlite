@@ -6,7 +6,7 @@ import (
 )
 
 // matmulUint8 is the straight‑line version: no channels or goroutines.
-func matmulUint8(data *strideData, boxesNum, protoChannel,
+func matmulUint8O(data *strideData, boxesNum, protoChannel,
 	protoHeight, protoWeight int, C []uint8) {
 
 	A := data.filterSegmentsByNMS
@@ -41,7 +41,7 @@ func matmulUint8(data *strideData, boxesNum, protoChannel,
 
 // matmulUint8Parallel splits the rows across NumCPU workers,
 // avoids a channel‐per‐row, and writes disjoint regions of C.
-func matmulUint8Parallel(data *strideData, boxesNum, protoChannel,
+func matmulUint8ParallelO(data *strideData, boxesNum, protoChannel,
 	protoHeight, protoWeight int, C []uint8) {
 
 	A := data.filterSegmentsByNMS

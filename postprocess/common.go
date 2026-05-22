@@ -6,6 +6,7 @@ import (
 	"math"
 )
 
+
 // deqntAffineToF32 converts a quantized int8 value back to a float32 using
 // the provided zero point and scale
 func deqntAffineToF32(qnt int8, zp int32, scale float32) float32 {
