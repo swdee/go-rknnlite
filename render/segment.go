@@ -2,43 +2,18 @@ package render
 
 import (
 	"fmt"
+	"image"
+	"image/color"
+
 	"github.com/swdee/go-rknnlite/postprocess/result"
 	"github.com/swdee/go-rknnlite/tracker"
 	"gocv.io/x/gocv"
-	"image"
-	"image/color"
 )
-
-func countMaskPixels(mask []uint8) {
-
-	total := len(mask)
-	nonZero := 0
-	byID := make(map[uint8]int)
-
-	for _, v := range mask {
-		if v != 0 {
-			nonZero++
-			byID[v]++
-		}
-	}
-
-	fmt.Printf("mask nonzero=%d total=%d percent=%.2f%% ids=%d\n",
-		nonZero,
-		total,
-		float64(nonZero)*100/float64(total),
-		len(byID),
-	)
-
-	for id, count := range byID {
-		fmt.Printf("  id=%d pixels=%d\n", id, count)
-	}
-}
-
 
 // SegmentMask renders the provided segment masks as a transparent overlay on
 // top of the whole image
 func SegmentMask(img *gocv.Mat, segMask []uint8, alpha float32) {
-//	countMaskPixels(segMask)
+	//	countMaskPixels(segMask)
 	// get pointer to image Mat so we can directly manipulate its pixels
 	buf, err := img.DataPtrUint8() // length == total*3 (BGR)
 
