@@ -348,11 +348,7 @@ func (y *YOLOv8Seg) SegmentMask(detectObjs result.DetectionResult,
 	// C code does not use USE_FP_RESIZE as uint8 is faster via CPU calculation
 	// than using NPU
 
-	// compute the mask through Matmul.  we have a parallel version of the code
-	// which uses goroutines, but speed benefits are only gained from about
-	// greater than 6 boxes. the parallel version has a negative consequence
-	// in that it effects the performance of the resizeByOpenCVUint8() call
-	// afterwards due to the overhead of the goroutines being cleaned up.
+	// compute the mask through Matmul
 	matmulOut := y.bufPool.Get(bufMatMul,
 		boxesNum*y.Params.PrototypeHeight*y.Params.PrototypeWeight)
 	defer y.bufPool.Put(bufMatMul, matmulOut)
@@ -455,11 +451,7 @@ func (y *YOLOv8Seg) TrackMask(detectObjs result.DetectionResult,
 	// C code does not use USE_FP_RESIZE as uint8 is faster via CPU calculation
 	// than using NPU
 
-	// compute the mask through Matmul.  we have a parallel version of the code
-	// which uses goroutines, but speed benefits are only gained from about
-	// greater than 6 boxes. the parallel version has a negative consequence
-	// in that it effects the performance of the resizeByOpenCVUint8() call
-	// afterwards due to the overhead of the goroutines being cleaned up.
+	// compute the mask through Matmul
 	matmulOut := y.bufPool.Get(bufMatMul,
 		boxesNum*y.Params.PrototypeHeight*y.Params.PrototypeWeight)
 	defer y.bufPool.Put(bufMatMul, matmulOut)

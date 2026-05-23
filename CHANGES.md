@@ -12,8 +12,9 @@ See the [commit log](https://github.com/swdee/go-rknnlite/commits/master/) for g
 
 The YOLOv5 and YOLOv8 Segmentation post processing code has been refactored and gained 
 significant improvement with post processing performance being 75% faster.  Total overhead
-including inference, post processing, and rendering had a 40.9% gain on RK3588 platform reducing
-per frame processing time from 115ms to 68ms.
+for YOLOv8 including inference, post processing, and rendering had a 40.9% gain on 
+RK3588 platform reducing per frame processing time from 115ms to 68ms.  For
+YOLOv5 per frame processing time dropped from 109ms to 60ms.
 
 This was achieved with the following optimizations:
 
