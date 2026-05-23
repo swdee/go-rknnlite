@@ -2,17 +2,18 @@ package render
 
 import (
 	"fmt"
+	"image"
+	"image/color"
+
 	"github.com/swdee/go-rknnlite/postprocess/result"
 	"github.com/swdee/go-rknnlite/tracker"
 	"gocv.io/x/gocv"
-	"image"
-	"image/color"
 )
 
 // SegmentMask renders the provided segment masks as a transparent overlay on
 // top of the whole image
 func SegmentMask(img *gocv.Mat, segMask []uint8, alpha float32) {
-
+	//	countMaskPixels(segMask)
 	// get pointer to image Mat so we can directly manipulate its pixels
 	buf, err := img.DataPtrUint8() // length == total*3 (BGR)
 

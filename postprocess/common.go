@@ -1,9 +1,10 @@
 package postprocess
 
 import (
-	"gocv.io/x/gocv"
 	"image"
 	"math"
+
+	"gocv.io/x/gocv"
 )
 
 // deqntAffineToF32 converts a quantized int8 value back to a float32 using

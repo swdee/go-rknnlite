@@ -302,32 +302,18 @@ func (y *YOLOv5Seg) SegmentMask(detectObjs result.DetectionResult,
 	// C code does not use USE_FP_RESIZE as uint8 is faster via CPU calculation
 	// than using NPU
 
-	// compute the mask through Matmul.  we have a parallel version of the code
-	// which uses goroutines, but speed benefits are only gained from about
-	// greater than 6 boxes. the parallel version has a negative consequence
-	// in that it effects the performance of the resizeByOpenCVUint8() call
-	// afterwards due to the overhead of the goroutines being cleaned up.
+	// compute the mask through Matmul
 	matmulOut := y.bufPool.Get(bufMatMul,
 		boxesNum*y.Params.PrototypeHeight*y.Params.PrototypeWeight)
 	defer y.bufPool.Put(bufMatMul, matmulOut)
 
-	if boxesNum > 6 {
-		matmulUint8Parallel(
-			segData.data, boxesNum,
-			y.Params.PrototypeChannel,
-			y.Params.PrototypeHeight,
-			y.Params.PrototypeWeight,
-			matmulOut,
-		)
-	} else {
-		matmulUint8(
-			segData.data, boxesNum,
-			y.Params.PrototypeChannel,
-			y.Params.PrototypeHeight,
-			y.Params.PrototypeWeight,
-			matmulOut,
-		)
-	}
+	matmulUint8(
+		segData.data, boxesNum,
+		y.Params.PrototypeChannel,
+		y.Params.PrototypeHeight,
+		y.Params.PrototypeWeight,
+		matmulOut,
+	)
 
 	// resize each proto‑mask to full model input dims,
 	// but only in its bounding‑box ROI, merging into allMaskInOne
@@ -337,58 +323,32 @@ func (y *YOLOv5Seg) SegmentMask(detectObjs result.DetectionResult,
 	protoH := y.Params.PrototypeHeight
 	protoW := y.Params.PrototypeWeight
 
-	// temp buffer for one‑box resize
-	segMaskBuf := y.bufPool.Get(bufSegMask, modelH*modelW)
-	defer y.bufPool.Put(bufSegMask, segMaskBuf)
+	protoCrop := y.bufPool.Get(bufProtoCrop, protoH*protoW)
+	defer y.bufPool.Put(bufProtoCrop, protoCrop)
+
+	roiMask := y.bufPool.Get(bufSegMask, modelH*modelW)
+	defer y.bufPool.Put(bufSegMask, roiMask)
 
 	for b := 0; b < boxesNum; b++ {
 		// get the b'th proto mask slice
 		start := b * protoH * protoW
 		protoSlice := matmulOut[start : start+protoH*protoW]
 
-		// resize that one box’s mask to the full model dims
-		// not just ROI—so segReverse’s cropping lines up
-		resizeByOpenCVUint8(
-			protoSlice, protoW, protoH,
-			1,
-			segMaskBuf, modelW, modelH,
+		mergeProtoROIToModelMask(
+			protoSlice,
+			protoW,
+			protoH,
+			allMask,
+			modelW,
+			modelH,
+			segData.filterBoxesByNMS[b*4+0],
+			segData.filterBoxesByNMS[b*4+1],
+			segData.filterBoxesByNMS[b*4+2],
+			segData.filterBoxesByNMS[b*4+3],
+			uint8(b+1),
+			protoCrop,
+			roiMask,
 		)
-
-		// merge just ROI pixels into allMask
-		// filterBoxesByNMS is in model coords
-		x1 := segData.filterBoxesByNMS[b*4+0]
-		y1 := segData.filterBoxesByNMS[b*4+1]
-		x2 := segData.filterBoxesByNMS[b*4+2]
-		y2 := segData.filterBoxesByNMS[b*4+3]
-
-		// clamp
-		if x1 < 0 {
-			x1 = 0
-		}
-
-		if y1 < 0 {
-			y1 = 0
-		}
-
-		if x2 > modelW {
-			x2 = modelW
-		}
-
-		if y2 > modelH {
-			y2 = modelH
-		}
-
-		id := uint8(b + 1) // assign unique id to object
-
-		for yy := y1; yy < y2; yy++ {
-			base := yy*modelW + x1
-
-			for xx := x1; xx < x2; xx++ {
-				if segMaskBuf[yy*modelW+xx] != 0 {
-					allMask[base+xx-x1] = id
-				}
-			}
-		}
 	}
 
 	// do segReverse to produce the final real‑image mask
@@ -446,32 +406,18 @@ func (y *YOLOv5Seg) TrackMask(detectObjs result.DetectionResult,
 	// C code does not use USE_FP_RESIZE as uint8 is faster via CPU calculation
 	// than using NPU
 
-	// compute the mask through Matmul.  we have a parallel version of the code
-	// which uses goroutines, but speed benefits are only gained from about
-	// greater than 6 boxes. the parallel version has a negative consequence
-	// in that it effects the performance of the resizeByOpenCVUint8() call
-	// afterwards due to the overhead of the goroutines being cleaned up.
+	// compute the mask through Matmul
 	matmulOut := y.bufPool.Get(bufMatMul,
 		boxesNum*y.Params.PrototypeHeight*y.Params.PrototypeWeight)
 	defer y.bufPool.Put(bufMatMul, matmulOut)
 
-	if boxesNum > 6 {
-		matmulUint8Parallel(
-			segData.data, boxesNum,
-			y.Params.PrototypeChannel,
-			y.Params.PrototypeHeight,
-			y.Params.PrototypeWeight,
-			matmulOut,
-		)
-	} else {
-		matmulUint8(
-			segData.data, boxesNum,
-			y.Params.PrototypeChannel,
-			y.Params.PrototypeHeight,
-			y.Params.PrototypeWeight,
-			matmulOut,
-		)
-	}
+	matmulUint8(
+		segData.data, boxesNum,
+		y.Params.PrototypeChannel,
+		y.Params.PrototypeHeight,
+		y.Params.PrototypeWeight,
+		matmulOut,
+	)
 
 	// prepare combined mask at model resolution
 	allMask := y.bufPool.Get(bufAllMask, modelH*modelW)
@@ -480,9 +426,11 @@ func (y *YOLOv5Seg) TrackMask(detectObjs result.DetectionResult,
 	protoH := y.Params.PrototypeHeight
 	protoW := y.Params.PrototypeWeight
 
-	// temp buffer for per‑object resize
-	segMaskBuf := y.bufPool.Get(bufSegMask, modelH*modelW)
-	defer y.bufPool.Put(bufSegMask, segMaskBuf)
+	protoCrop := y.bufPool.Get(bufProtoCrop, protoH*protoW)
+	defer y.bufPool.Put(bufProtoCrop, protoCrop)
+
+	roiMask := y.bufPool.Get(bufSegMask, modelH*modelW)
+	defer y.bufPool.Put(bufSegMask, roiMask)
 
 	for b := 0; b < boxesNum; b++ {
 		// skip objects we are not tracking
@@ -494,46 +442,21 @@ func (y *YOLOv5Seg) TrackMask(detectObjs result.DetectionResult,
 		start := b * protoH * protoW
 		protoSlice := matmulOut[start : start+protoH*protoW]
 
-		resizeByOpenCVUint8(
-			protoSlice, protoW, protoH,
-			1,
-			segMaskBuf, modelW, modelH,
+		mergeProtoROIToModelMask(
+			protoSlice,
+			protoW,
+			protoH,
+			allMask,
+			modelW,
+			modelH,
+			segData.filterBoxesByNMS[b*4+0],
+			segData.filterBoxesByNMS[b*4+1],
+			segData.filterBoxesByNMS[b*4+2],
+			segData.filterBoxesByNMS[b*4+3],
+			uint8(b+1),
+			protoCrop,
+			roiMask,
 		)
-
-		// merge only within ROI
-		x1 := segData.filterBoxesByNMS[b*4+0]
-		y1 := segData.filterBoxesByNMS[b*4+1]
-		x2 := segData.filterBoxesByNMS[b*4+2]
-		y2 := segData.filterBoxesByNMS[b*4+3]
-
-		// clamp
-		if x1 < 0 {
-			x1 = 0
-		}
-
-		if y1 < 0 {
-			y1 = 0
-		}
-
-		if x2 > modelW {
-			x2 = modelW
-		}
-
-		if y2 > modelH {
-			y2 = modelH
-		}
-
-		id := uint8(b + 1) // assign unique id to object
-
-		for yy := y1; yy < y2; yy++ {
-			base := yy*modelW + x1
-
-			for xx := x1; xx < x2; xx++ {
-				if segMaskBuf[yy*modelW+xx] != 0 {
-					allMask[base+xx-x1] = id
-				}
-			}
-		}
 	}
 
 	// reverse to original image size
@@ -677,6 +600,8 @@ func (y *YOLOv5Seg) initBufferPool(segData SegmentData,
 
 	y.bufPool.Create(bufAllMask,
 		int(segData.data.height*segData.data.width))
+
+	y.bufPool.Create(bufProtoCrop, y.Params.PrototypeHeight*y.Params.PrototypeWeight)
 
 	croppedH := modelH - resizer.YPad()*2
 	croppedW := modelW - resizer.XPad()*2

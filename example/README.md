@@ -28,8 +28,8 @@ Results for the rk3588 with 6 TOPS three core NPU operating at 1Ghz.
 | YOLOv11s     | 46.8ms             | 49.0ms    | 0.9ms           | 1.7ms     |
 | YOLO26 |   42.1ms | 51.3ms | 1.5ms | 2.2ms |
 | YOLOv8n-pose | 37.8ms             | 37.3ms    | 0.5ms           | 1.4ms     |
-| YOLOv5s-seg  | 108.1ms            | 46.0ms    | 64.6ms          | 4.4ms     |
-| YOLOv8s-seg  | 122.0ms            | 53.0ms    | 72.4ms          | 4.3ms     |
+| YOLOv5s-seg  | 57.2ms             | 37.6ms    | 13.4ms          | 4.2ms     |
+| YOLOv8s-seg  | 67.9ms             | 46.4ms    | 16.4ms          | 4.1ms     |
 
 
 
@@ -47,8 +47,8 @@ Results for the rk3576 with 6 TOPS two core NPU operating at 950Mhz.
 | YOLOv11s     | 38.4ms             | 70.1ms    | 2.0ms           | 3.4ms     |
 | YOLO26 | 45.8ms             | 79.6ms    | 3.3ms           | 1.2ms  |
 | YOLOv8n-pose | 33.9ms             | 49.5ms    | 0.9ms           | 2.3ms     |
-| YOLOv5s-seg  | 151.9ms            | 65.9ms    | 95.7ms          | 7.0ms     |
-| YOLOv8s-seg  | 154.2ms            | 78.7ms    | 126.7ms         | 8.2ms     |
+| YOLOv5s-seg  | 67.0ms             | 35.7ms    | 20.7ms          | 6.7ms     |
+| YOLOv8s-seg  | 79.0ms        | 46.7ms    | 25.9ms          | 6.6ms     |
 
 
 ### rk3566
@@ -65,8 +65,8 @@ Results for the rk3566 with 1 TOPS single core NPU operating at 900Mhz.
 | YOLOv11s     | 117.3ms            | 117.6ms   | 4.9ms           | 7.1ms     |
 | YOLO26 | 149.8ms      | 147.5ms   | 7.8ms           | 2.2ms     |
 | YOLOv8n-pose | 59.8ms             | 62.2ms    | 1.6ms           | 4.5ms     |
-| YOLOv5s-seg  | 433.64ms           | 95.7ms    | 349.7ms         | 20.0ms    |
-| YOLOv8s-seg  | 420.8ms            | 110.7ms   | 312.3ms         | 19.7ms    |
+| YOLOv5s-seg  | 145.8ms            | 78.5ms    | 49.6ms          | 14.1ms    |
+| YOLOv8s-seg  | 170.9ms            | 96.0ms    | 59.5ms          | 13.9ms    |
 
 
 
