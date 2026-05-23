@@ -43,8 +43,7 @@ Input tensors:
   index=0, name=x, n_dims=4, dims=[1, 480, 480, 3], n_elems=691200, size=691200, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=-14, scale=0.018658
 Output tensors:
   index=0, name=sigmoid_0.tmp_0, n_dims=4, dims=[1, 1, 480, 480], n_elems=230400, size=230400, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
-Model first run speed: inference=49.443453ms, post processing=4.237269ms, total time=53.680722ms
-Saved image to ../../data/ppocr-det-out.png
+Model first run speed: inference=50.727166ms, post processing=4.356251ms, total time=55.083417ms
 [0]: [(27, 459), (136, 459), (136, 478), (27, 478)] 0.978851
 [1]: [(29, 430), (370, 429), (370, 443), (29, 444)] 0.936015
 [2]: [(26, 396), (362, 396), (362, 414), (26, 414)] 0.949735
@@ -61,7 +60,11 @@ Saved image to ../../data/ppocr-det-out.png
 [13]: [(27, 112), (332, 113), (332, 134), (27, 133)] 0.902135
 [14]: [(26, 81), (171, 81), (171, 103), (26, 103)] 0.995144
 [15]: [(28, 38), (302, 39), (302, 71), (28, 70)] 0.959944
-Benchmark time=3.270392909s, count=100, average total time=32.703929ms
+Saved image to ../../data/ppocr-det-out.png
+Benchmark count=100 warmup=5
+inference: min=21.84892ms p50=27.092113ms p90=29.324779ms max=38.037865ms
+postprocess: min=1.774466ms p50=6.240091ms p90=9.00708ms max=17.788706ms
+total: min=23.661011ms p50=33.692405ms p90=39.297841ms max=47.275649ms
 done
 ```
 
@@ -94,11 +97,11 @@ docker run --rm \
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 3.27s          | 32.70ms                          |
-| rk3576   | 2.95s          | 29.52ms                          |
-| rk3566   | 5.75s          | 57.51ms                          |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 33.6ms                                 |
+| rk3576   | 27.2ms                                 |
+| rk3566   | 53.4ms                                 |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available.  Secondly
@@ -130,9 +133,12 @@ Input tensors:
   index=0, name=x, n_dims=4, dims=[1, 48, 320, 3], n_elems=46080, size=92160, fmt=NHWC, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
 Output tensors:
   index=0, name=softmax_11.tmp_0, n_dims=3, dims=[1, 40, 6625, 0], n_elems=265000, size=530000, fmt=UNDEFINED, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
-Model first run speed: inference=31.240498ms, post processing=494.659µs, total time=31.735157ms
+Model first run speed: inference=29.717064ms, post processing=473.658µs, total time=30.190722ms
 Recognize result: JOINT, score=0.71
-Benchmark time=1.655360827s, count=100, average total time=16.553608ms
+Benchmark count=100 warmup=5
+inference: min=14.701472ms p50=14.728014ms p90=20.079995ms max=27.159779ms
+postprocess: min=468.408µs p50=478.325µs p90=485.615µs max=2.750657ms
+total: min=15.173089ms p50=15.210713ms p90=22.84261ms max=27.64102ms
 done
 ```
 
@@ -267,11 +273,11 @@ in the future.
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 1.65s          | 16.55ms                          |
-| rk3576   | 2.34s          | 23.40ms                          |
-| rk3566   | 5.93s          | 59.35ms                          |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 15.2ms                                 |
+| rk3576   | 15.5ms                                 |
+| rk3566   | 58.1ms                                 |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available.

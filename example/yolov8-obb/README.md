@@ -63,9 +63,13 @@ small vehicle @ (774 396 66 32 angle=0.544957) 0.603226
 large vehicle @ (793 248 72 30 angle=0.573063) 0.599939
 small vehicle @ (725 146 71 34 angle=0.563694) 0.552175
 small vehicle @ (943 512 68 29 angle=0.516851) 0.500000
-Model first run speed: inference=23.698907ms, post processing=3.55243ms, rendering=1.746757ms, total time=28.998094ms
+Model first run speed: inference=22.847828ms, post processing=3.568177ms, rendering=1.746757ms, total time=28.162762ms
 Saved object detection result to ../data/intersection-out.jpg
-Benchmark time=3.269129715s, count=100, average total time=32.691297ms
+Benchmark count=100 warmup=5
+inference: min=19.125654ms p50=19.249901ms p90=22.25634ms max=32.832542ms
+postprocess: min=3.256975ms p50=3.965711ms p90=12.611994ms max=36.314388ms
+render: min=1.347764ms p50=1.458304ms p90=3.711091ms max=7.496847ms
+total: min=24.262091ms p50=25.157198ms p90=39.464615ms max=77.997375ms
 done
 ```
 
@@ -119,11 +123,11 @@ docker run --rm \
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 3.26s          | 32.69ms                          |
-| rk3576   | 2.67s          | 26.78ms                          |
-| rk3566   | 5.95s          | 59.59ms                          |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 25.1ms                                 |
+| rk3576   | 30.9ms                                 |
+| rk3566   | 59.0ms                                 |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available.  Secondly

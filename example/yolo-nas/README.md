@@ -31,9 +31,13 @@ person @ (213 240 284 508) 0.962918
 person @ (108 240 230 535) 0.951223
 person @ (474 233 565 521) 0.943426
 person @ (77 321 132 518) 0.682229
-Model first run speed: inference=74.299132ms, post processing=2.090633ms, rendering=715.155µs, total time=77.10492ms
+Model first run speed: inference=61.050561ms, post processing=2.069921ms, rendering=613.655µs, total time=63.734137ms
 Saved object detection result to ../data/bus-yolo-nas-out.jpg
-Benchmark time=5.940757606s, count=100, average total time=59.407576ms
+Benchmark count=100 warmup=5
+inference: min=44.024244ms p50=51.008368ms p90=85.013168ms max=143.572066ms
+postprocess: min=2.063504ms p50=2.106087ms p90=10.573892ms max=47.447183ms
+render: min=562.031µs p50=598.49µs p90=2.036671ms max=7.692277ms
+total: min=46.773445ms p50=53.887649ms p90=98.111973ms max=199.113436ms
 done
 ```
 
@@ -97,11 +101,11 @@ docker run --rm \
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 5.94s          | 59.40ms                          |
-| rk3576   | 4.68s          | 46.86ms                          |
-| rk3566   | 13.16s         | 131.61ms                         |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 53.8ms                            |
+| rk3576   | 40.6ms                                 |
+| rk3566   | 127.2ms                                |
 
 
 ### RK3588 Bug

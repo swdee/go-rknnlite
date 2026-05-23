@@ -38,9 +38,13 @@ person @ (476 231 559 522) 0.899602
 person @ (108 237 225 537) 0.891880
 person @ (211 240 283 508) 0.884158
 person @ (79 326 126 518) 0.613891
-Model first run speed: inference=48.848268ms, post processing=597.322µs, rendering=702.611µs, total time=50.148201ms
+Model first run speed: inference=55.770587ms, post processing=1.966672ms, rendering=2.211376ms, total time=59.948635ms
 Saved object detection result to ../data/bus-yolov11-out.jpg
-Benchmark time=3.980790684s, count=100, average total time=39.807906ms
+Benchmark count=100 warmup=5
+inference: min=31.309834ms p50=34.611148ms p90=36.7044ms max=57.351975ms
+postprocess: min=502.241µs p50=1.772134ms p90=1.911548ms max=2.960653ms
+render: min=513.032µs p50=1.511972ms p90=1.600346ms max=2.955987ms
+total: min=32.472396ms p50=38.149582ms p90=40.453414ms max=66.624469ms
 done
 ```
 
@@ -114,11 +118,11 @@ configure your own custom parameters.
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 3.98s          | 39.80ms                          |
-| rk3576   | 4.11s          | 41.19ms                          |
-| rk3566   | 11.57s         | 115.73ms                         |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 38.1ms                                 |
+| rk3576   | 37.7ms                                 |
+| rk3566   | 106.8ms                                |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available.  Secondly

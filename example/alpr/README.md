@@ -47,9 +47,11 @@ go run alpr.go -p rk3588
 
 This will result in the output of:
 ```
-Model first run speed: YOLO inference=22.395264ms, YOLO post processing=126.581µs, Plate recognition=4.295597ms, Plate post processing=437.202µs, Total time=27.254644ms
+Model first run speed: YOLO inference=22.612777ms, YOLO post processing=344.743µs, Plate recognition=7.280153ms, Plate post processing=1.060771ms, Total time=31.298736ms
 Saved object detection result to ../data/car-cn-alpr-out.jpg
-Benchmark time=2.976581181s, count=100, average total time=29.765811ms
+Benchmark count=100 warmup=5
+detect: min=23.172183ms p50=28.426166ms p90=36.697384ms max=40.267315ms
+total: min=23.176267ms p50=28.429957ms p90=36.705258ms max=40.274315ms
 done
 ```
 
@@ -103,11 +105,11 @@ docker run --rm \
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 2.97s          | 29.76ms                          |
-| rk3576   | 3.20s          | 31.83ms                          |
-| rk3566   | 6.93s          | 69.36ms                          |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 28.4ms                                 |
+| rk3576   | 35.1ms                                 |
+| rk3566   | 69.8ms                                 |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available.
