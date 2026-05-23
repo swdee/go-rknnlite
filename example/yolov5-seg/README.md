@@ -39,9 +39,14 @@ cat @ (714 101 900 336) 0.706588
 dog @ (312 93 526 304) 0.693387
 cat @ (28 113 171 292) 0.641764
 cat @ (530 141 712 299) 0.616804
-Model first run speed: inference=45.977719ms, post processing=46.101967ms, rendering=1.395305ms, total time=93.474991ms
+Model first run speed: inference=44.579533ms, post processing=13.139627ms, rendering=3.848469ms, total time=61.567629ms
 Saved object detection result to ../data/catdog-yolov5-seg-out.jpg
-Benchmark time=7.346591785s, count=100, average total time=73.465917ms
+Benchmark render=outline
+Benchmark count=100 warmup=5
+inference: min=29.236114ms p50=37.569748ms p90=41.73642ms max=47.432854ms
+postprocess: min=4.674162ms p50=7.006576ms p90=21.087685ms max=49.848683ms
+render: min=965.982µs p50=1.152936ms p90=3.331353ms max=5.177569ms
+total: min=34.97659ms p50=46.189211ms p90=65.979295ms max=101.057091ms
 done
 ```
 
@@ -142,11 +147,11 @@ yoloProcesser := postprocess.NewYOLOv5Seg(yParams)
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 7.34s          | 73.46ms                          |
-| rk3576   | 8.91s          | 89.14ms                          |
-| rk3566   | 32.64s         | 326.44ms                         |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 46.1ms                                 |
+| rk3576   | 46.4ms                                 |
+| rk3566   | 108.3ms                                |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available.  Secondly

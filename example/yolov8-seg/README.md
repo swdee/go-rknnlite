@@ -40,14 +40,19 @@ Output tensors:
   index=10, name=426, n_dims=4, dims=[1, 1, 20, 20], n_elems=400, size=400, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=0.003922
   index=11, name=368, n_dims=4, dims=[1, 32, 20, 20], n_elems=12800, size=12800, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=43, scale=0.019919
   index=12, name=347, n_dims=4, dims=[1, 32, 160, 160], n_elems=819200, size=819200, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-119, scale=0.032336
-Model first run speed: inference=53.334871ms, post processing=47.551235ms, rendering=1.356806ms, total time=102.242912ms
 cat @ (712 98 903 332) 0.918907
 cat @ (24 117 200 291) 0.860259
 dog @ (173 89 359 296) 0.857901
 dog @ (311 98 528 312) 0.831211
 cat @ (523 142 719 299) 0.789163
+Model first run speed: inference=52.137083ms, post processing=12.285066ms, rendering=1.321225ms, total time=65.743374ms
 Saved object detection result to ../data/catdog-yolov8-seg-out.jpg
-Benchmark time=8.332262773s, count=100, average total time=83.322627ms
+Benchmark render=outline
+Benchmark count=100 warmup=5
+inference: min=46.06207ms p50=46.303565ms p90=50.170702ms max=66.796855ms
+postprocess: min=8.448845ms p50=9.203665ms p90=30.727102ms max=77.648405ms
+render: min=1.133396ms p50=1.206602ms p90=3.361105ms max=9.520408ms
+total: min=55.981471ms p50=57.637523ms p90=86.08675ms max=137.098021ms
 done
 ```
 
@@ -148,11 +153,11 @@ yoloProcesser := postprocess.NewYOLOv8Seg(yParams)
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 8.33s          | 83.32ms                          |
-| rk3576   | 10.23s         | 102.33ms                         |
-| rk3566   | 36.02s         | 360.23ms                         |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 57.6ms                                 |
+| rk3576   | 62.7ms                                 |
+| rk3566   | 134.4ms                                |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available.  Secondly
