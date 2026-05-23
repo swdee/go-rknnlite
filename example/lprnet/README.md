@@ -26,9 +26,12 @@ Input tensors:
   index=0, name=input, n_dims=4, dims=[1, 24, 94, 3], n_elems=6768, size=6768, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=0, scale=0.007843
 Output tensors:
   index=0, name=output, n_dims=3, dims=[1, 68, 18, 0], n_elems=1224, size=1224, fmt=UNDEFINED, type=INT8, qnt_type=AFFINE, zp=50, scale=0.643529
-Model first run speed: inference=4.203128ms, post processing=30.916µs, total time=4.234044ms
+Model first run speed: inference=4.122047ms, post processing=30.332µs, total time=4.152379ms
 License plate recognition result: 湘F6CL03
-Benchmark time=350.625899ms, count=100, average total time=3.506258ms
+Benchmark count=100 warmup=5
+inference: min=3.434018ms p50=3.462601ms p90=9.002996ms max=9.385656ms
+postprocess: min=13.125µs p50=16.625µs p90=51.332µs max=57.749µs
+total: min=3.451518ms p50=3.481267ms p90=9.058995ms max=9.443405ms
 done
 ```
 
@@ -85,11 +88,11 @@ maximum length of your countries number plates and character set used.
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 0.35s          | 3.50ms                           |
-| rk3576   | 0.49s          | 4.96ms                           |
-| rk3566   | 1.63s          | 16.32ms                          |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 3.4ms                                  |
+| rk3576   | 4.8ms                                  |
+| rk3566   | 15.8ms                                 |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available.

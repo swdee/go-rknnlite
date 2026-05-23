@@ -32,9 +32,13 @@ Input tensors:
   index=0, name=input, n_dims=4, dims=[1, 256, 256, 3], n_elems=196608, size=196608, fmt=NHWC, type=INT8, qnt_type=AFFINE, zp=0, scale=0.007843
 Output tensors:
   index=0, name=depth, n_dims=4, dims=[1, 1, 256, 256], n_elems=65536, size=65536, fmt=NCHW, type=INT8, qnt_type=AFFINE, zp=-128, scale=19.864582
-Model first run speed: inference=577.442314ms, post processing=1.180646ms, rendering=3.137693ms, total time=581.760653ms
+Model first run speed: inference=503.382348ms, post processing=8.052473ms, rendering=3.232772ms, total time=514.667593ms
 Saved depth map result to ../data/bedroom-out.jpg
-Benchmark time=12.167970519s, count=20, average total time=608.398525ms
+Benchmark count=20 warmup=3
+inference: min=494.314603ms p50=659.282522ms p90=660.773204ms max=661.168113ms
+postprocess: min=1.003606ms p50=1.088479ms p90=1.101312ms max=1.126979ms
+resize: min=2.955694ms p50=3.0324ms p90=3.042317ms max=3.044068ms
+total: min=498.355569ms p50=663.401361ms p90=664.904584ms max=665.312326ms
 done
 ```
 
@@ -84,9 +88,9 @@ docker run --rm \
 
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 12.16s         | 608.39ms                         |
-| rk3576   | 16.85s         | 842.97ms                         |
-| rk3566   | 37.49s         | 1.87s                            
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 663ms                                  |
+| rk3576   | 725ms                                  |
+| rk3566   | 1.87s                                  
 

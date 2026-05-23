@@ -7,14 +7,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/swdee/go-rknnlite"
-	"github.com/swdee/go-rknnlite/postprocess"
-	"github.com/swdee/go-rknnlite/preprocess"
-	"github.com/swdee/go-rknnlite/render"
-	"gocv.io/x/gocv"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
-	"golang.org/x/image/math/fixed"
 	"image"
 	"image/color"
 	"image/draw"
@@ -22,6 +14,16 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/bench"
+	"github.com/swdee/go-rknnlite/postprocess"
+	"github.com/swdee/go-rknnlite/preprocess"
+	"github.com/swdee/go-rknnlite/render"
+	"gocv.io/x/gocv"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/fixed"
 )
 
 const (
@@ -507,28 +509,36 @@ func main() {
 
 func runBenchmark(alpr *ALPR, img gocv.Mat) {
 
-	count := 100
-	start := time.Now()
+	report, err := bench.Run(bench.Config{
+		Warmup: 5,
+		Count:  100,
+		Metrics: []string{
+			"detect",
+		},
+	}, func() (map[string]time.Duration, error) {
 
-	// create Mat for annotated image
-	resImg := gocv.NewMat()
-	defer resImg.Close()
+		// Create output image for annotated rendering.
+		resImg := gocv.NewMat()
+		defer resImg.Close()
 
-	for i := 0; i < count; i++ {
+		start := time.Now()
 
-		// run image through ALPR detection
+		// Run image through ALPR detection pipeline.
 		_, err := alpr.Detect(img, &resImg)
-
 		if err != nil {
-			log.Fatal("Error occurred on ALPR Detect: ", err)
+			return nil, err
 		}
+
+		endDetect := time.Now()
+
+		return map[string]time.Duration{
+			"detect": endDetect.Sub(start),
+		}, nil
+	})
+
+	if err != nil {
+		log.Fatal("Benchmark failed: ", err)
 	}
 
-	end := time.Now()
-	total := end.Sub(start)
-	avg := total / time.Duration(count)
-
-	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
-		total.String(), count, avg.String(),
-	)
+	report.Print()
 }

@@ -34,9 +34,13 @@ person @ (110 236 226 535) 0.877794
 bus @ (100 136 552 437) 0.877794
 person @ (210 242 286 509) 0.803507
 person @ (80 327 124 516) 0.803507
-Model first run speed: inference=51.934692ms, post processing=1.427975ms, rendering=703.487µs, total time=54.066154ms
+Model first run speed: inference=51.683243ms, post processing=1.397932ms, rendering=734.986µs, total time=53.816161ms
 Saved object detection result to ../data/bus-yolo26-out.jpg
-Benchmark time=4.054949584s, count=100, average total time=40.549495ms
+Benchmark count=100 warmup=5
+inference: min=37.005976ms p50=37.063141ms p90=37.550507ms max=74.717479ms
+postprocess: min=1.169853ms p50=1.215936ms p90=1.321517ms max=27.223658ms
+render: min=503.407µs p50=526.157µs p90=590.322µs max=6.212968ms
+total: min=38.868233ms p50=38.969439ms p90=39.623926ms max=87.173455ms
 done
 ```
 
@@ -135,11 +139,11 @@ python rknn_export/convert.py --model-path yolo26s.onnx --platform rk3588 --dtyp
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 4.05s          | 40.54ms                          |
-| rk3576   | 4.21s          | 42.16ms                          |
-| rk3566   | 14.21s         | 142.15ms                         |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 38.9ms                                 |
+| rk3576   | 42.6ms                                 |
+| rk3566   | 144.1ms                               |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available.  Secondly

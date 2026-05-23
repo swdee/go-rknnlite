@@ -30,6 +30,10 @@ Output tensors:
 286: 0.105469
 464: 0.089844
 264: 0.019531
+Benchmark count=100 warmup=5
+inference: min=1.941296ms p50=1.944504ms p90=1.962295ms max=2.820945ms
+postprocess: min=44.332µs p50=44.624µs p90=44.625µs max=70.291µs
+total: min=1.986795ms p50=1.990295ms p90=2.011003ms max=2.88657ms
 done
 ```
 
@@ -68,6 +72,23 @@ docker run --rm \
   swdee/go-rknnlite:latest \
   go run ./example/mobilenet/mobilenet.go -p rk3588
 ```
+
+
+## Benchmarks
+
+The following table shows a comparison of the benchmark results across the three distinct platforms.
+
+
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 1.99ms                                 |
+| rk3576   | 2.52ms                                 |
+| rk3566   | 4.88ms                                 |
+
+Note that these examples are only using a single NPU core to run inference on.  The results
+would be different when running a Pool of models using all NPU cores available.  Secondly
+the Rock 4D (rk3576) has DDR5 memory versus the Rock 5B (rk3588) with slower DDR4 memory which
+explains the faster result.
 
 
 ## Background

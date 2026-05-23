@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/bench"
 	"github.com/swdee/go-rknnlite/postprocess"
 	"github.com/swdee/go-rknnlite/preprocess"
 	"github.com/swdee/go-rknnlite/render"
@@ -152,40 +153,60 @@ func main() {
 	log.Println("done")
 }
 
-func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLO26,
-	mats []gocv.Mat, classNames []string, resizer *preprocess.Resizer,
+func runBenchmark(rt *rknnlite.Runtime,
+	yoloProcesser *postprocess.YOLO26,
+	mats []gocv.Mat,
+	classNames []string,
+	resizer *preprocess.Resizer,
 	srcImg gocv.Mat) {
 
-	count := 100
-	start := time.Now()
+	report, err := bench.Run(bench.Config{
+		Warmup: 5,
+		Count:  100,
+		Metrics: []string{
+			"inference",
+			"postprocess",
+			"render",
+		},
+	}, func() (map[string]time.Duration, error) {
 
-	for i := 0; i < count; i++ {
-		// perform inference on image file
+		img := srcImg.Clone()
+		defer img.Close()
+
+		start := time.Now()
+
 		outputs, err := rt.Inference(mats)
-
 		if err != nil {
-			log.Fatal("Runtime inferencing failed with error: ", err)
+			return nil, err
 		}
 
-		// post process
+		endInference := time.Now()
+
 		detectObjs := yoloProcesser.DetectObjects(outputs, resizer)
 		detectResults := detectObjs.GetDetectResults()
 
-		render.DetectionBoxes(&srcImg, detectResults, classNames,
+		endPost := time.Now()
+
+		render.DetectionBoxes(&img, detectResults, classNames,
 			render.DefaultFont(), 2)
 
-		err = outputs.Free()
+		endRender := time.Now()
 
+		err = outputs.Free()
 		if err != nil {
-			log.Fatal("Error freeing Outputs: ", err)
+			return nil, err
 		}
+
+		return map[string]time.Duration{
+			"inference":   endInference.Sub(start),
+			"postprocess": endPost.Sub(endInference),
+			"render":      endRender.Sub(endPost),
+		}, nil
+	})
+
+	if err != nil {
+		log.Fatal("Benchmark failed: ", err)
 	}
 
-	end := time.Now()
-	total := end.Sub(start)
-	avg := total / time.Duration(count)
-
-	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
-		total.String(), count, avg.String(),
-	)
+	report.Print()
 }

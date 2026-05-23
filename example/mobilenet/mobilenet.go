@@ -5,12 +5,15 @@ package main
 
 import (
 	"flag"
-	"github.com/swdee/go-rknnlite"
-	"gocv.io/x/gocv"
 	"image"
 	"log"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/bench"
+	"gocv.io/x/gocv"
 )
 
 func main() {
@@ -90,6 +93,9 @@ func main() {
 		log.Fatal("Error freeing Outputs: ", err)
 	}
 
+	// optional code.  run benchmark to get average time
+	runBenchmark(rt, []gocv.Mat{cropImg})
+
 	// close runtime and release resources
 	err = rt.Close()
 
@@ -98,4 +104,49 @@ func main() {
 	}
 
 	log.Println("done")
+}
+
+func runBenchmark(rt *rknnlite.Runtime, mats []gocv.Mat) {
+
+	report, err := bench.Run(bench.Config{
+		Warmup: 5,
+		Count:  100,
+		Metrics: []string{
+			"inference",
+			"postprocess",
+		},
+	}, func() (map[string]time.Duration, error) {
+
+		start := time.Now()
+
+		// Perform inference.
+		outputs, err := rt.Inference(mats)
+		if err != nil {
+			return nil, err
+		}
+
+		endInference := time.Now()
+
+		// Post process classification output.
+		_ = rknnlite.GetTop5(outputs.Output)
+
+		endPost := time.Now()
+
+		// Free RKNN output buffers.
+		err = outputs.Free()
+		if err != nil {
+			return nil, err
+		}
+
+		return map[string]time.Duration{
+			"inference":   endInference.Sub(start),
+			"postprocess": endPost.Sub(endInference),
+		}, nil
+	})
+
+	if err != nil {
+		log.Fatal("Benchmark failed: ", err)
+	}
+
+	report.Print()
 }

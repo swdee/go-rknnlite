@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/bench"
 	"github.com/swdee/go-rknnlite/postprocess"
 	"gocv.io/x/gocv"
 )
@@ -143,47 +144,70 @@ func main() {
 	log.Println("done")
 }
 
-func runBenchmark(rt *rknnlite.Runtime, midasProcessor *postprocess.MiDaS,
-	mats []gocv.Mat, srcImg gocv.Mat) {
+func runBenchmark(rt *rknnlite.Runtime,
+	midasProcessor *postprocess.MiDaS,
+	mats []gocv.Mat,
+	srcImg gocv.Mat) {
 
-	count := 20
-	start := time.Now()
+	report, err := bench.Run(bench.Config{
+		Warmup: 3,
+		Count:  20,
+		Metrics: []string{
+			"inference",
+			"postprocess",
+			"resize",
+		},
+	}, func() (map[string]time.Duration, error) {
 
-	depthMap := gocv.NewMat()
-	defer depthMap.Close()
-	resizedMap := gocv.NewMat()
-	defer resizedMap.Close()
+		depthMap := gocv.NewMat()
+		defer depthMap.Close()
 
-	for i := 0; i < count; i++ {
-		// perform inference on image file
+		resizedMap := gocv.NewMat()
+		defer resizedMap.Close()
+
+		start := time.Now()
+
+		// Perform inference.
 		outputs, err := rt.Inference(mats)
-
 		if err != nil {
-			log.Fatal("Runtime inferencing failed with error: ", err)
+			return nil, err
 		}
 
-		// post process
+		endInference := time.Now()
+
+		// Create depth map from model outputs.
 		err = midasProcessor.CreateDepthMap(outputs, depthMap)
-
 		if err != nil {
-			log.Fatal("Error creating depth map: ", err)
+			return nil, err
 		}
 
-		// resize the color map back to the original input image size
-		gocv.Resize(depthMap, &resizedMap, image.Pt(srcImg.Cols(), srcImg.Rows()), 0, 0, gocv.InterpolationCubic)
+		endPost := time.Now()
 
+		// Resize depth map back to original source image dimensions.
+		gocv.Resize(depthMap, &resizedMap,
+			image.Pt(srcImg.Cols(), srcImg.Rows()),
+			0, 0,
+			gocv.InterpolationCubic,
+		)
+
+		endResize := time.Now()
+
+		// Free RKNN output buffers.
 		err = outputs.Free()
-
 		if err != nil {
-			log.Fatal("Error freeing Outputs: ", err)
+			return nil, err
 		}
+
+		return map[string]time.Duration{
+			"inference":   endInference.Sub(start),
+			"postprocess": endPost.Sub(endInference),
+			"resize":      endResize.Sub(endPost),
+		}, nil
+	})
+
+	if err != nil {
+		log.Fatal("Benchmark failed: ", err)
 	}
 
-	end := time.Now()
-	total := end.Sub(start)
-	avg := total / time.Duration(count)
-
-	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
-		total.String(), count, avg.String(),
-	)
+	report.Print()
 }

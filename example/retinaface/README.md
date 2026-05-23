@@ -32,7 +32,6 @@ Output tensors:
   index=0, name=output0, n_dims=3, dims=[1, 4200, 4, 0], n_elems=16800, size=16800, fmt=UNDEFINED, type=INT8, qnt_type=AFFINE, zp=0, scale=0.044699
   index=1, name=572, n_dims=3, dims=[1, 4200, 2, 0], n_elems=8400, size=16800, fmt=UNDEFINED, type=FP16, qnt_type=AFFINE, zp=0, scale=1.000000
   index=2, name=571, n_dims=3, dims=[1, 4200, 10, 0], n_elems=42000, size=42000, fmt=UNDEFINED, type=INT8, qnt_type=AFFINE, zp=-22, scale=0.086195
-Model first run speed: inference=9.732158ms, post processing=163.914µs, rendering=1.654012ms, total time=11.550084ms
 face @ (312 531 453 714) 0.998047
 face @ (306 289 436 454) 0.997559
 face @ (53 286 184 460) 0.996582
@@ -42,8 +41,13 @@ face @ (61 34 192 209) 0.994629
 face @ (523 274 674 474) 0.994141
 face @ (553 28 695 224) 0.991211
 face @ (292 36 421 217) 0.991211
+Model first run speed: inference=9.266658ms, post processing=109.665µs, rendering=1.674135ms, total time=11.050458ms
 Saved object detection result to ../data/face-out.jpg
-Benchmark time=573.784348ms, count=100, average total time=5.737843ms
+Benchmark count=100 warmup=5
+inference: min=4.564788ms p50=4.583164ms p90=7.857935ms max=7.884185ms
+postprocess: min=44.916µs p50=72.916µs p90=226.912µs max=499.908µs
+render: min=754.819µs p50=772.319µs p90=2.785947ms max=3.1024ms
+total: min=5.482647ms p50=5.536604ms p90=9.043247ms max=11.209705ms
 done
 ```
 
@@ -93,11 +97,11 @@ docker run --rm \
 The following table shows a comparison of the benchmark results across the three distinct platforms.
 
 
-| Platform | Execution Time | Average Inference Time Per Image |
-|----------|----------------|----------------------------------|
-| rk3588   | 0.57s          | 5.73ms                           |
-| rk3576   | 0.52s          | 5.27ms                           |
-| rk3566   | 1.12s          | 11.21ms                          |
+| Platform | Average Inference Time Per Image (p50) |
+|----------|----------------------------------------|
+| rk3588   | 5.5ms                                  |
+| rk3576   | 7.2ms                                  |
+| rk3566   | 11.8ms                                 |
 
 Note that these examples are only using a single NPU core to run inference on.  The results
 would be different when running a Pool of models using all NPU cores available. Secondly

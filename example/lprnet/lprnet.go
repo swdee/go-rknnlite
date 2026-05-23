@@ -5,14 +5,16 @@ package main
 
 import (
 	"flag"
-	"github.com/swdee/go-rknnlite"
-	"github.com/swdee/go-rknnlite/postprocess"
-	"gocv.io/x/gocv"
 	"image"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/bench"
+	"github.com/swdee/go-rknnlite/postprocess"
+	"gocv.io/x/gocv"
 )
 
 func main() {
@@ -128,35 +130,49 @@ func main() {
 	log.Println("done")
 }
 
-func runBenchmark(rt *rknnlite.Runtime, lprnetProcesser *postprocess.LPRNet,
+func runBenchmark(rt *rknnlite.Runtime,
+	lprnetProcesser *postprocess.LPRNet,
 	mats []gocv.Mat) {
 
-	count := 100
-	start := time.Now()
+	report, err := bench.Run(bench.Config{
+		Warmup: 5,
+		Count:  100,
+		Metrics: []string{
+			"inference",
+			"postprocess",
+		},
+	}, func() (map[string]time.Duration, error) {
 
-	for i := 0; i < count; i++ {
-		// perform inference on image file
+		start := time.Now()
+
+		// Perform inference.
 		outputs, err := rt.Inference(mats)
-
 		if err != nil {
-			log.Fatal("Runtime inferencing failed with error: ", err)
+			return nil, err
 		}
 
-		// post process
+		endInference := time.Now()
+
+		// Post process plate recognition output.
 		_ = lprnetProcesser.ReadPlates(outputs)
 
-		err = outputs.Free()
+		endPost := time.Now()
 
+		// Free RKNN output buffers.
+		err = outputs.Free()
 		if err != nil {
-			log.Fatal("Error freeing Outputs: ", err)
+			return nil, err
 		}
+
+		return map[string]time.Duration{
+			"inference":   endInference.Sub(start),
+			"postprocess": endPost.Sub(endInference),
+		}, nil
+	})
+
+	if err != nil {
+		log.Fatal("Benchmark failed: ", err)
 	}
 
-	end := time.Now()
-	total := end.Sub(start)
-	avg := total / time.Duration(count)
-
-	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
-		total.String(), count, avg.String(),
-	)
+	report.Print()
 }
