@@ -3,16 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/swdee/go-rknnlite"
+	"github.com/swdee/go-rknnlite/bench"
 	"github.com/swdee/go-rknnlite/postprocess"
 	"github.com/swdee/go-rknnlite/preprocess"
 	"github.com/swdee/go-rknnlite/render"
 	"gocv.io/x/gocv"
-	"log"
-	"os"
-	"sort"
-	"strings"
-	"time"
 )
 
 func main() {
@@ -177,133 +178,35 @@ func main() {
 	log.Println("done")
 }
 
-func runBenchmarkO(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv8Seg,
-	mats []gocv.Mat, classNames []string, resizer *preprocess.Resizer,
-	renderFormat string, srcImg gocv.Mat) {
-
-	count := 100
-	start := time.Now()
-
-	for i := 0; i < count; i++ {
-		// perform inference on image file
-		outputs, err := rt.Inference(mats)
-
-		if err != nil {
-			log.Fatal("Runtime inferencing failed with error: ", err)
-		}
-
-		// post process
-		detectObjs := yoloProcesser.DetectObjects(outputs, resizer)
-		detectResults := detectObjs.GetDetectResults()
-		segMask := yoloProcesser.SegmentMask(detectObjs, resizer)
-
-		switch renderFormat {
-		case "mask":
-			// draw segmentation mask
-			render.SegmentMask(&srcImg, segMask.Mask, 0.5)
-
-			render.DetectionBoxes(&srcImg, detectResults, classNames,
-				render.DefaultFont(), 2)
-
-		case "dump":
-			// do nothing
-
-		case "outline":
-			fallthrough
-		default:
-			// default outline
-			render.SegmentOutline(&srcImg, segMask.Mask, detectResults, 1000,
-				classNames, render.DefaultFont(), 2)
-		}
-
-		err = outputs.Free()
-
-		if err != nil {
-			log.Fatal("Error freeing Outputs: ", err)
-		}
-	}
-
-	end := time.Now()
-	total := end.Sub(start)
-	avg := total / time.Duration(count)
-
-	log.Printf("Benchmark time=%s, count=%d, average total time=%s\n",
-		total.String(), count, avg.String(),
-	)
-}
-
-
-
-type benchStats struct {
-	values []time.Duration
-}
-
-func (s benchStats) min() time.Duration {
-	return s.values[0]
-}
-
-func (s benchStats) max() time.Duration {
-	return s.values[len(s.values)-1]
-}
-
-func (s benchStats) percentile(p float64) time.Duration {
-	if len(s.values) == 0 {
-		return 0
-	}
-
-	idx := int(float64(len(s.values)-1) * p)
-	return s.values[idx]
-}
-
-func newBenchStats(values []time.Duration) benchStats {
-	sort.Slice(values, func(i int, j int) bool {
-		return values[i] < values[j]
-	})
-
-	return benchStats{values: values}
-}
-
-func printBenchStats(name string, values []time.Duration) {
-	stats := newBenchStats(values)
-
-	log.Printf(
-		"%s: min=%s p50=%s p90=%s max=%s",
-		name,
-		stats.min(),
-		stats.percentile(0.50),
-		stats.percentile(0.90),
-		stats.max(),
-	)
-}
-
 func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv8Seg,
 	mats []gocv.Mat, classNames []string, resizer *preprocess.Resizer,
 	renderFormat string, srcImg gocv.Mat) {
 
-	const warmup = 5
-	const count = 100
-	totalRuns := warmup + count
-
-	inferenceTimes := make([]time.Duration, 0, count)
-	postTimes := make([]time.Duration, 0, count)
-	renderTimes := make([]time.Duration, 0, count)
-	totalTimes := make([]time.Duration, 0, count)
-
-	for i := 0; i < totalRuns; i++ {
+	report, err := bench.Run(bench.Config{
+		Warmup: 5,
+		Count:  100,
+		Metrics: []string{
+			"inference",
+			"postprocess",
+			"render",
+		},
+	}, func() (map[string]time.Duration, error) {
 		img := srcImg.Clone()
+		defer img.Close()
 
 		start := time.Now()
 
 		outputs, err := rt.Inference(mats)
 		if err != nil {
-			img.Close()
-			log.Fatal("Runtime inferencing failed with error: ", err)
+			return nil, err
 		}
+
 		endInference := time.Now()
 
 		detectObjs := yoloProcesser.DetectObjects(outputs, resizer)
 		detectResults := detectObjs.GetDetectResults()
 		segMask := yoloProcesser.SegmentMask(detectObjs, resizer)
+
 		endPost := time.Now()
 
 		switch renderFormat {
@@ -321,29 +224,25 @@ func runBenchmark(rt *rknnlite.Runtime, yoloProcesser *postprocess.YOLOv8Seg,
 			render.SegmentOutline(&img, segMask.Mask, detectResults, 1000,
 				classNames, render.DefaultFont(), 2)
 		}
+
 		endRender := time.Now()
 
 		err = outputs.Free()
 		if err != nil {
-			img.Close()
-			log.Fatal("Error freeing Outputs: ", err)
+			return nil, err
 		}
 
-		img.Close()
+		return map[string]time.Duration{
+			"inference":   endInference.Sub(start),
+			"postprocess": endPost.Sub(endInference),
+			"render":      endRender.Sub(endPost),
+		}, nil
+	})
 
-		if i < warmup {
-			continue
-		}
-
-		inferenceTimes = append(inferenceTimes, endInference.Sub(start))
-		postTimes = append(postTimes, endPost.Sub(endInference))
-		renderTimes = append(renderTimes, endRender.Sub(endPost))
-		totalTimes = append(totalTimes, endRender.Sub(start))
+	if err != nil {
+		log.Fatal("Benchmark failed: ", err)
 	}
 
-	log.Printf("Benchmark count=%d warmup=%d render=%s", count, warmup, renderFormat)
-	printBenchStats("inference", inferenceTimes)
-	printBenchStats("postprocess", postTimes)
-	printBenchStats("render", renderTimes)
-	printBenchStats("total", totalTimes)
+	log.Printf("Benchmark render=%s", renderFormat)
+	report.Print()
 }
