@@ -25,7 +25,7 @@ Results for the rk3588 with 6 TOPS three core NPU operating at 1Ghz for p50 timi
 | YOLOv10s     | 36.4ms             | 33.2ms    | 1.2ms           | 1.7ms     |
 | YOLOXs       | 32.3ms             | 29.4ms    | 0.3ms           | 2.3ms     |
 | YOLOv11s     | 37.1ms             | 34.1ms    | 1.0ms           | 1.7ms     |
-| YOLO26       | 70.1ms             | 55.1ms    | 6.9ms           | 7.1ms     |
+| YOLO26       | 40.8ms           | 37.2ms    | 1.3ms           | 1.9ms     |
 | YOLO-NAS     | 54.3ms             | 50.8ms    | 0.8ms           | 0.6ms     |
 | YOLOv8n-pose | 31.4ms             | 25.9ms    | 1.4ms           | 3.5ms     |
 | YOLOv8-OBB   | 16.5ms             | 15.5ms    | 0.6ms           | 0.0ms     |
