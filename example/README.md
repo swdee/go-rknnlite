@@ -25,7 +25,7 @@ Results for the rk3588 with 6 TOPS three core NPU operating at 1Ghz for p50 timi
 | YOLOv10s     | 36.4ms             | 33.2ms    | 1.2ms           | 1.7ms     |
 | YOLOXs       | 32.3ms             | 29.4ms    | 0.3ms           | 2.3ms     |
 | YOLOv11s     | 37.1ms             | 34.1ms    | 1.0ms           | 1.7ms     |
-| YOLO26       | 40.8ms           | 37.2ms    | 1.3ms           | 1.9ms     |
+| YOLO26s      | 40.8ms           | 37.2ms    | 1.3ms           | 1.9ms     |
 | YOLO-NAS     | 54.3ms             | 50.8ms    | 0.8ms           | 0.6ms     |
 | YOLOv8n-pose | 31.4ms             | 25.9ms    | 1.4ms           | 3.5ms     |
 | YOLOv8-OBB   | 16.5ms             | 15.5ms    | 0.6ms           | 0.0ms     |
@@ -45,7 +45,7 @@ Results for the rk3576 with 6 TOPS two core NPU operating at 950Mhz for p50 timi
 | YOLOv10s     | 39.1ms             | 33.5ms    | 2.1ms           | 2.9ms     |
 | YOLOXs       | 36.0ms             | 30.7ms    | 0.6ms           | 4.0ms     |
 | YOLOv11s     | 49.4ms             | 38.9ms    | 4.0ms           | 5.0ms     |
-| YOLO26       | 45.4ms             | 38.3ms    | 3.1ms           | 3.4ms     |
+| YOLO26s      | 45.4ms             | 38.3ms    | 3.1ms           | 3.4ms     |
 | YOLO-NAS     | 38.9ms             | 36.1ms    | 1.3ms           | 1.0ms     |
 | YOLOv8n-pose | 33.2ms             | 27.9ms    | 1.4ms           | 3.4ms     |
 | YOLOv8-OBB   | 16.7ms             | 15.3ms    | 0.7ms           | 0.1ms     |
@@ -64,7 +64,7 @@ Results for the rk3566 with 1 TOPS single core NPU operating at 900Mhz for p50 t
 | YOLOv10s     | 126.8ms            | 104.9ms   | 7.6ms           | 8.2ms     |
 | YOLOXs       | 82.8ms             | 70.8ms    | 1.5ms           | 9.1ms     |
 | YOLOv11s     | 116.9ms            | 103.1ms   | 4.7ms           | 6.9ms     |
-| YOLO26       | 145.4ms            | 127.5ms   | 8.4ms           | 7.7ms     |
+| YOLO26s      | 145.4ms            | 127.5ms   | 8.4ms           | 7.7ms     |
 | YOLO-NAS     | 125.0ms            | 113.1ms   | 4.1ms           | 2.0ms     |
 | YOLOv8n-pose | 58.4ms             | 51.0ms    | 1.5ms           | 4.2ms     |
 | YOLOv8-OBB   | 37.3ms             | 33.8ms    | 2.0ms           | 0.2ms     |
@@ -79,15 +79,15 @@ Average Total Time.
 The Inference column represents processing on the NPU, Post Processing and Rendering
 values are performed on the CPU.
 
-|     ![YOLOv5 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-out.jpg)     |   ![YOLOv8 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-out.jpg)    | 
-|:-------------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------------:|
-|                                      YOLOv5s - 21 Objects Detected                                      |                                    YOLOv8s - 22 Objects Detected                                     |
-|    ![YOLOv10 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov10-out.jpg)    |    ![YOLOX Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolox-out.jpg)     |
-|                                     YOLOv10s - 19 Objects Detected                                      |                                     YOLOXs - 29 Objects Detected                                     |
-|    ![YOLOv11 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov11-out.jpg)    | ![YOLOv8-pose Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolo26-out.jpg) |  
-|                                     YOLOv11s - 19 Objects Detected                                      |                                     YOLO26 - 22 Objects Detected                                     |
-|         ![YOLOv8-pose Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov8-pose-out.jpg) | |  
-|           YOLOv8n-pose - 9 Objects Detected                                    | |
+|     ![YOLOv5 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-out.jpg)     |     ![YOLOv8 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-out.jpg)     | 
+|:-------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------:|
+|                                      YOLOv5s - 21 Objects Detected                                      |                                      YOLOv8s - 22 Objects Detected                                      |
+|    ![YOLOv10 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov10-out.jpg)    |      ![YOLOX Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolox-out.jpg)      |
+|                                     YOLOv10s - 19 Objects Detected                                      |                                      YOLOXs - 29 Objects Detected                                       |
+|    ![YOLOv11 Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov11-out.jpg)    |  ![YOLOv8-pose Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolo26-out.jpg)   |  
+|                                     YOLOv11s - 19 Objects Detected                                      |                                      YOLO26s - 22 Objects Detected                                      |
+|         ![YOLOv8-pose Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov8-pose-out.jpg) |                                                                                                         |  
+|           YOLOv8n-pose - 9 Objects Detected                                    |                                                                                                         |
 | ![YOLOv5-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov5-seg-out.jpg) | ![YOLOv8-seg Output](https://github.com/swdee/go-rknnlite-data/raw/master/yolobench/yolov8-seg-out.jpg) |
 |                                    YOLOv5s-seg - 21 Objects Detected                                    |                                    YOLOv8s-seg - 20 Objects Detected                                    |
 
